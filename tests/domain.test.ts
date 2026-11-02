@@ -37,7 +37,7 @@ describe('encryption', () => {
     const next = encrypt(decrypt(old, 'Person.phone', rotated), 'Person.phone', rotated);
     expect(next.split('.')[1]).toBe('two'); expect(decrypt(next, 'Person.phone', rotated)).toBe('old value');
   });
-  it('builds deterministic keyed blind indexes', () => { expect(blindIndex(' NAME@EXAMPLE.COM ', ring)).toBe(blindIndex('name@example.com', ring)); expect(blindIndex('name@example.com', ring)).not.toBe('name@example.com'); });
+  it('builds deterministic keyed blind indexes without conflating accented addresses', () => { expect(blindIndex(' INFO@EXAMPLE.COM ', ring)).toBe(blindIndex('info@example.com', ring)); expect(blindIndex('name@example.com', ring)).not.toBe('name@example.com'); expect(blindIndex('öz@example.com', ring)).not.toBe(blindIndex('oz@example.com', ring)); });
   it('binds CSRF to the session', () => { const a = csrfToken('session-a'); expect(verifyCsrf('session-a', a)).toBe(true); expect(verifyCsrf('session-b', a)).toBe(false); expect(verifyCsrf('session-a', '')).toBe(false); });
 });
 describe('sensitive paths', () => {

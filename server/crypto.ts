@@ -8,7 +8,7 @@ let cached: Keyring | undefined;
 export function keyring(): Keyring {
   if (cached) return cached;
   if (process.env.FIELD_ENCRYPTION_KEY && process.env.BLIND_INDEX_KEY) {
-    const active = process.env.FIELD_ENCRYPTION_KEY_ID || 'primary';
+    const active = z.string().regex(/^[A-Za-z0-9_-]{1,64}$/).parse(process.env.FIELD_ENCRYPTION_KEY_ID || 'primary');
     const encryption = keySchema.parse(process.env.FIELD_ENCRYPTION_KEY);
     const blind = keySchema.parse(process.env.BLIND_INDEX_KEY);
     if (encryption === blind) throw new Error('Encryption and blind-index keys must differ');
@@ -40,7 +40,9 @@ export function decrypt(ciphertext: string, context: string, ring = keyring()): 
   return Buffer.concat([cipher.update(Buffer.from(data, 'base64url')), cipher.final()]).toString('utf8');
 }
 export function blindIndex(value: string, ring = keyring()): string {
-  const normalized = value.normalize('NFKC').trim().toLocaleLowerCase('tr');
+  // Exact email matching must preserve distinct accented addresses while
+  // normalizing ASCII case; Turkish fuzzy search uses a separate normalizer.
+  const normalized = value.normalize('NFKC').trim().toLowerCase();
   return createHmac('sha256', Buffer.from(ring.blind, 'base64')).update(normalized).digest('hex');
 }
 export function csrfToken(sessionToken: string, ring = keyring()): string {
