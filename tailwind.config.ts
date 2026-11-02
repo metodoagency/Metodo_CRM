@@ -1,0 +1,1 @@
+export default { content: ['./index.html', './src/**/*.{ts,tsx}'], darkMode: 'class', theme: { extend: { colors: { canvas: '#0d1219', panel: '#141c27', line: '#273140', accent: '#b9e781' } } }, plugins: [] };

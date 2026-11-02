@@ -1,0 +1,16 @@
+{
+  "status": "NOT REVIEWED",
+  "entries": [
+    {
+      "id": "minors-review",
+      "text": {
+        "tr": "FIFA RSTP Madde 19 kapsamını kontrol edin.",
+        "en": "Check compliance with FIFA RSTP Article 19."
+      },
+      "appliesWhen": "player.age < 18",
+      "tag": "owner-authored",
+      "version": "0.1.0",
+      "reviewedAt": "NOT REVIEWED"
+    }
+  ]
+}

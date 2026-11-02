@@ -1,0 +1,12 @@
+import EmbeddedPostgres from 'embedded-postgres';
+import { existsSync } from 'node:fs';
+const database = new EmbeddedPostgres({ databaseDir: '.local/postgres', port: 5432, user: 'metodo', password: 'metodo_local_only', authMethod: 'scram-sha-256', persistent: true, postgresFlags: ['-h', '127.0.0.1'] });
+if (!existsSync('.local/postgres/PG_VERSION')) await database.initialise();
+await database.start();
+const client = database.getPgClient('postgres');
+await client.connect();
+if (!(await client.query("SELECT 1 FROM pg_database WHERE datname = 'metodo'")).rowCount) await client.query('CREATE DATABASE metodo');
+await client.end();
+process.on('SIGTERM', () => { void database.stop().finally(() => process.exit(0)); });
+process.on('SIGINT', () => { void database.stop().finally(() => process.exit(0)); });
+setInterval(() => {}, 60000);

@@ -1,0 +1,2377 @@
+generator client {
+ provider = "prisma-client-js"
+ engineType = "client"
+}
+datasource db {
+ provider = "postgresql"
+ url = env("DATABASE_URL")
+ directUrl = env("DIRECT_URL")
+}
+
+enum AgeCategory {
+ A
+ PGL
+ U19
+ U18
+ U17
+ U16
+ U15
+ OTHER
+}
+
+enum RelationStatus {
+ NEW
+ WARM
+ ACTIVE
+ COLD
+}
+
+enum PersonRole {
+ HEAD_COACH
+ ASSISTANT
+ GOALKEEPER_COACH
+ YOUTH_COORDINATOR
+ OFFICIAL
+ SCOUT
+ MEDIA
+ OTHER
+}
+
+enum PlayerStatus {
+ OWN
+ TARGET
+ INTERMEDIARY
+ MANDATED
+}
+
+enum Position {
+ GK
+ CB
+ FB
+ DM
+ CM
+ AM
+ WF
+ CF
+}
+
+enum Foot {
+ LEFT
+ RIGHT
+ BOTH
+}
+
+enum Currency {
+ TRY
+ EUR
+ USD
+ GBP
+}
+
+enum Priority {
+ LOW
+ MEDIUM
+ HIGH
+}
+
+enum RequestStatus {
+ OPEN
+ MATCHED
+ SUGGESTED
+ CLOSED
+}
+
+enum TaskStatus {
+ OPEN
+ DONE
+}
+
+enum Recurrence {
+ NONE
+ WEEKLY
+ MONTHLY
+}
+
+enum Confidentiality {
+ PRIVATE
+ CLUB_ONLY
+ SHAREABLE
+}
+
+enum PresentationChannel {
+ IN_PERSON
+ EMAIL
+ MESSAGING
+ VIDEO
+}
+
+enum PresentationResult {
+ PENDING
+ INTERESTED
+ OFFERED
+ REJECTED
+ WAITING
+}
+
+enum MatchSource {
+ TFF
+}
+
+enum AttendanceStatus {
+ CONSIDERING
+ ATTENDING
+ ATTENDED
+ NOT_ATTENDING
+}
+
+enum SpeakerStatus {
+ CANDIDATE
+ INVITED
+ DISCUSSED
+ ACCEPTED
+ DECLINED
+ CONFIRMED
+ ATTENDED
+}
+
+enum SourceType {
+ OFFICIAL
+ TFF
+ MEDIA
+ SOCIAL
+ MANUAL
+ AI_EXTRACTED
+ DATA_PROVIDER
+ KAP
+ DOCUMENT
+}
+
+enum VerificationStatus {
+ VERIFIED
+ PARTIAL
+ UNVERIFIED
+}
+
+enum ApprovalStatus {
+ PENDING
+ APPROVED
+ REJECTED
+}
+
+enum TrustLevel {
+ OFFICIAL
+ MEDIA
+ SOCIAL_VERIFIED
+}
+
+enum ScanMethod {
+ MANUAL
+ RSS
+ PAGE_CHECK
+}
+
+enum WorkType {
+ EMPLOYEE
+ FREELANCE
+ PROJECT
+}
+
+enum FinanceType {
+ INCOME
+ EXPENSE
+}
+
+enum RelationType {
+ memberOf
+ representedBy
+ intermediaryFor
+ sellingFor
+ mandatedBy
+ suggestedTo
+ presentedTo
+ invitedAs
+ attendee
+ contactOf
+ worksWith
+ partnerOf
+ usesTool
+ hiredBy
+ speakerAt
+ organizedBy
+ scoutedAt
+ linkedTo
+ stakeholderOf
+ dealWith
+ guardianOf
+ licensedAs
+}
+
+enum NotificationStatus {
+ NEW
+ READ
+ SNOOZED
+}
+
+model Owner {
+ pressItemRecords PressItem[]
+ mediaContactRecords MediaContact[]
+ shareLinkRecords ShareLink[]
+ templateVersionRecords TemplateVersion[]
+ templateRecords Template[]
+ caseRecords Case[]
+ licenseRecordRecords LicenseRecord[]
+ transferWindowRecords TransferWindow[]
+ clubFinancialProfileRecords ClubFinancialProfile[]
+ clubStakeholderRecords ClubStakeholder[]
+ transferProcessRecords TransferProcess[]
+ paymentScheduleRecords PaymentSchedule[]
+ commissionTermRecords CommissionTerm[]
+ dealRecords Deal[]
+ watchlistEntryRecords WatchlistEntry[]
+ expenseClaimRecords ExpenseClaim[]
+ scoutAssignmentRecords ScoutAssignment[]
+ playerStatRecords PlayerStat[]
+ dataImportRecords DataImport[]
+ imageRightsAgreementRecords ImageRightsAgreement[]
+ medicalAccessLogRecords MedicalAccessLog[]
+ medicalRecordRecords MedicalRecord[]
+ guardianRecords Guardian[]
+ mandateRecords Mandate[]
+ id String @id @default("owner")
+ email String
+ createdAt DateTime @default(now())
+ sessions Session[]
+ continentRecords Continent[]
+ countryRecords Country[]
+ regionRecords Region[]
+ leagueRecords League[]
+ clubRecords Club[]
+ ageTeamRecords AgeTeam[]
+ personRecords Person[]
+ agentRecords Agent[]
+ playerRecords Player[]
+ contractRecords Contract[]
+ performanceRecordRecords PerformanceRecord[]
+ requestRecords Request[]
+ suggestionRecords Suggestion[]
+ salesListingRecords SalesListing[]
+ presentationRecords Presentation[]
+ meetingRecords Meeting[]
+ taskRecords Task[]
+ matchRecords Match[]
+ scoutReportRecords ScoutReport[]
+ eventRecords Event[]
+ speakerRecords Speaker[]
+ sourceRecords Source[]
+ updateProposalRecords UpdateProposal[]
+ toolRecords Tool[]
+ outsourceContactRecords OutsourceContact[]
+ financeEntryRecords FinanceEntry[]
+ workLogRecords WorkLog[]
+ relationRecords Relation[]
+ timelineEventRecords TimelineEvent[]
+ notificationRecords Notification[]
+ attachmentRecords Attachment[]
+ savedViewRecords SavedView[]
+ userSettingsRecords UserSettings[]
+ auditLogRecords AuditLog[]
+ trashEntryRecords TrashEntry[]
+ noteRecords Note[]
+}
+
+model Session {
+ lastSeenAt DateTime @default(now())
+ id String @id
+ ownerId String
+ owner Owner @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+ email String
+ expiresAt DateTime
+ createdAt DateTime @default(now())
+}
+
+model OAuthAttempt {
+ id String @id
+ nonce String
+ verifier String
+ expiresAt DateTime
+}
+
+model Continent {
+ id String @id @default(uuid()) @db.Uuid
+ ownerId String @default("owner")
+ owner Owner @relation(fields: [ownerId], references: [id])
+ isExample Boolean @default(false)
+ deletedAt DateTime?
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+ createdBy String @default("owner")
+ updatedBy String @default("owner")
+ version Int @default(1)
+ fieldProvenance Json @default("{}")
+ sourceUrl String?
+ sourceType SourceType @default(MANUAL)
+ retrievedAt DateTime @default(now())
+ verificationStatus VerificationStatus @default(UNVERIFIED)
+ name String
+ countries Country[]
+ @@index([ownerId, deletedAt])
+ @@index([ownerId])
+}
+
+model Country {
+ transferWindowLinks TransferWindow[]
+ id String @id @default(uuid()) @db.Uuid
+ ownerId String @default("owner")
+ owner Owner @relation(fields: [ownerId], references: [id])
+ isExample Boolean @default(false)
+ deletedAt DateTime?
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+ createdBy String @default("owner")
+ updatedBy String @default("owner")
+ version Int @default(1)
+ fieldProvenance Json @default("{}")
+ sourceUrl String?
+ sourceType SourceType @default(MANUAL)
+ retrievedAt DateTime @default(now())
+ verificationStatus VerificationStatus @default(UNVERIFIED)
+ name String
+ isoCode String
+ isTracked Boolean @default(false)
+ lat Float?
+ lng Float?
+ continentId String? @db.Uuid
+ continent Continent? @relation(fields: [continentId], references: [id])
+ regions Region[]
+ leagues League[]
+ clubs Club[]
+ @@index([ownerId, deletedAt])
+ @@index([ownerId])
+ @@index([continentId])
+}
+
+model Region {
+ id String @id @default(uuid()) @db.Uuid
+ ownerId String @default("owner")
+ owner Owner @relation(fields: [ownerId], references: [id])
+ isExample Boolean @default(false)
+ deletedAt DateTime?
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+ createdBy String @default("owner")
+ updatedBy String @default("owner")
+ version Int @default(1)
+ fieldProvenance Json @default("{}")
+ sourceUrl String?
+ sourceType SourceType @default(MANUAL)
+ retrievedAt DateTime @default(now())
+ verificationStatus VerificationStatus @default(UNVERIFIED)
+ name String
+ countryId String @db.Uuid
+ country Country @relation(fields: [countryId], references: [id])
+ polygonKey String?
+ clubs Club[]
+ @@index([ownerId, deletedAt])
+ @@index([ownerId])
+ @@index([countryId])
+}
+
+model League {
+ transferWindowLinks TransferWindow[]
+ id String @id @default(uuid()) @db.Uuid
+ ownerId String @default("owner")
+ owner Owner @relation(fields: [ownerId], references: [id])
+ isExample Boolean @default(false)
+ deletedAt DateTime?
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+ createdBy String @default("owner")
+ updatedBy String @default("owner")
+ version Int @default(1)
+ fieldProvenance Json @default("{}")
+ sourceUrl String?
+ sourceType SourceType @default(MANUAL)
+ retrievedAt DateTime @default(now())
+ verificationStatus VerificationStatus @default(UNVERIFIED)
+ name String
+ countryId String @db.Uuid
+ country Country @relation(fields: [countryId], references: [id])
+ tier Int @default(1)
+ ageCategory AgeCategory @default(A)
+ tffPageUrl String?
+ ageTeams AgeTeam[]
+ matches Match[]
+ players Player[]
+ @@index([ownerId, deletedAt])
+ @@index([ownerId])
+ @@index([countryId])
+}
+
+model Club {
+ @@index([ownerId, deletedAt, name, id])
+ clubFinancialProfileLinks ClubFinancialProfile[]
+ clubStakeholderLinks ClubStakeholder[]
+ mandateLinks Mandate[]
+ id String @id @default(uuid()) @db.Uuid
+ ownerId String @default("owner")
+ owner Owner @relation(fields: [ownerId], references: [id])
+ isExample Boolean @default(false)
+ deletedAt DateTime?
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+ createdBy String @default("owner")
+ updatedBy String @default("owner")
+ version Int @default(1)
+ fieldProvenance Json @default("{}")
+ sourceUrl String?
+ sourceType SourceType @default(MANUAL)
+ retrievedAt DateTime @default(now())
+ verificationStatus VerificationStatus @default(UNVERIFIED)
+ name String
+ searchName String
+ shortName String?
+ countryId String? @db.Uuid
+ country Country? @relation(fields: [countryId], references: [id])
+ regionId String? @db.Uuid
+ region Region? @relation(fields: [regionId], references: [id])
+ city String?
+ lat Float?
+ lng Float?
+ stadium String?
+ foundedYear Int?
+ websiteUrl String?
+ socialLinks Json @default("{}")
+ relationStatus RelationStatus @default(NEW)
+ isTracked Boolean @default(false)
+ tffCoachPageUrl String?
+ notes String @default("")
+ ageTeams AgeTeam[]
+ players Player[]
+ contracts Contract[]
+ requests Request[]
+ suggestions Suggestion[]
+ presentations Presentation[]
+ salesListings SalesListing[]
+ @@index([ownerId, deletedAt])
+ @@index([ownerId])
+ @@index([countryId])
+ @@index([regionId])
+}
+
+model AgeTeam {
+ id String @id @default(uuid()) @db.Uuid
+ ownerId String @default("owner")
+ owner Owner @relation(fields: [ownerId], references: [id])
+ isExample Boolean @default(false)
+ deletedAt DateTime?
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+ createdBy String @default("owner")
+ updatedBy String @default("owner")
+ version Int @default(1)
+ fieldProvenance Json @default("{}")
+ sourceUrl String?
+ sourceType SourceType @default(MANUAL)
+ retrievedAt DateTime @default(now())
+ verificationStatus VerificationStatus @default(UNVERIFIED)
+ name String
+ clubId String @db.Uuid
+ club Club @relation(fields: [clubId], references: [id], onDelete: Cascade)
+ ageCategory AgeCategory
+ leagueId String? @db.Uuid
+ league League? @relation(fields: [leagueId], references: [id])
+ @@index([ownerId, deletedAt])
+ @@index([ownerId])
+ @@index([clubId])
+ @@index([leagueId])
+}
+
+model Person {
+ @@index([ownerId, deletedAt, name, id])
+ mediaContactLinks MediaContact[]
+ clubStakeholderLinks ClubStakeholder[]
+ expenseClaimLinks ExpenseClaim[]
+ scoutAssignmentLinks ScoutAssignment[]
+ id String @id @default(uuid()) @db.Uuid
+ ownerId String @default("owner")
+ owner Owner @relation(fields: [ownerId], references: [id])
+ isExample Boolean @default(false)
+ deletedAt DateTime?
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+ createdBy String @default("owner")
+ updatedBy String @default("owner")
+ version Int @default(1)
+ fieldProvenance Json @default("{}")
+ sourceUrl String?
+ sourceType SourceType @default(MANUAL)
+ retrievedAt DateTime @default(now())
+ verificationStatus VerificationStatus @default(UNVERIFIED)
+ name String
+ searchName String
+ role PersonRole @default(OTHER)
+ country String?
+ phone String?
+ phoneIndex String?
+ @@index([phoneIndex])
+ email String?
+ emailIndex String?
+ @@index([emailIndex])
+ birthDate String?
+ birthDateIndex String?
+ @@index([birthDateIndex])
+ hideBirthYear Boolean @default(false)
+ transfermarktUrl String?
+ tffProfileUrl String?
+ relationStatus RelationStatus @default(NEW)
+ notes String @default("")
+ requests Request[]
+ suggestions Suggestion[]
+ presentations Presentation[]
+ speakers Speaker[]
+ scoutReports ScoutReport[]
+ @@index([ownerId, deletedAt])
+ @@index([ownerId])
+}
+
+model Agent {
+ licenseRecordLinks LicenseRecord[]
+ id String @id @default(uuid()) @db.Uuid
+ ownerId String @default("owner")
+ owner Owner @relation(fields: [ownerId], references: [id])
+ isExample Boolean @default(false)
+ deletedAt DateTime?
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+ createdBy String @default("owner")
+ updatedBy String @default("owner")
+ version Int @default(1)
+ fieldProvenance Json @default("{}")
+ sourceUrl String?
+ sourceType SourceType @default(MANUAL)
+ retrievedAt DateTime @default(now())
+ verificationStatus VerificationStatus @default(UNVERIFIED)
+ name String
+ agency String?
+ countries String[]
+ markets String[]
+ relationStatus RelationStatus @default(NEW)
+ networkMemberships String[]
+ players Player[]
+ @@index([ownerId, deletedAt])
+ @@index([ownerId])
+}
+
+model Player {
+ @@index([ownerId, deletedAt, status, name, id])
+ @@index([ownerId, deletedAt, name, id])
+ watchlistEntryLinks WatchlistEntry[]
+ playerStatLinks PlayerStat[]
+ imageRightsAgreementLinks ImageRightsAgreement[]
+ medicalRecordLinks MedicalRecord[]
+ guardianLinks Guardian[]
+ mandateLinks Mandate[]
+ id String @id @default(uuid()) @db.Uuid
+ ownerId String @default("owner")
+ owner Owner @relation(fields: [ownerId], references: [id])
+ isExample Boolean @default(false)
+ deletedAt DateTime?
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+ createdBy String @default("owner")
+ updatedBy String @default("owner")
+ version Int @default(1)
+ fieldProvenance Json @default("{}")
+ sourceUrl String?
+ sourceType SourceType @default(MANUAL)
+ retrievedAt DateTime @default(now())
+ verificationStatus VerificationStatus @default(UNVERIFIED)
+ name String
+ searchName String
+ status PlayerStatus @default(TARGET)
+ photo String?
+ photoSourceUrl String?
+ photoRightsNote String?
+ availability String @default("AVAILABLE")
+ availabilityUntil DateTime? @db.Date
+ birthDate String?
+ birthDateIndex String?
+ @@index([birthDateIndex])
+ nationalities String[]
+ euPassport Boolean?
+ heightCm Int?
+ weightKg Decimal? @db.Decimal(6,2)
+ primaryPosition Position
+ secondaryPositions Position[]
+ preferredFoot Foot?
+ currentClubId String? @db.Uuid
+ currentClub Club? @relation(fields: [currentClubId], references: [id])
+ currentLeagueId String? @db.Uuid
+ currentLeague League? @relation(fields: [currentLeagueId], references: [id])
+ contractEndDate DateTime? @db.Date
+ marketValue Decimal? @db.Decimal(18,2)
+ marketValueCurrency Currency?
+ marketValueDate DateTime? @db.Date
+ marketValueSourceUrl String?
+ transfermarktUrl String?
+ levelScore Decimal? @db.Decimal(3,1)
+ levelSubscores Json @default("{}")
+ levelHistory Json @default("[]")
+ agentId String? @db.Uuid
+ agent Agent? @relation(fields: [agentId], references: [id])
+ mandate Json?
+ strengths String @default("")
+ weaknesses String @default("")
+ bio String @default("")
+ notes String @default("")
+ phone String?
+ phoneIndex String?
+ @@index([phoneIndex])
+ email String?
+ emailIndex String?
+ @@index([emailIndex])
+ healthNotes String?
+ injuryNotes String?
+ contracts Contract[]
+ performances PerformanceRecord[]
+ suggestions Suggestion[]
+ presentations Presentation[]
+ salesListings SalesListing[]
+ scoutReports ScoutReport[]
+ @@index([ownerId, deletedAt])
+ @@index([ownerId])
+ @@index([currentClubId])
+ @@index([currentLeagueId])
+ @@index([agentId])
+ @@index([ownerId, availabilityUntil])
+ @@index([ownerId, contractEndDate])
+ @@index([ownerId, marketValueDate])
+}
+
+model Contract {
+ id String @id @default(uuid()) @db.Uuid
+ ownerId String @default("owner")
+ owner Owner @relation(fields: [ownerId], references: [id])
+ isExample Boolean @default(false)
+ deletedAt DateTime?
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+ createdBy String @default("owner")
+ updatedBy String @default("owner")
+ version Int @default(1)
+ fieldProvenance Json @default("{}")
+ sourceUrl String?
+ sourceType SourceType @default(MANUAL)
+ retrievedAt DateTime @default(now())
+ verificationStatus VerificationStatus @default(UNVERIFIED)
+ name String
+ playerId String @db.Uuid
+ player Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
+ clubId String? @db.Uuid
+ club Club? @relation(fields: [clubId], references: [id])
+ type String
+ signedDate DateTime? @db.Date
+ startDate DateTime @db.Date
+ endDate DateTime @db.Date
+ salaryAmount String?
+ salaryCurrency Currency?
+ salaryPeriod String?
+ salaryBasis String?
+ bonuses String?
+ paymentDay Int?
+ releaseClause Json?
+ buyout Json?
+ extensionOption Json?
+ noticeDeadline DateTime? @db.Date
+ representation Json?
+ documentLink String?
+ isActive Boolean @default(true)
+ @@index([ownerId, deletedAt])
+ @@index([ownerId])
+ @@index([playerId])
+ @@index([clubId])
+ @@index([ownerId, signedDate])
+ @@index([ownerId, startDate])
+ @@index([ownerId, endDate])
+ @@index([ownerId, noticeDeadline])
+}
+
+model PerformanceRecord {
+ id String @id @default(uuid()) @db.Uuid
+ ownerId String @default("owner")
+ owner Owner @relation(fields: [ownerId], references: [id])
+ isExample Boolean @default(false)
+ deletedAt DateTime?
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+ createdBy String @default("owner")
+ updatedBy String @default("owner")
+ version Int @default(1)
+ fieldProvenance Json @default("{}")
+ sourceUrl String?
+ sourceType SourceType @default(MANUAL)
+ retrievedAt DateTime @default(now())
+ verificationStatus VerificationStatus @default(UNVERIFIED)
+ name String
+ playerId String @db.Uuid
+ player Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
+ matchId String? @db.Uuid
+ match Match? @relation(fields: [matchId], references: [id])
+ date DateTime @db.Date
+ opponent String
+ league String?
+ minutes Int
+ position Position?
+ gpsMetrics Json @default("{}")
+ avgHr Int?
+ maxHr Int?
+ clips Json @default("[]")
+ photos Json @default("[]")
+ tacticalDesignFile String?
+ @@index([ownerId, deletedAt])
+ @@index([ownerId])
+ @@index([playerId])
+ @@index([matchId])
+ @@index([ownerId, date])
+}
+
+model Request {
+ id String @id @default(uuid()) @db.Uuid
+ ownerId String @default("owner")
+ owner Owner @relation(fields: [ownerId], references: [id])
+ isExample Boolean @default(false)
+ deletedAt DateTime?
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+ createdBy String @default("owner")
+ updatedBy String @default("owner")
+ version Int @default(1)
+ fieldProvenance Json @default("{}")
+ sourceUrl String?
+ sourceType SourceType @default(MANUAL)
+ retrievedAt DateTime @default(now())
+ verificationStatus VerificationStatus @default(UNVERIFIED)
+ name String
+ clubId String @db.Uuid
+ club Club @relation(fields: [clubId], references: [id], onDelete: Cascade)
+ requesterId String? @db.Uuid
+ requester Person? @relation(fields: [requesterId], references: [id])
+ position Position
+ ageMin Int?
+ ageMax Int?
+ preferredFoot Foot?
+ euRequired Boolean?
+ preferredCountries String[]
+ preferredLeagues String[]
+ salaryMax Decimal? @db.Decimal(18,2)
+ salaryCurrency Currency?
+ feeMax Decimal? @db.Decimal(18,2)
+ feeCurrency Currency?
+ profileText String @default("")
+ tags String[]
+ priority Priority @default(MEDIUM)
+ deadline DateTime? @db.Date
+ status RequestStatus @default(OPEN)
+ suggestions Suggestion[]
+ presentations Presentation[]
+ @@index([ownerId, deletedAt])
+ @@index([ownerId])
+ @@index([clubId])
+ @@index([requesterId])
+ @@index([ownerId, deadline])
+}
+
+model Suggestion {
+ id String @id @default(uuid()) @db.Uuid
+ ownerId String @default("owner")
+ owner Owner @relation(fields: [ownerId], references: [id])
+ isExample Boolean @default(false)
+ deletedAt DateTime?
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+ createdBy String @default("owner")
+ updatedBy String @default("owner")
+ version Int @default(1)
+ fieldProvenance Json @default("{}")
+ sourceUrl String?
+ sourceType SourceType @default(MANUAL)
+ retrievedAt DateTime @default(now())
+ verificationStatus VerificationStatus @default(UNVERIFIED)
+ name String
+ requestId String @db.Uuid
+ request Request @relation(fields: [requestId], references: [id], onDelete: Cascade)
+ playerId String @db.Uuid
+ player Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
+ clubId String @db.Uuid
+ club Club @relation(fields: [clubId], references: [id], onDelete: Cascade)
+ personId String @db.Uuid
+ person Person @relation(fields: [personId], references: [id])
+ date DateTime @db.Date
+ matchScore Decimal? @db.Decimal(5,2)
+ fitReasons String[]
+ missingCriteria String[]
+ whyGoodTransfer String
+ coverNote String @default("")
+ status String @default("PENDING")
+ batchId String
+ @@index([ownerId, deletedAt])
+ @@index([ownerId])
+ @@index([requestId])
+ @@index([playerId])
+ @@index([clubId])
+ @@index([personId])
+ @@index([batchId])
+ @@index([ownerId, date])
+}
+
+model SalesListing {
+ id String @id @default(uuid()) @db.Uuid
+ ownerId String @default("owner")
+ owner Owner @relation(fields: [ownerId], references: [id])
+ isExample Boolean @default(false)
+ deletedAt DateTime?
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+ createdBy String @default("owner")
+ updatedBy String @default("owner")
+ version Int @default(1)
+ fieldProvenance Json @default("{}")
+ sourceUrl String?
+ sourceType SourceType @default(MANUAL)
+ retrievedAt DateTime @default(now())
+ verificationStatus VerificationStatus @default(UNVERIFIED)
+ name String
+ playerId String @db.Uuid
+ player Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
+ clubId String @db.Uuid
+ club Club @relation(fields: [clubId], references: [id], onDelete: Cascade)
+ askingAmount Decimal @db.Decimal(18,2)
+ currency Currency
+ confidentiality Confidentiality @default(PRIVATE)
+ scope String
+ status String
+ interestedClubs String[]
+ @@index([ownerId, deletedAt])
+ @@index([ownerId])
+ @@index([playerId])
+ @@index([clubId])
+}
+
+model Presentation {
+ id String @id @default(uuid()) @db.Uuid
+ ownerId String @default("owner")
+ owner Owner @relation(fields: [ownerId], references: [id])
+ isExample Boolean @default(false)
+ deletedAt DateTime?
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+ createdBy String @default("owner")
+ updatedBy String @default("owner")
+ version Int @default(1)
+ fieldProvenance Json @default("{}")
+ sourceUrl String?
+ sourceType SourceType @default(MANUAL)
+ retrievedAt DateTime @default(now())
+ verificationStatus VerificationStatus @default(UNVERIFIED)
+ name String
+ date DateTime @db.Date
+ clubId String @db.Uuid
+ club Club @relation(fields: [clubId], references: [id], onDelete: Cascade)
+ personId String @db.Uuid
+ person Person @relation(fields: [personId], references: [id])
+ playerId String @db.Uuid
+ player Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
+ requestId String? @db.Uuid
+ request Request? @relation(fields: [requestId], references: [id], onDelete: Cascade)
+ channel PresentationChannel @default(EMAIL)
+ result PresentationResult @default(PENDING)
+ followUpDate DateTime @db.Date
+ note String @default("")
+ @@index([ownerId, deletedAt])
+ @@index([ownerId])
+ @@index([clubId])
+ @@index([personId])
+ @@index([playerId])
+ @@index([requestId])
+ @@index([ownerId, date])
+ @@index([ownerId, followUpDate])
+}
+
+model Meeting {
+ id String @id @default(uuid()) @db.Uuid
+ ownerId String @default("owner")
+ owner Owner @relation(fields: [ownerId], references: [id])
+ isExample Boolean @default(false)
+ deletedAt DateTime?
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+ createdBy String @default("owner")
+ updatedBy String @default("owner")
+ version Int @default(1)
+ fieldProvenance Json @default("{}")
+ sourceUrl String?
+ sourceType SourceType @default(MANUAL)
+ retrievedAt DateTime @default(now())
+ verificationStatus VerificationStatus @default(UNVERIFIED)
+ name String
+ date DateTime @db.Date
+ time String
+ durationMin Int @default(60)
+ locationOrUrl String?
+ participants Json @default("[]")
+ agenda String @default("")
+ notes String @default("")
+ outcome String?
+ @@index([ownerId, deletedAt])
+ @@index([ownerId])
+ @@index([ownerId, date])
+}
+
+model Task {
+ id String @id @default(uuid()) @db.Uuid
+ ownerId String @default("owner")
+ owner Owner @relation(fields: [ownerId], references: [id])
+ isExample Boolean @default(false)
+ deletedAt DateTime?
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+ createdBy String @default("owner")
+ updatedBy String @default("owner")
+ version Int @default(1)
+ fieldProvenance Json @default("{}")
+ sourceUrl String?
+ sourceType SourceType @default(MANUAL)
+ retrievedAt DateTime @default(now())
+ verificationStatus VerificationStatus @default(UNVERIFIED)
+ name String
+ priority Priority @default(MEDIUM)
+ dueDate DateTime @db.Date
+ status TaskStatus @default(OPEN)
+ recurrence Recurrence @default(NONE)
+ entityType String?
+ entityId String?
+ @@index([ownerId, deletedAt])
+ @@index([ownerId])
+ @@index([entityId])
+ @@index([ownerId, dueDate])
+}
+
+model Match {
+ scoutAssignmentLinks ScoutAssignment[]
+ id String @id @default(uuid()) @db.Uuid
+ ownerId String @default("owner")
+ owner Owner @relation(fields: [ownerId], references: [id])
+ isExample Boolean @default(false)
+ deletedAt DateTime?
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+ createdBy String @default("owner")
+ updatedBy String @default("owner")
+ version Int @default(1)
+ fieldProvenance Json @default("{}")
+ sourceUrl String?
+ sourceType SourceType @default(MANUAL)
+ retrievedAt DateTime @default(now())
+ verificationStatus VerificationStatus @default(UNVERIFIED)
+ name String
+ leagueId String @db.Uuid
+ league League @relation(fields: [leagueId], references: [id])
+ season String
+ week Int
+ date DateTime @db.Date
+ time String?
+ stadium String?
+ homeTeam String
+ awayTeam String
+ score String?
+ status String
+ source MatchSource @default(TFF)
+ lastCheckedAt DateTime?
+ performances PerformanceRecord[]
+ @@index([ownerId, deletedAt])
+ @@index([ownerId])
+ @@index([leagueId])
+ @@index([ownerId, date])
+}
+
+model ScoutReport {
+ scoutAssignmentLinks ScoutAssignment[]
+ id String @id @default(uuid()) @db.Uuid
+ ownerId String @default("owner")
+ owner Owner @relation(fields: [ownerId], references: [id])
+ isExample Boolean @default(false)
+ deletedAt DateTime?
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+ createdBy String @default("owner")
+ updatedBy String @default("owner")
+ version Int @default(1)
+ fieldProvenance Json @default("{}")
+ sourceUrl String?
+ sourceType SourceType @default(MANUAL)
+ retrievedAt DateTime @default(now())
+ verificationStatus VerificationStatus @default(UNVERIFIED)
+ name String
+ matchDate DateTime @db.Date
+ league String?
+ stadium String?
+ teams String
+ minutesWatched Int
+ playerId String? @db.Uuid
+ player Player? @relation(fields: [playerId], references: [id])
+ freeName String?
+ relationType String
+ positionWatched Position?
+ performanceScore Decimal @db.Decimal(3,1)
+ strengths String
+ weaknesses String
+ tierSuitability String?
+ opinion String
+ scoutPersonId String? @db.Uuid
+ scoutPerson Person? @relation(fields: [scoutPersonId], references: [id])
+ @@index([ownerId, deletedAt])
+ @@index([ownerId])
+ @@index([playerId])
+ @@index([scoutPersonId])
+ @@index([ownerId, matchDate])
+}
+
+model Event {
+ id String @id @default(uuid()) @db.Uuid
+ ownerId String @default("owner")
+ owner Owner @relation(fields: [ownerId], references: [id])
+ isExample Boolean @default(false)
+ deletedAt DateTime?
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+ createdBy String @default("owner")
+ updatedBy String @default("owner")
+ version Int @default(1)
+ fieldProvenance Json @default("{}")
+ sourceUrl String?
+ sourceType SourceType @default(MANUAL)
+ retrievedAt DateTime @default(now())
+ verificationStatus VerificationStatus @default(UNVERIFIED)
+ name String
+ dateFrom DateTime @db.Date
+ dateTo DateTime @db.Date
+ city String
+ country String
+ attendanceStatus AttendanceStatus @default(CONSIDERING)
+ budget Decimal? @db.Decimal(18,2)
+ actualCost Decimal? @db.Decimal(18,2)
+ currency Currency
+ accommodation String?
+ transport String?
+ organizer String?
+ participantCount Int?
+ valueRating Int?
+ files Json @default("[]")
+ notes String @default("")
+ speakers Speaker[]
+ @@index([ownerId, deletedAt])
+ @@index([ownerId])
+ @@index([ownerId, dateFrom])
+ @@index([ownerId, dateTo])
+}
+
+model Speaker {
+ id String @id @default(uuid()) @db.Uuid
+ ownerId String @default("owner")
+ owner Owner @relation(fields: [ownerId], references: [id])
+ isExample Boolean @default(false)
+ deletedAt DateTime?
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+ createdBy String @default("owner")
+ updatedBy String @default("owner")
+ version Int @default(1)
+ fieldProvenance Json @default("{}")
+ sourceUrl String?
+ sourceType SourceType @default(MANUAL)
+ retrievedAt DateTime @default(now())
+ verificationStatus VerificationStatus @default(UNVERIFIED)
+ name String
+ eventId String @db.Uuid
+ event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+ personId String? @db.Uuid
+ person Person? @relation(fields: [personId], references: [id])
+ club String?
+ role String?
+ topic String?
+ session String?
+ sessionTime String?
+ moderator String?
+ fee Decimal? @db.Decimal(18,2)
+ expenses Decimal? @db.Decimal(18,2)
+ currency Currency
+ pipelineStatus SpeakerStatus @default(CANDIDATE)
+ accommodationStatus String?
+ flightStatus String?
+ relationNote String?
+ @@index([ownerId, deletedAt])
+ @@index([ownerId])
+ @@index([eventId])
+ @@index([personId])
+}
+
+model Source {
+ id String @id @default(uuid()) @db.Uuid
+ ownerId String @default("owner")
+ owner Owner @relation(fields: [ownerId], references: [id])
+ isExample Boolean @default(false)
+ deletedAt DateTime?
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+ createdBy String @default("owner")
+ updatedBy String @default("owner")
+ version Int @default(1)
+ fieldProvenance Json @default("{}")
+ sourceUrl String?
+ sourceType SourceType @default(MANUAL)
+ retrievedAt DateTime @default(now())
+ verificationStatus VerificationStatus @default(UNVERIFIED)
+ name String
+ type SourceType
+ url String
+ trustLevel TrustLevel
+ scanMethod ScanMethod @default(MANUAL)
+ linkedClubIds String[]
+ @@index([ownerId, deletedAt])
+ @@index([ownerId])
+}
+
+model UpdateProposal {
+ id String @id @default(uuid()) @db.Uuid
+ ownerId String @default("owner")
+ owner Owner @relation(fields: [ownerId], references: [id])
+ isExample Boolean @default(false)
+ deletedAt DateTime?
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+ createdBy String @default("owner")
+ updatedBy String @default("owner")
+ version Int @default(1)
+ fieldProvenance Json @default("{}")
+ sourceUrl String?
+ sourceType SourceType @default(MANUAL)
+ retrievedAt DateTime @default(now())
+ verificationStatus VerificationStatus @default(UNVERIFIED)
+ name String
+ date DateTime @default(now())
+ targetType String
+ targetId String
+ type String
+ summary String
+ approvalStatus ApprovalStatus @default(PENDING)
+ payload Json
+ reviewedAt DateTime?
+ rejectionReason String?
+ @@index([ownerId, deletedAt])
+ @@index([ownerId])
+ @@index([targetId])
+}
+
+model Tool {
+ id String @id @default(uuid()) @db.Uuid
+ ownerId String @default("owner")
+ owner Owner @relation(fields: [ownerId], references: [id])
+ isExample Boolean @default(false)
+ deletedAt DateTime?
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+ createdBy String @default("owner")
+ updatedBy String @default("owner")
+ version Int @default(1)
+ fieldProvenance Json @default("{}")
+ sourceUrl String?
+ sourceType SourceType @default(MANUAL)
+ retrievedAt DateTime @default(now())
+ verificationStatus VerificationStatus @default(UNVERIFIED)
+ name String
+ provider String
+ plan String
+ fee Decimal @db.Decimal(18,2)
+ currency Currency
+ renewalDate DateTime @db.Date
+ responsibleOwner String?
+ users String[]
+ demoRep String?
+ demoDate DateTime? @db.Date
+ demoNotes String?
+ decision String
+ usageNotes String?
+ @@index([ownerId, deletedAt])
+ @@index([ownerId])
+ @@index([ownerId, renewalDate])
+ @@index([ownerId, demoDate])
+}
+
+model OutsourceContact {
+ id String @id @default(uuid()) @db.Uuid
+ ownerId String @default("owner")
+ owner Owner @relation(fields: [ownerId], references: [id])
+ isExample Boolean @default(false)
+ deletedAt DateTime?
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+ createdBy String @default("owner")
+ updatedBy String @default("owner")
+ version Int @default(1)
+ fieldProvenance Json @default("{}")
+ sourceUrl String?
+ sourceType SourceType @default(MANUAL)
+ retrievedAt DateTime @default(now())
+ verificationStatus VerificationStatus @default(UNVERIFIED)
+ name String
+ role String
+ workType WorkType
+ projects Json @default("[]")
+ deliverables Json @default("[]")
+ dueDate DateTime? @db.Date
+ paymentPlan Json?
+ contact Json?
+ @@index([ownerId, deletedAt])
+ @@index([ownerId])
+ @@index([ownerId, dueDate])
+}
+
+model FinanceEntry {
+ id String @id @default(uuid()) @db.Uuid
+ ownerId String @default("owner")
+ owner Owner @relation(fields: [ownerId], references: [id])
+ isExample Boolean @default(false)
+ deletedAt DateTime?
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+ createdBy String @default("owner")
+ updatedBy String @default("owner")
+ version Int @default(1)
+ fieldProvenance Json @default("{}")
+ sourceUrl String?
+ sourceType SourceType @default(MANUAL)
+ retrievedAt DateTime @default(now())
+ verificationStatus VerificationStatus @default(UNVERIFIED)
+ name String
+ date DateTime @db.Date
+ type FinanceType
+ category String
+ amount Decimal @db.Decimal(18,2)
+ currency Currency
+ exchangeRate Decimal @db.Decimal(18,6)
+ exchangeRateDate DateTime @db.Date
+ rateSource String
+ amountTry Decimal @db.Decimal(18,2)
+ invoiceNo String?
+ paymentStatus String
+ entityType String?
+ entityId String?
+ @@index([ownerId, deletedAt])
+ @@index([ownerId])
+ @@index([entityId])
+ @@index([ownerId, date])
+ @@index([ownerId, exchangeRateDate])
+}
+
+model WorkLog {
+ id String @id @default(uuid()) @db.Uuid
+ ownerId String @default("owner")
+ owner Owner @relation(fields: [ownerId], references: [id])
+ isExample Boolean @default(false)
+ deletedAt DateTime?
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+ createdBy String @default("owner")
+ updatedBy String @default("owner")
+ version Int @default(1)
+ fieldProvenance Json @default("{}")
+ sourceUrl String?
+ sourceType SourceType @default(MANUAL)
+ retrievedAt DateTime @default(now())
+ verificationStatus VerificationStatus @default(UNVERIFIED)
+ name String
+ date DateTime @db.Date
+ summary String
+ category String
+ durationMin Int
+ linkedEntities Json @default("[]")
+ status String
+ @@index([ownerId, deletedAt])
+ @@index([ownerId])
+ @@index([ownerId, date])
+}
+
+model Relation {
+ id String @id @default(uuid()) @db.Uuid
+ ownerId String @default("owner")
+ owner Owner @relation(fields: [ownerId], references: [id])
+ isExample Boolean @default(false)
+ deletedAt DateTime?
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+ createdBy String @default("owner")
+ updatedBy String @default("owner")
+ version Int @default(1)
+ fieldProvenance Json @default("{}")
+ sourceUrl String?
+ sourceType SourceType @default(MANUAL)
+ retrievedAt DateTime @default(now())
+ verificationStatus VerificationStatus @default(UNVERIFIED)
+ fromType String
+ fromId String
+ toType String
+ toId String
+ relation RelationType
+ role String?
+ startDate DateTime? @db.Date
+ endDate DateTime? @db.Date
+ note String @default("")
+ @@index([ownerId, fromType, fromId])
+ @@index([ownerId, toType, toId])
+ @@index([ownerId, deletedAt])
+ @@index([ownerId])
+ @@index([fromId])
+ @@index([toId])
+ @@index([ownerId, startDate])
+ @@index([ownerId, endDate])
+}
+
+model TimelineEvent {
+ id String @id @default(uuid()) @db.Uuid
+ ownerId String @default("owner")
+ owner Owner @relation(fields: [ownerId], references: [id])
+ isExample Boolean @default(false)
+ deletedAt DateTime?
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+ createdBy String @default("owner")
+ updatedBy String @default("owner")
+ version Int @default(1)
+ fieldProvenance Json @default("{}")
+ sourceUrl String?
+ sourceType SourceType @default(MANUAL)
+ retrievedAt DateTime @default(now())
+ verificationStatus VerificationStatus @default(UNVERIFIED)
+ actor String
+ action String
+ entityType String
+ entityId String
+ diffs Json
+ batchId String
+ summaryTr String
+ summaryEn String
+ @@index([ownerId, entityType, entityId, createdAt])
+ @@index([ownerId, deletedAt])
+ @@index([ownerId])
+ @@index([entityId])
+ @@index([batchId])
+}
+
+model Notification {
+ id String @id @default(uuid()) @db.Uuid
+ ownerId String @default("owner")
+ owner Owner @relation(fields: [ownerId], references: [id])
+ isExample Boolean @default(false)
+ deletedAt DateTime?
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+ createdBy String @default("owner")
+ updatedBy String @default("owner")
+ version Int @default(1)
+ fieldProvenance Json @default("{}")
+ sourceUrl String?
+ sourceType SourceType @default(MANUAL)
+ retrievedAt DateTime @default(now())
+ verificationStatus VerificationStatus @default(UNVERIFIED)
+ type String
+ entityType String
+ entityId String
+ targetDate DateTime @db.Date
+ thresholdDays Int
+ dedupeKey String @unique
+ status NotificationStatus @default(NEW)
+ snoozedUntil DateTime?
+ @@index([ownerId, deletedAt])
+ @@index([ownerId])
+ @@index([entityId])
+ @@index([ownerId, targetDate])
+}
+
+model Attachment {
+ licenseRecordLinks LicenseRecord[]
+ expenseClaimLinks ExpenseClaim[]
+ medicalRecordLinks MedicalRecord[]
+ id String @id @default(uuid()) @db.Uuid
+ ownerId String @default("owner")
+ owner Owner @relation(fields: [ownerId], references: [id])
+ isExample Boolean @default(false)
+ deletedAt DateTime?
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+ createdBy String @default("owner")
+ updatedBy String @default("owner")
+ version Int @default(1)
+ fieldProvenance Json @default("{}")
+ sourceUrl String?
+ sourceType SourceType @default(MANUAL)
+ retrievedAt DateTime @default(now())
+ verificationStatus VerificationStatus @default(UNVERIFIED)
+ name String
+ entityType String
+ entityId String
+ storageKey String
+ mimeType String
+ sizeBytes Int
+ captureDate DateTime? @db.Date
+ autoDeleteDate DateTime? @db.Date
+ @@index([ownerId, deletedAt])
+ @@index([ownerId])
+ @@index([entityId])
+ @@index([ownerId, captureDate])
+ @@index([ownerId, autoDeleteDate])
+}
+
+model SavedView {
+ id String @id @default(uuid()) @db.Uuid
+ ownerId String @default("owner")
+ owner Owner @relation(fields: [ownerId], references: [id])
+ isExample Boolean @default(false)
+ deletedAt DateTime?
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+ createdBy String @default("owner")
+ updatedBy String @default("owner")
+ version Int @default(1)
+ fieldProvenance Json @default("{}")
+ sourceUrl String?
+ sourceType SourceType @default(MANUAL)
+ retrievedAt DateTime @default(now())
+ verificationStatus VerificationStatus @default(UNVERIFIED)
+ name String
+ tableName String
+ filters Json
+ columns Json
+ sort Json
+ @@index([ownerId, deletedAt])
+ @@index([ownerId])
+}
+
+model UserSettings {
+ id String @id @default(uuid()) @db.Uuid
+ ownerId String @default("owner")
+ owner Owner @relation(fields: [ownerId], references: [id])
+ isExample Boolean @default(false)
+ deletedAt DateTime?
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+ createdBy String @default("owner")
+ updatedBy String @default("owner")
+ version Int @default(1)
+ fieldProvenance Json @default("{}")
+ sourceUrl String?
+ sourceType SourceType @default(MANUAL)
+ retrievedAt DateTime @default(now())
+ verificationStatus VerificationStatus @default(UNVERIFIED)
+ language String @default("tr")
+ theme String @default("dark")
+ dashboardLayout Json @default("[]")
+ notificationThresholds Json @default("[180,90,30]")
+ levelWeights Json @default("{}")
+ leagueTiers Json @default("[]")
+ matchingWeights Json @default("{}")
+ tffUrls Json @default("{}")
+ googleSheetsEnabled Boolean @default(false)
+ aiEnabled Boolean @default(false)
+ aiConsent Boolean @default(false)
+ emailDigestEnabled Boolean @default(false)
+ @@unique([ownerId])
+ @@index([ownerId, deletedAt])
+ @@index([ownerId])
+}
+
+model AuditLog {
+ id String @id @default(uuid()) @db.Uuid
+ ownerId String @default("owner")
+ owner Owner @relation(fields: [ownerId], references: [id])
+ isExample Boolean @default(false)
+ deletedAt DateTime?
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+ createdBy String @default("owner")
+ updatedBy String @default("owner")
+ version Int @default(1)
+ fieldProvenance Json @default("{}")
+ sourceUrl String?
+ sourceType SourceType @default(MANUAL)
+ retrievedAt DateTime @default(now())
+ verificationStatus VerificationStatus @default(UNVERIFIED)
+ actor String
+ action String
+ entityType String
+ entityId String
+ diffs Json
+ @@index([ownerId, deletedAt])
+ @@index([ownerId])
+ @@index([entityId])
+}
+
+model TrashEntry {
+ id String @id @default(uuid()) @db.Uuid
+ ownerId String @default("owner")
+ owner Owner @relation(fields: [ownerId], references: [id])
+ isExample Boolean @default(false)
+ deletedAt DateTime?
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+ createdBy String @default("owner")
+ updatedBy String @default("owner")
+ version Int @default(1)
+ fieldProvenance Json @default("{}")
+ sourceUrl String?
+ sourceType SourceType @default(MANUAL)
+ retrievedAt DateTime @default(now())
+ verificationStatus VerificationStatus @default(UNVERIFIED)
+ entityType String
+ entityId String
+ label String
+ expiresAt DateTime
+ @@unique([ownerId, entityType, entityId])
+ @@index([ownerId, deletedAt])
+ @@index([ownerId])
+ @@index([entityId])
+}
+
+model Note {
+ id String @id @default(uuid()) @db.Uuid
+ ownerId String @default("owner")
+ owner Owner @relation(fields: [ownerId], references: [id])
+ isExample Boolean @default(false)
+ deletedAt DateTime?
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+ createdBy String @default("owner")
+ updatedBy String @default("owner")
+ version Int @default(1)
+ fieldProvenance Json @default("{}")
+ sourceUrl String?
+ sourceType SourceType @default(MANUAL)
+ retrievedAt DateTime @default(now())
+ verificationStatus VerificationStatus @default(UNVERIFIED)
+ entityType String
+ entityId String
+ text String
+ @@index([ownerId, deletedAt])
+ @@index([ownerId])
+ @@index([entityId])
+}
+
+enum MedicalType {
+ CHECK
+ INJURY
+ REHAB
+ CLEARANCE
+}
+
+enum MedicalResult {
+ FIT
+ CONDITIONAL
+ UNFIT
+ UNKNOWN
+}
+
+enum MedicalAction {
+ VIEW
+ REVEAL
+ EDIT
+ EXPORT
+}
+
+enum WatchlistStatus {
+ WATCH
+ FOLLOW_UP
+ SHORTLIST
+ DROPPED
+}
+
+enum DealType {
+ TRANSFER
+ MANDATE
+ SPONSORSHIP
+ SPEAKING
+ SCOUTING_SERVICE
+ OTHER
+}
+
+enum CommissionBasis {
+ FIXED
+ PERCENT_OF_FEE
+ PERCENT_OF_SALARY
+}
+
+enum StakeholderRole {
+ SPORTING_DIRECTOR
+ CEO
+ TECHNICAL_DIRECTOR
+ CHIEF_SCOUT
+ HEAD_COACH
+ MEDICAL
+ FINANCE
+ MEDIA
+ OTHER
+}
+
+enum CaseType {
+ FIFA_DRC
+ TFF
+ CAS
+ LABOUR_COURT
+ CRIMINAL_COMPLAINT
+ OTHER
+}
+
+enum TemplateKind {
+ CONTRACT
+ LETTER
+ OUTREACH
+ PRESS
+}
+
+enum ShareScope {
+ PLAYER_PROFILE
+ CV
+}
+
+enum PressStatus {
+ DRAFT
+ APPROVED
+ PUBLISHED_MANUALLY
+}
+
+model Mandate {
+ id String @id @default(uuid()) @db.Uuid
+ ownerId String @default("owner")
+ owner Owner @relation(fields: [ownerId], references: [id])
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+ deletedAt DateTime?
+ createdBy String @default("owner")
+ updatedBy String @default("owner")
+ version Int @default(1)
+ isExample Boolean @default(false)
+ fieldProvenance Json @default("{}")
+ sourceUrl String?
+ sourceType SourceType @default(MANUAL)
+ retrievedAt DateTime @default(now())
+ verificationStatus VerificationStatus @default(UNVERIFIED)
+ name String
+ playerId String @db.Uuid
+ clubId String? @db.Uuid
+ exclusive Boolean @default(false)
+ scope String
+ startDate DateTime @db.Date
+ endDate DateTime @db.Date
+ documentRef String?
+ commissionTerms String?
+ @@index([ownerId, deletedAt])
+ player Player @relation(fields: [playerId], references: [id])
+ club Club? @relation(fields: [clubId], references: [id])
+ @@index([ownerId])
+ @@index([playerId])
+ @@index([clubId])
+ @@index([ownerId, startDate])
+ @@index([ownerId, endDate])
+}
+
+model Guardian {
+ id String @id @default(uuid()) @db.Uuid
+ ownerId String @default("owner")
+ owner Owner @relation(fields: [ownerId], references: [id])
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+ deletedAt DateTime?
+ createdBy String @default("owner")
+ updatedBy String @default("owner")
+ version Int @default(1)
+ isExample Boolean @default(false)
+ fieldProvenance Json @default("{}")
+ sourceUrl String?
+ sourceType SourceType @default(MANUAL)
+ retrievedAt DateTime @default(now())
+ verificationStatus VerificationStatus @default(UNVERIFIED)
+ name String
+ playerId String @db.Uuid
+ relation String
+ phone String?
+ phoneIndex String?
+ email String?
+ emailIndex String?
+ parentalConsentDocumentRef String?
+ @@index([ownerId, deletedAt])
+ player Player @relation(fields: [playerId], references: [id])
+ @@index([ownerId])
+ @@index([playerId])
+ @@index([phoneIndex])
+ @@index([emailIndex])
+}
+
+model MedicalRecord {
+ medicalAccessLogLinks MedicalAccessLog[]
+ id String @id @default(uuid()) @db.Uuid
+ ownerId String @default("owner")
+ owner Owner @relation(fields: [ownerId], references: [id])
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+ deletedAt DateTime?
+ createdBy String @default("owner")
+ updatedBy String @default("owner")
+ version Int @default(1)
+ isExample Boolean @default(false)
+ fieldProvenance Json @default("{}")
+ sourceUrl String?
+ sourceType SourceType @default(MANUAL)
+ retrievedAt DateTime @default(now())
+ verificationStatus VerificationStatus @default(UNVERIFIED)
+ name String
+ playerId String @db.Uuid
+ date DateTime @db.Date
+ type MedicalType
+ resultCategory MedicalResult
+ summary String
+ returnDate DateTime? @db.Date
+ attachmentId String? @db.Uuid
+ restricted Boolean @default(true)
+ @@index([ownerId, deletedAt])
+ player Player @relation(fields: [playerId], references: [id])
+ attachment Attachment? @relation(fields: [attachmentId], references: [id])
+ @@index([ownerId])
+ @@index([playerId])
+ @@index([attachmentId])
+ @@index([ownerId, date])
+ @@index([ownerId, returnDate])
+}
+
+model MedicalAccessLog {
+ id String @id @default(uuid()) @db.Uuid
+ ownerId String @default("owner")
+ owner Owner @relation(fields: [ownerId], references: [id])
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+ deletedAt DateTime?
+ createdBy String @default("owner")
+ updatedBy String @default("owner")
+ version Int @default(1)
+ isExample Boolean @default(false)
+ fieldProvenance Json @default("{}")
+ sourceUrl String?
+ sourceType SourceType @default(MANUAL)
+ retrievedAt DateTime @default(now())
+ verificationStatus VerificationStatus @default(UNVERIFIED)
+ actor String
+ timestamp DateTime @default(now())
+ recordId String @db.Uuid
+ action MedicalAction
+ @@index([ownerId, deletedAt])
+ record MedicalRecord @relation(fields: [recordId], references: [id])
+ @@index([ownerId])
+ @@index([recordId])
+}
+
+model ImageRightsAgreement {
+ id String @id @default(uuid()) @db.Uuid
+ ownerId String @default("owner")
+ owner Owner @relation(fields: [ownerId], references: [id])
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+ deletedAt DateTime?
+ createdBy String @default("owner")
+ updatedBy String @default("owner")
+ version Int @default(1)
+ isExample Boolean @default(false)
+ fieldProvenance Json @default("{}")
+ sourceUrl String?
+ sourceType SourceType @default(MANUAL)
+ retrievedAt DateTime @default(now())
+ verificationStatus VerificationStatus @default(UNVERIFIED)
+ name String
+ playerId String @db.Uuid
+ exclusive Boolean @default(false)
+ territories String[]
+ mediaTypes String[]
+ productCategory String
+ startDate DateTime @db.Date
+ endDate DateTime @db.Date
+ fee Decimal @db.Decimal(18,2)
+ currency Currency
+ status String
+ @@index([ownerId, deletedAt])
+ player Player @relation(fields: [playerId], references: [id])
+ @@index([ownerId])
+ @@index([playerId])
+ @@index([ownerId, startDate])
+ @@index([ownerId, endDate])
+}
+
+model DataImport {
+ playerStatLinks PlayerStat[]
+ id String @id @default(uuid()) @db.Uuid
+ ownerId String @default("owner")
+ owner Owner @relation(fields: [ownerId], references: [id])
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+ deletedAt DateTime?
+ createdBy String @default("owner")
+ updatedBy String @default("owner")
+ version Int @default(1)
+ isExample Boolean @default(false)
+ fieldProvenance Json @default("{}")
+ sourceUrl String?
+ sourceType SourceType @default(MANUAL)
+ retrievedAt DateTime @default(now())
+ verificationStatus VerificationStatus @default(UNVERIFIED)
+ name String
+ provider String
+ licenseNote String
+ mappingProfileId String?
+ rowCount Int
+ status String
+ importedAt DateTime @default(now())
+ @@index([ownerId, deletedAt])
+ @@index([ownerId])
+ @@index([mappingProfileId])
+}
+
+model PlayerStat {
+ id String @id @default(uuid()) @db.Uuid
+ ownerId String @default("owner")
+ owner Owner @relation(fields: [ownerId], references: [id])
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+ deletedAt DateTime?
+ createdBy String @default("owner")
+ updatedBy String @default("owner")
+ version Int @default(1)
+ isExample Boolean @default(false)
+ fieldProvenance Json @default("{}")
+ sourceUrl String?
+ sourceType SourceType @default(MANUAL)
+ retrievedAt DateTime @default(now())
+ verificationStatus VerificationStatus @default(UNVERIFIED)
+ name String
+ playerId String @db.Uuid
+ season String
+ competition String
+ statKey String
+ value Decimal @db.Decimal(18,6)
+ minutes Int
+ sourceImportId String @db.Uuid
+ @@index([ownerId, deletedAt])
+ player Player @relation(fields: [playerId], references: [id])
+ sourceImport DataImport @relation(fields: [sourceImportId], references: [id])
+ @@index([ownerId])
+ @@index([playerId])
+ @@index([sourceImportId])
+}
+
+model ScoutAssignment {
+ id String @id @default(uuid()) @db.Uuid
+ ownerId String @default("owner")
+ owner Owner @relation(fields: [ownerId], references: [id])
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+ deletedAt DateTime?
+ createdBy String @default("owner")
+ updatedBy String @default("owner")
+ version Int @default(1)
+ isExample Boolean @default(false)
+ fieldProvenance Json @default("{}")
+ sourceUrl String?
+ sourceType SourceType @default(MANUAL)
+ retrievedAt DateTime @default(now())
+ verificationStatus VerificationStatus @default(UNVERIFIED)
+ name String
+ scoutId String @db.Uuid
+ matchId String @db.Uuid
+ status String
+ reportId String? @db.Uuid
+ @@index([ownerId, deletedAt])
+ scout Person @relation(fields: [scoutId], references: [id])
+ match Match @relation(fields: [matchId], references: [id])
+ report ScoutReport? @relation(fields: [reportId], references: [id])
+ @@index([ownerId])
+ @@index([scoutId])
+ @@index([matchId])
+ @@index([reportId])
+}
+
+model ExpenseClaim {
+ id String @id @default(uuid()) @db.Uuid
+ ownerId String @default("owner")
+ owner Owner @relation(fields: [ownerId], references: [id])
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+ deletedAt DateTime?
+ createdBy String @default("owner")
+ updatedBy String @default("owner")
+ version Int @default(1)
+ isExample Boolean @default(false)
+ fieldProvenance Json @default("{}")
+ sourceUrl String?
+ sourceType SourceType @default(MANUAL)
+ retrievedAt DateTime @default(now())
+ verificationStatus VerificationStatus @default(UNVERIFIED)
+ name String
+ scoutId String @db.Uuid
+ amount Decimal @db.Decimal(18,2)
+ currency Currency
+ date DateTime @db.Date
+ receiptAttachmentId String? @db.Uuid
+ status String
+ @@index([ownerId, deletedAt])
+ scout Person @relation(fields: [scoutId], references: [id])
+ receiptAttachment Attachment? @relation(fields: [receiptAttachmentId], references: [id])
+ @@index([ownerId])
+ @@index([scoutId])
+ @@index([receiptAttachmentId])
+ @@index([ownerId, date])
+}
+
+model WatchlistEntry {
+ id String @id @default(uuid()) @db.Uuid
+ ownerId String @default("owner")
+ owner Owner @relation(fields: [ownerId], references: [id])
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+ deletedAt DateTime?
+ createdBy String @default("owner")
+ updatedBy String @default("owner")
+ version Int @default(1)
+ isExample Boolean @default(false)
+ fieldProvenance Json @default("{}")
+ sourceUrl String?
+ sourceType SourceType @default(MANUAL)
+ retrievedAt DateTime @default(now())
+ verificationStatus VerificationStatus @default(UNVERIFIED)
+ name String
+ playerId String @db.Uuid
+ status WatchlistStatus
+ notes String
+ @@index([ownerId, deletedAt])
+ player Player @relation(fields: [playerId], references: [id])
+ @@index([ownerId])
+ @@index([playerId])
+}
+
+model Deal {
+ transferProcessLinks TransferProcess[]
+ commissionTermLinks CommissionTerm[]
+ id String @id @default(uuid()) @db.Uuid
+ ownerId String @default("owner")
+ owner Owner @relation(fields: [ownerId], references: [id])
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+ deletedAt DateTime?
+ createdBy String @default("owner")
+ updatedBy String @default("owner")
+ version Int @default(1)
+ isExample Boolean @default(false)
+ fieldProvenance Json @default("{}")
+ sourceUrl String?
+ sourceType SourceType @default(MANUAL)
+ retrievedAt DateTime @default(now())
+ verificationStatus VerificationStatus @default(UNVERIFIED)
+ name String
+ type DealType
+ stage String
+ probability Int @default(0)
+ expectedAmount Decimal @db.Decimal(18,2)
+ currency Currency
+ closeDate DateTime? @db.Date
+ lostReason String?
+ @@index([ownerId, deletedAt])
+ @@index([ownerId])
+ @@index([ownerId, closeDate])
+}
+
+model CommissionTerm {
+ paymentScheduleLinks PaymentSchedule[]
+ id String @id @default(uuid()) @db.Uuid
+ ownerId String @default("owner")
+ owner Owner @relation(fields: [ownerId], references: [id])
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+ deletedAt DateTime?
+ createdBy String @default("owner")
+ updatedBy String @default("owner")
+ version Int @default(1)
+ isExample Boolean @default(false)
+ fieldProvenance Json @default("{}")
+ sourceUrl String?
+ sourceType SourceType @default(MANUAL)
+ retrievedAt DateTime @default(now())
+ verificationStatus VerificationStatus @default(UNVERIFIED)
+ name String
+ dealId String @db.Uuid
+ payer String
+ basis CommissionBasis
+ rate Decimal? @db.Decimal(7,4)
+ fixedAmount Decimal? @db.Decimal(18,2)
+ currency Currency
+ vatRate Decimal? @db.Decimal(7,4)
+ splitGroup Json @default("[]")
+ @@index([ownerId, deletedAt])
+ deal Deal @relation(fields: [dealId], references: [id])
+ @@index([ownerId])
+ @@index([dealId])
+}
+
+model PaymentSchedule {
+ id String @id @default(uuid()) @db.Uuid
+ ownerId String @default("owner")
+ owner Owner @relation(fields: [ownerId], references: [id])
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+ deletedAt DateTime?
+ createdBy String @default("owner")
+ updatedBy String @default("owner")
+ version Int @default(1)
+ isExample Boolean @default(false)
+ fieldProvenance Json @default("{}")
+ sourceUrl String?
+ sourceType SourceType @default(MANUAL)
+ retrievedAt DateTime @default(now())
+ verificationStatus VerificationStatus @default(UNVERIFIED)
+ name String
+ commissionTermId String @db.Uuid
+ dueDate DateTime @db.Date
+ amount Decimal @db.Decimal(18,2)
+ currency Currency
+ paidAt DateTime? @db.Date
+ paidAmount Decimal? @db.Decimal(18,2)
+ invoiceNo String?
+ status String
+ @@index([ownerId, deletedAt])
+ commissionTerm CommissionTerm @relation(fields: [commissionTermId], references: [id])
+ @@index([ownerId])
+ @@index([commissionTermId])
+ @@index([ownerId, dueDate])
+ @@index([ownerId, paidAt])
+}
+
+model TransferProcess {
+ id String @id @default(uuid()) @db.Uuid
+ ownerId String @default("owner")
+ owner Owner @relation(fields: [ownerId], references: [id])
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+ deletedAt DateTime?
+ createdBy String @default("owner")
+ updatedBy String @default("owner")
+ version Int @default(1)
+ isExample Boolean @default(false)
+ fieldProvenance Json @default("{}")
+ sourceUrl String?
+ sourceType SourceType @default(MANUAL)
+ retrievedAt DateTime @default(now())
+ verificationStatus VerificationStatus @default(UNVERIFIED)
+ name String
+ dealId String @db.Uuid
+ steps Json @default("[]")
+ @@index([ownerId, deletedAt])
+ deal Deal @relation(fields: [dealId], references: [id])
+ @@index([ownerId])
+ @@index([dealId])
+}
+
+model ClubStakeholder {
+ id String @id @default(uuid()) @db.Uuid
+ ownerId String @default("owner")
+ owner Owner @relation(fields: [ownerId], references: [id])
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+ deletedAt DateTime?
+ createdBy String @default("owner")
+ updatedBy String @default("owner")
+ version Int @default(1)
+ isExample Boolean @default(false)
+ fieldProvenance Json @default("{}")
+ sourceUrl String?
+ sourceType SourceType @default(MANUAL)
+ retrievedAt DateTime @default(now())
+ verificationStatus VerificationStatus @default(UNVERIFIED)
+ name String
+ clubId String @db.Uuid
+ personId String @db.Uuid
+ stakeholderRole StakeholderRole
+ influence Int
+ relationshipOwner String
+ notes String
+ @@index([ownerId, deletedAt])
+ club Club @relation(fields: [clubId], references: [id])
+ person Person @relation(fields: [personId], references: [id])
+ @@index([ownerId])
+ @@index([clubId])
+ @@index([personId])
+}
+
+model ClubFinancialProfile {
+ id String @id @default(uuid()) @db.Uuid
+ ownerId String @default("owner")
+ owner Owner @relation(fields: [ownerId], references: [id])
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+ deletedAt DateTime?
+ createdBy String @default("owner")
+ updatedBy String @default("owner")
+ version Int @default(1)
+ isExample Boolean @default(false)
+ fieldProvenance Json @default("{}")
+ sourceUrl String?
+ sourceType SourceType @default(MANUAL)
+ retrievedAt DateTime @default(now())
+ verificationStatus VerificationStatus @default(UNVERIFIED)
+ name String
+ clubId String @db.Uuid
+ period String
+ metric String
+ value Decimal @db.Decimal(18,2)
+ currency Currency
+ @@index([ownerId, deletedAt])
+ club Club @relation(fields: [clubId], references: [id])
+ @@index([ownerId])
+ @@index([clubId])
+}
+
+model TransferWindow {
+ id String @id @default(uuid()) @db.Uuid
+ ownerId String @default("owner")
+ owner Owner @relation(fields: [ownerId], references: [id])
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+ deletedAt DateTime?
+ createdBy String @default("owner")
+ updatedBy String @default("owner")
+ version Int @default(1)
+ isExample Boolean @default(false)
+ fieldProvenance Json @default("{}")
+ sourceUrl String?
+ sourceType SourceType @default(MANUAL)
+ retrievedAt DateTime @default(now())
+ verificationStatus VerificationStatus @default(UNVERIFIED)
+ name String
+ countryId String @db.Uuid
+ leagueId String? @db.Uuid
+ opensOn DateTime @db.Date
+ closesOn DateTime @db.Date
+ sourceNote String
+ @@index([ownerId, deletedAt])
+ country Country @relation(fields: [countryId], references: [id])
+ league League? @relation(fields: [leagueId], references: [id])
+ @@index([ownerId])
+ @@index([countryId])
+ @@index([leagueId])
+ @@index([ownerId, opensOn])
+ @@index([ownerId, closesOn])
+}
+
+model LicenseRecord {
+ id String @id @default(uuid()) @db.Uuid
+ ownerId String @default("owner")
+ owner Owner @relation(fields: [ownerId], references: [id])
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+ deletedAt DateTime?
+ createdBy String @default("owner")
+ updatedBy String @default("owner")
+ version Int @default(1)
+ isExample Boolean @default(false)
+ fieldProvenance Json @default("{}")
+ sourceUrl String?
+ sourceType SourceType @default(MANUAL)
+ retrievedAt DateTime @default(now())
+ verificationStatus VerificationStatus @default(UNVERIFIED)
+ name String
+ agentId String? @db.Uuid
+ holder String
+ issuer String
+ referenceNo String
+ issuedAt DateTime @db.Date
+ expiresAt DateTime @db.Date
+ attachmentId String? @db.Uuid
+ @@index([ownerId, deletedAt])
+ agent Agent? @relation(fields: [agentId], references: [id])
+ attachment Attachment? @relation(fields: [attachmentId], references: [id])
+ @@index([ownerId])
+ @@index([agentId])
+ @@index([attachmentId])
+ @@index([ownerId, issuedAt])
+ @@index([ownerId, expiresAt])
+}
+
+model Case {
+ id String @id @default(uuid()) @db.Uuid
+ ownerId String @default("owner")
+ owner Owner @relation(fields: [ownerId], references: [id])
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+ deletedAt DateTime?
+ createdBy String @default("owner")
+ updatedBy String @default("owner")
+ version Int @default(1)
+ isExample Boolean @default(false)
+ fieldProvenance Json @default("{}")
+ sourceUrl String?
+ sourceType SourceType @default(MANUAL)
+ retrievedAt DateTime @default(now())
+ verificationStatus VerificationStatus @default(UNVERIFIED)
+ name String
+ type CaseType
+ parties Json
+ filedAt DateTime @db.Date
+ nextDeadline DateTime? @db.Date
+ deadlineSource String?
+ counselName String?
+ status String
+ outcome String?
+ @@index([ownerId, deletedAt])
+ @@index([ownerId])
+ @@index([ownerId, filedAt])
+ @@index([ownerId, nextDeadline])
+}
+
+model Template {
+ templateVersionLinks TemplateVersion[]
+ id String @id @default(uuid()) @db.Uuid
+ ownerId String @default("owner")
+ owner Owner @relation(fields: [ownerId], references: [id])
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+ deletedAt DateTime?
+ createdBy String @default("owner")
+ updatedBy String @default("owner")
+ version Int @default(1)
+ isExample Boolean @default(false)
+ fieldProvenance Json @default("{}")
+ sourceUrl String?
+ sourceType SourceType @default(MANUAL)
+ retrievedAt DateTime @default(now())
+ verificationStatus VerificationStatus @default(UNVERIFIED)
+ name String
+ kind TemplateKind
+ locale String
+ @@index([ownerId, deletedAt])
+ @@index([ownerId])
+}
+
+model TemplateVersion {
+ id String @id @default(uuid()) @db.Uuid
+ ownerId String @default("owner")
+ owner Owner @relation(fields: [ownerId], references: [id])
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+ deletedAt DateTime?
+ createdBy String @default("owner")
+ updatedBy String @default("owner")
+ version Int @default(1)
+ isExample Boolean @default(false)
+ fieldProvenance Json @default("{}")
+ sourceUrl String?
+ sourceType SourceType @default(MANUAL)
+ retrievedAt DateTime @default(now())
+ verificationStatus VerificationStatus @default(UNVERIFIED)
+ name String
+ templateId String @db.Uuid
+ body String
+ placeholders Json
+ templateVersion Int
+ approvedBy String?
+ approvedAt DateTime?
+ @@index([ownerId, deletedAt])
+ template Template @relation(fields: [templateId], references: [id])
+ @@index([ownerId])
+ @@index([templateId])
+}
+
+model ShareLink {
+ id String @id @default(uuid()) @db.Uuid
+ ownerId String @default("owner")
+ owner Owner @relation(fields: [ownerId], references: [id])
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+ deletedAt DateTime?
+ createdBy String @default("owner")
+ updatedBy String @default("owner")
+ version Int @default(1)
+ isExample Boolean @default(false)
+ fieldProvenance Json @default("{}")
+ sourceUrl String?
+ sourceType SourceType @default(MANUAL)
+ retrievedAt DateTime @default(now())
+ verificationStatus VerificationStatus @default(UNVERIFIED)
+ name String
+ scope ShareScope
+ entityId String
+ tokenHash String @unique
+ expiresAt DateTime
+ passcodeHash String?
+ recipientName String?
+ viewCount Int @default(0)
+ lastViewedAt DateTime?
+ revokedAt DateTime?
+ fieldAllowlist String[]
+ @@index([ownerId, deletedAt])
+ @@index([ownerId])
+ @@index([entityId])
+}
+
+model MediaContact {
+ id String @id @default(uuid()) @db.Uuid
+ ownerId String @default("owner")
+ owner Owner @relation(fields: [ownerId], references: [id])
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+ deletedAt DateTime?
+ createdBy String @default("owner")
+ updatedBy String @default("owner")
+ version Int @default(1)
+ isExample Boolean @default(false)
+ fieldProvenance Json @default("{}")
+ sourceUrl String?
+ sourceType SourceType @default(MANUAL)
+ retrievedAt DateTime @default(now())
+ verificationStatus VerificationStatus @default(UNVERIFIED)
+ name String
+ personId String @db.Uuid
+ outlet String
+ beat String
+ notes String
+ @@index([ownerId, deletedAt])
+ person Person @relation(fields: [personId], references: [id])
+ @@index([ownerId])
+ @@index([personId])
+}
+
+model PressItem {
+ id String @id @default(uuid()) @db.Uuid
+ ownerId String @default("owner")
+ owner Owner @relation(fields: [ownerId], references: [id])
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+ deletedAt DateTime?
+ createdBy String @default("owner")
+ updatedBy String @default("owner")
+ version Int @default(1)
+ isExample Boolean @default(false)
+ fieldProvenance Json @default("{}")
+ sourceUrl String?
+ sourceType SourceType @default(MANUAL)
+ retrievedAt DateTime @default(now())
+ verificationStatus VerificationStatus @default(UNVERIFIED)
+ name String
+ status PressStatus @default(DRAFT)
+ body String
+ scheduledDate DateTime? @db.Date
+ approvedBy String?
+ @@index([ownerId, deletedAt])
+ @@index([ownerId])
+ @@index([ownerId, scheduledDate])
+}

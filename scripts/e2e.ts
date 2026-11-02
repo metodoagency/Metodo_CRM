@@ -1,0 +1,13 @@
+import 'dotenv/config';
+import pg from 'pg';
+import { run } from './process.js';
+run('npm', ['run', 'db:up']);
+const url = new URL(process.env.DATABASE_URL || 'postgresql://metodo:metodo_local_only@127.0.0.1:5432/metodo');
+if (!['127.0.0.1', 'localhost'].includes(url.hostname)) throw new Error('E2E requires local PostgreSQL; external database is protected');
+url.pathname = '/metodo_e2e'; const admin = new URL(url); admin.pathname = '/postgres';
+const client = new pg.Client({ connectionString: admin.toString() }); await client.connect();
+if (!(await client.query("SELECT 1 FROM pg_database WHERE datname='metodo_e2e'")).rowCount) await client.query('CREATE DATABASE metodo_e2e');
+await client.end();
+const env = { ...process.env, NODE_ENV: 'test', E2E_TEST_MODE: 'true', ALLOWED_EMAILS: 'owner@example.com', DATABASE_URL: url.toString(), DIRECT_URL: url.toString() };
+run('npx', ['prisma', 'migrate', 'deploy'], env); run('npm', ['run', 'seed:example'], env);
+run('npx', ['playwright', 'test', ...process.argv.slice(2)], env);

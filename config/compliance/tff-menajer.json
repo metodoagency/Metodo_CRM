@@ -1,0 +1,16 @@
+{
+  "status": "NOT REVIEWED",
+  "entries": [
+    {
+      "id": "tff-menajer-review",
+      "text": {
+        "tr": "Güncel federasyon kayıt gerekliliklerini kontrol edin.",
+        "en": "Check the current federation registration requirements."
+      },
+      "appliesWhen": "always",
+      "tag": "owner-authored",
+      "version": "0.1.0",
+      "reviewedAt": "NOT REVIEWED"
+    }
+  ]
+}
