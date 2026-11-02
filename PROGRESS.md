@@ -1,6 +1,6 @@
 # Metodo CRM progress
 
-Authoritative specification: [docs/REQUIREMENTS.md](docs/REQUIREMENTS.md), the second uploaded complete build prompt. It replaces the earlier draft. Work is on `milestone/a-foundation`. This is **work in progress, not a completed production CRM**. No milestone is marked DONE and no merge is authorized by local test passes alone.
+Authoritative specification: [docs/REQUIREMENTS.md](docs/REQUIREMENTS.md), the second uploaded complete build prompt. It replaces the earlier draft. Work is on `milestone/a-foundation`, committed and pushed to origin. This is **work in progress, not a completed production CRM**. No milestone is marked DONE and no merge is authorized by local test passes alone.
 
 ## Milestone status
 
@@ -86,7 +86,7 @@ Do not paste secret values into chat. Configure them securely in local `.env` fo
 ## NOT VERIFIED and concrete errors
 
 - Real Google OIDC sign-in and a published Google Sites iframe: owner credentials and public deployment absent. Local iframe fallback is tested; third-party-cookie behavior remains browser-dependent.
-- GitHub PR/remote CI/merge: API request returned the exact Forbidden error above. Do not claim green CI or merge from local results.
+- GitHub PR/remote CI/merge: the native Git push succeeded. Draft PR creation then returned `Post "https://api.github.com/graphql": Forbidden`. No PR or merge was created, and remote CI status is not verified. The exact review-ready body is saved in [docs/milestone-a-pr.md](docs/milestone-a-pr.md). Do not claim green CI or merge from local results.
 - Codex Security completed scan: the skill is listed, but its scan MCP tools and terminal helper files were not available. Reading its referenced preflight returned `failed to read skill resource`. The [skill](skill://Plugin_1e648473be9c8191a91ac3947151af55/security-diff-scan/SKILL.md) requires: "Run the security_diff_scan preflight ... before reviewing files or creating a goal." No scan ID, completed report or sealed review is claimed. Independent security tests/audits ran; see [threat model](docs/security/threat-model.md).
 - Playwright-managed browser download returned `403 ... Domain forbidden` for cdn.playwright.dev. Browser validation succeeded with installed `/usr/bin/chromium`; this is not a browser-test blocker.
 - Native Prisma download initially returned 403 for binaries.prisma.sh. The supported WASM adapter/client is now exercised; no verification was disabled.
