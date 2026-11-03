@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { fieldSource, withProvenance } from './provenance.js';
 
 export const positions = ['GK', 'CB', 'FB', 'DM', 'CM', 'AM', 'WF', 'CF'] as const;
 export const statuses = ['OWN', 'TARGET', 'INTERMEDIARY', 'MANDATED'] as const;
@@ -20,15 +21,22 @@ export function ageOn(birthDate: string, today = istanbulToday()): number {
 export function maskSensitive(value: unknown): unknown {
   if (Array.isArray(value)) return value.map(maskSensitive);
   if (value && typeof value === 'object' && !(value instanceof Date)) {
-    return Object.fromEntries(Object.entries(value).map(([key, v]) => [key, sensitiveKeys.has(key) ? '***' : maskSensitive(v)]));
+    return Object.fromEntries(Object.entries(value).map(([key, v]) => {
+      if (key === 'fieldProvenance' && v && typeof v === 'object') {
+        // Evidence carries metadata only. Re-validate instead of treating field
+        // names as values, or sensitive-field provenance would become "***".
+        return [key, Object.fromEntries(Object.entries(v).flatMap(([field, source]) => { const parsed = fieldSource.safeParse(source); return parsed.success ? [[field, parsed.data]] : []; }))];
+      }
+      return [key, sensitiveKeys.has(key) ? '***' : maskSensitive(v)];
+    }));
   }
   return value;
 }
 const name = z.string().trim().min(2).max(160);
-export const clubInput = z.object({ name, city: z.string().trim().max(100).optional(), isTracked: z.boolean().default(false), relationStatus: z.enum(['NEW', 'WARM', 'ACTIVE', 'COLD']).default('NEW') }).strict();
-export const playerInput = z.object({ name, primaryPosition: z.enum(positions), status: z.enum(statuses).default('TARGET'), currentClubId: z.string().uuid().optional(), birthDate: isoDate.refine(value => value <= istanbulToday(), 'FUTURE_DATE').optional() }).strict();
-export const personInput = z.object({ name, role: z.enum(['HEAD_COACH', 'ASSISTANT', 'GOALKEEPER_COACH', 'YOUTH_COORDINATOR', 'OFFICIAL', 'SCOUT', 'OTHER']).default('OTHER') }).strict();
-export const requestInput = z.object({ name, clubId: z.string().uuid(), requesterId: z.string().uuid(), position: z.enum(positions), deadline: isoDate.optional() }).strict();
+export const clubInput = withProvenance({ name, city: z.string().trim().max(100).optional(), isTracked: z.boolean().default(false), relationStatus: z.enum(['NEW', 'WARM', 'ACTIVE', 'COLD']).default('NEW') });
+export const playerInput = withProvenance({ name, primaryPosition: z.enum(positions), status: z.enum(statuses).default('TARGET'), currentClubId: z.string().uuid().optional(), birthDate: isoDate.refine(value => value <= istanbulToday(), 'FUTURE_DATE').optional() });
+export const personInput = withProvenance({ name, role: z.enum(['HEAD_COACH', 'ASSISTANT', 'GOALKEEPER_COACH', 'YOUTH_COORDINATOR', 'OFFICIAL', 'SCOUT', 'OTHER']).default('OTHER') });
+export const requestInput = withProvenance({ name, clubId: z.string().uuid(), requesterId: z.string().uuid(), position: z.enum(positions), deadline: isoDate.optional() });
 export const suggestionInput = z.object({ requestId: z.string().uuid(), playerId: z.string().uuid(), personId: z.string().uuid(), whyGoodTransfer: z.string().trim().min(3).max(4000), matchScore: z.number().min(0).max(100).nullable().default(null), followUpDate: isoDate.optional() }).strict();
 export const relationTypes = ['memberOf', 'representedBy', 'intermediaryFor', 'sellingFor', 'mandatedBy', 'suggestedTo', 'presentedTo', 'invitedAs', 'attendee', 'contactOf', 'worksWith', 'partnerOf', 'usesTool', 'hiredBy', 'speakerAt', 'organizedBy', 'scoutedAt', 'linkedTo'] as const;
 export const entityTypes = ['Club', 'Player', 'Person', 'Request'] as const;

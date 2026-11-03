@@ -7,17 +7,20 @@ import { createSuggestion } from './suggestions.js';
 import { encrypt, decrypt, blindIndex, csrfToken } from './crypto.js';
 import { sessionCookie } from './auth.js';
 import { tr, en } from '../shared/locales.js';
+import { provenanceFor } from '../shared/provenance.js';
+import { cleanupExamples, deletionPreview, examplePreview, listTrash, purgeTrash, restoreTrash } from './lifecycle.js';
 
 const idParams = z.object({ id: z.string().uuid() });
 const entityParams = z.object({ type: z.enum(entityTypes), id: z.string().uuid() });
 const listQuery = z.object({ page: z.coerce.number().int().min(1).default(1), q: z.string().max(100).default(''), status: z.enum(['OWN', 'TARGET', 'INTERMEDIARY', 'MANDATED']).optional() }).strict();
 const masked = (row: unknown) => maskSensitive(row);
+const trashWrite = z.object({ version: z.number().int().positive(), recordVersion: z.number().int().positive() }).strict();
 
 export async function registerRoutes(app: FastifyInstance, db: PrismaClient) {
   app.get('/api/me', async req => ({ id: 'owner', csrfToken: csrfToken(req.cookies[sessionCookie]!) }));
   app.get('/api/settings', async () => db.userSettings.upsert({ where: { ownerId: 'owner' }, create: { ownerId: 'owner' }, update: {} }));
   app.patch('/api/settings', async req => {
-    const { version, ...data } = z.object({ version: z.number().int().positive(), language: z.enum(['tr', 'en']).optional(), theme: z.enum(['dark', 'light']).optional() }).strict().parse(req.body);
+    const { version, ...data } = z.object({ version: z.number().int().positive(), language: z.enum(['tr', 'en']).optional(), theme: z.enum(['dark', 'light']).optional(), retentionDays: z.partialRecord(z.enum(entityTypes), z.number().int().min(1).max(3650)).optional() }).strict().parse(req.body);
     return db.$transaction(async tx => {
       const before = await tx.userSettings.findUnique({ where: { ownerId: 'owner' } });
       if (!before || before.version !== version) throw new AppError('STALE_VERSION', 409);
@@ -45,7 +48,7 @@ export async function registerRoutes(app: FastifyInstance, db: PrismaClient) {
   app.post('/api/clubs', async (req, reply) => {
     const data = clubInput.parse(req.body);
     const row = await db.$transaction(async tx => {
-      const row = await tx.club.create({ data: { ...data, searchName: normalizeSearch(data.name) } });
+      const row = await tx.club.create({ data: { ...data, fieldProvenance: provenanceFor(data), searchName: normalizeSearch(data.name) } });
       await logEvent(tx, { entityType: 'Club', entityId: row.id, action: 'create', name: row.name, diffs: { new: data } });
       return row;
     });
@@ -61,7 +64,7 @@ export async function registerRoutes(app: FastifyInstance, db: PrismaClient) {
     const input = playerInput.parse(req.body);
     const row = await db.$transaction(async tx => {
       if (input.currentClubId) await requireEntity(tx, 'Club', input.currentClubId);
-      const row = await tx.player.create({ data: { ...input, birthDate: input.birthDate ? encrypt(input.birthDate, 'Player.birthDate') : undefined, birthDateIndex: input.birthDate ? blindIndex(input.birthDate) : undefined, searchName: normalizeSearch(input.name) } });
+      const row = await tx.player.create({ data: { ...input, fieldProvenance: provenanceFor(input), birthDate: input.birthDate ? encrypt(input.birthDate, 'Player.birthDate') : undefined, birthDateIndex: input.birthDate ? blindIndex(input.birthDate) : undefined, searchName: normalizeSearch(input.name) } });
       await logEvent(tx, { entityType: 'Player', entityId: row.id, action: 'create', name: row.name, diffs: { new: input } });
       return row;
     });
@@ -75,7 +78,7 @@ export async function registerRoutes(app: FastifyInstance, db: PrismaClient) {
   app.post('/api/people', async (req, reply) => {
     const data = personInput.parse(req.body);
     const row = await db.$transaction(async tx => {
-      const row = await tx.person.create({ data: { ...data, searchName: normalizeSearch(data.name) } });
+      const row = await tx.person.create({ data: { ...data, fieldProvenance: provenanceFor(data), searchName: normalizeSearch(data.name) } });
       await logEvent(tx, { entityType: 'Person', entityId: row.id, name: row.name, action: 'create' }); return row;
     });
     return reply.code(201).send(masked(row));
@@ -89,7 +92,7 @@ export async function registerRoutes(app: FastifyInstance, db: PrismaClient) {
     const row = await db.$transaction(async tx => {
       await requireEntity(tx, 'Club', input.clubId); await requireEntity(tx, 'Person', input.requesterId);
       if (!await tx.relation.findFirst({ where: { ...live, fromType: 'Person', fromId: input.requesterId, toType: 'Club', toId: input.clubId, endDate: null, relation: { in: ['memberOf', 'contactOf'] } } })) throw new AppError('PERSON_NOT_AT_CLUB');
-      const row = await tx.request.create({ data: { ...input, deadline: input.deadline ? new Date(input.deadline) : undefined } });
+      const row = await tx.request.create({ data: { ...input, fieldProvenance: provenanceFor(input), deadline: input.deadline ? new Date(input.deadline) : undefined } });
       await logEvent(tx, { entityType: 'Request', entityId: row.id, name: row.name, action: 'create' }); return row;
     });
     return reply.code(201).send(row);
@@ -103,20 +106,27 @@ export async function registerRoutes(app: FastifyInstance, db: PrismaClient) {
     const { type, id } = entityParams.parse(req.params);
     const schema = type === 'Club' ? clubInput.partial() : type === 'Player' ? playerInput.partial() : type === 'Person' ? personInput.partial() : requestInput.partial();
     const { version, changes } = z.object({ version: z.number().int().positive(), changes: z.record(z.string(), z.unknown()) }).strict().parse(req.body);
-    const input = schema.parse(changes);
+    const parsed = schema.parse(changes);
+    // Optional partial fields must not re-apply create-time defaults.
+    const input = Object.fromEntries(Object.entries(parsed).filter(([key]) => key in changes)) as typeof parsed;
     return db.$transaction(async tx => {
       const before = await requireEntity(tx, type, id);
       if (before.version !== version) throw new AppError('STALE_VERSION', 409);
       // Relationship changes use domain flows; this generic editor supports only
       // safe identity and status fields, with explicit schema validation.
-      const data: Record<string, unknown> = { ...input, version: { increment: 1 } };
+      const data: Record<string, unknown> = { ...input, fieldProvenance: provenanceFor(input, before.fieldProvenance), version: { increment: 1 } };
       if ('currentClubId' in input && input.currentClubId) await requireEntity(tx, 'Club', input.currentClubId);
       if ('clubId' in input && input.clubId) await requireEntity(tx, 'Club', input.clubId);
       if ('requesterId' in input && input.requesterId) await requireEntity(tx, 'Person', input.requesterId);
+      if (type === 'Request') {
+        const clubId = 'clubId' in input && input.clubId ? input.clubId : 'clubId' in before ? before.clubId : undefined;
+        const requesterId = 'requesterId' in input && input.requesterId ? input.requesterId : 'requesterId' in before ? before.requesterId : undefined;
+        if (!clubId || !requesterId || !await tx.relation.findFirst({ where: { ...live, fromType: 'Person', fromId: requesterId, toType: 'Club', toId: clubId, endDate: null, relation: { in: ['memberOf', 'contactOf'] } } })) throw new AppError('PERSON_NOT_AT_CLUB');
+      }
       if ('birthDate' in input && input.birthDate) { data.birthDate = encrypt(input.birthDate, `${type}.birthDate`); data.birthDateIndex = blindIndex(input.birthDate); }
       if ('name' in input && input.name && type !== 'Request') data.searchName = normalizeSearch(input.name);
       if ('deadline' in input && input.deadline) data.deadline = new Date(input.deadline);
-      const where = { id, version };
+      const where = { ...live, id, version };
       const after = type === 'Club' ? await tx.club.update({ where, data }) : type === 'Player' ? await tx.player.update({ where, data }) : type === 'Person' ? await tx.person.update({ where, data }) : await tx.request.update({ where, data });
       await logEvent(tx, { entityType: type, entityId: id, name: before.name, action: 'update', diffs: { old: before, new: input }, isExample: before.isExample });
       return masked(after);
@@ -167,41 +177,31 @@ export async function registerRoutes(app: FastifyInstance, db: PrismaClient) {
     const { version } = z.object({ version: z.number().int().positive() }).strict().parse(req.body);
     await softDelete(db, type, id, version); return { ok: true };
   });
-  app.get('/api/trash', async () => db.trashEntry.findMany({ where: live, orderBy: { createdAt: 'desc' } }));
+  app.get('/api/records/:type/:id/delete-preview', async req => {
+    const { type, id } = entityParams.parse(req.params); await requireEntity(db, type, id);
+    return (await deletionPreview(db, type, id)).result;
+  });
+  app.get('/api/trash', async () => listTrash(db));
+  app.get('/api/trash/:id/preview', async req => {
+    const { id } = idParams.parse(req.params);
+    const item = await db.trashEntry.findFirst({ where: { ...live, id } }); if (!item) throw new AppError('NOT_FOUND', 404);
+    const type = z.enum(entityTypes).parse(item.entityType);
+    return (await deletionPreview(db, type, item.entityId)).result;
+  });
   app.post('/api/trash/:id/restore', async req => {
     const { id } = idParams.parse(req.params);
-    return db.$transaction(async tx => {
-      const item = await tx.trashEntry.findFirst({ where: { ...live, id } }); if (!item) throw new AppError('NOT_FOUND', 404);
-      const where = { id: item.entityId }; const data = { deletedAt: null, version: { increment: 1 } };
-      if (item.entityType === 'Club') await tx.club.update({ where, data });
-      else if (item.entityType === 'Player') await tx.player.update({ where, data });
-      else if (item.entityType === 'Person') await tx.person.update({ where, data });
-      else if (item.entityType === 'Request') await tx.request.update({ where, data });
-      else throw new AppError('INVALID_ENTITY');
-      await tx.trashEntry.delete({ where: { id } });
-      await logEvent(tx, { entityType: item.entityType, entityId: item.entityId, action: 'restore', name: item.label, isExample: item.isExample }); return { ok: true };
-    });
+    const { version, recordVersion } = trashWrite.parse(req.body);
+    return restoreTrash(db, id, version, recordVersion);
   });
   app.delete('/api/trash/:id', async req => {
     const { id } = idParams.parse(req.params);
-    return db.$transaction(async tx => {
-      const item = await tx.trashEntry.findFirst({ where: { ...live, id } }); if (!item) throw new AppError('NOT_FOUND', 404);
-      const where = { id: item.entityId };
-      // Restrictive foreign keys protect unrelated records; deleting their links
-      // requires an explicit dependency review in the later admin milestone.
-      if (item.entityType === 'Club') await tx.club.delete({ where });
-      else if (item.entityType === 'Player') await tx.player.delete({ where });
-      else if (item.entityType === 'Person') await tx.person.delete({ where });
-      else if (item.entityType === 'Request') await tx.request.delete({ where });
-      else throw new AppError('INVALID_ENTITY');
-      const ref = { OR: [{ fromType: item.entityType, fromId: item.entityId }, { toType: item.entityType, toId: item.entityId }] };
-      await tx.relation.deleteMany({ where: { ownerId: 'owner', ...ref } });
-      const related = { entityType: item.entityType, entityId: item.entityId, ownerId: 'owner' };
-      await tx.note.deleteMany({ where: related }); await tx.attachment.deleteMany({ where: related });
-      await tx.task.deleteMany({ where: related }); await tx.notification.deleteMany({ where: related });
-      await tx.trashEntry.delete({ where: { id } });
-      await logEvent(tx, { entityType: item.entityType, entityId: item.entityId, name: item.label, action: 'purge', isExample: item.isExample }); return { ok: true };
-    });
+    const { version, recordVersion, previewToken } = trashWrite.extend({ previewToken: z.string().regex(/^[a-f0-9]{64}$/) }).parse(req.body);
+    return purgeTrash(db, id, version, recordVersion, previewToken);
+  });
+  app.get('/api/admin/examples/preview', async () => (await examplePreview(db)).result);
+  app.post('/api/admin/examples/cleanup', async req => {
+    const { previewToken } = z.object({ previewToken: z.string().regex(/^[a-f0-9]{64}$/) }).strict().parse(req.body);
+    return cleanupExamples(db, previewToken);
   });
   app.get('/api/export/:type', async (req, reply) => {
     const { type } = z.object({ type: z.enum(entityTypes) }).parse(req.params);
@@ -217,9 +217,10 @@ export async function registerRoutes(app: FastifyInstance, db: PrismaClient) {
   });
   app.post('/api/proposals/:id/review', async req => {
     const { id } = idParams.parse(req.params);
-    const data = z.object({ action: z.enum(['approve', 'reject']), sourceUrl: z.string().url().optional(), reason: z.string().min(3).optional() }).strict().parse(req.body);
+    const data = z.object({ version: z.number().int().positive(), action: z.enum(['approve', 'reject']), sourceUrl: z.string().url().optional(), reason: z.string().min(3).optional() }).strict().parse(req.body);
     return db.$transaction(async tx => {
       const proposal = await tx.updateProposal.findFirst({ where: { ...live, id, approvalStatus: 'PENDING' } }); if (!proposal) throw new AppError('NOT_FOUND', 404);
+      if (proposal.version !== data.version) throw new AppError('STALE_VERSION', 409);
       if (data.action === 'approve') {
         if (!data.sourceUrl) throw new AppError('SOURCE_REQUIRED');
         // Canonical changes are blocked until their domain-specific validators
@@ -227,7 +228,7 @@ export async function registerRoutes(app: FastifyInstance, db: PrismaClient) {
         throw new AppError('PROPOSAL_TYPE_PENDING', 409);
       }
       if (!data.reason) throw new AppError('REASON_REQUIRED');
-      const row = await tx.updateProposal.update({ where: { id }, data: { approvalStatus: 'REJECTED', rejectionReason: data.reason, reviewedAt: new Date() } });
+      const row = await tx.updateProposal.update({ where: { ...live, id, version: data.version, approvalStatus: 'PENDING' }, data: { approvalStatus: 'REJECTED', rejectionReason: data.reason, reviewedAt: new Date(), version: { increment: 1 } } });
       await logEvent(tx, { entityType: proposal.targetType, entityId: proposal.targetId, name: proposal.name, action: 'reject', isExample: proposal.isExample }); return row;
     });
   });

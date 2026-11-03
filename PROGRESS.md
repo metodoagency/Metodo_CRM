@@ -4,6 +4,18 @@ Authoritative specification: [docs/REQUIREMENTS.md](docs/REQUIREMENTS.md), the s
 
 ## Milestone status
 
+### Windows continuation — 2026-11-02 (in progress)
+
+- The existing branch was cloned into an isolated local checkout at commit `c938845`; all prior source and history were retained. Current work remains on `milestone/a-foundation`.
+- GitHub connector reads and native Git clone/fetch are working in this session. Supabase `list_projects` succeeded and returned an empty project list for the connected account. Google Sites opened successfully in the signed-in Edge session; the site list is empty. No Google Site has been published yet.
+- Railway login was exercised with Google and, after the owner completed GitHub sign-in, GitHub. Both returned the service error **`Sign ups are currently disabled. Please try again later.`** at `/auth/error`. This is an observed Railway service/login restriction, not evidence that a new token is required. Deployment remains pending; no public URL is claimed.
+- Implemented in this continuation, pending final acceptance: field-level source validation and source display; safe partial edits that retain unrelated defaults; versioned Trash restore/purge and proposal rejection; dependency previews and preview-digest confirmation; full example/dependent cleanup using schema-derived relations; configurable retention and logged daily purge; complete route contracts/OpenAPI; optional-feature and production environment validation with redacted error output.
+- Windows fixes: npm/npx child commands use Node entry points without shell interpolation; embedded PostgreSQL initializes with an explicit UTF-8/C locale; background startup hides native windows. Local PostgreSQL 16 initialization and migration execution were observed. The current session holds a foreground database process during verification. Restricted local-network access must be granted for PostgreSQL tests; an `EACCES` socket failure must not be diagnosed as a database credential problem.
+- Validation observed for the continuation: strict typecheck and lint PASS; i18n check PASS (298 keys); API document generation PASS; production build PASS. Integration tests and expanded browser tests are currently running. One earlier run had 46/47 passing with the remaining test using invalid example encryption keys; its fixture has been corrected for the strengthened production validator. No final test pass, completed security scan, PR, merge or milestone completion is claimed yet.
+- Exact next step: finish the running integration/browser suites, fix any failures, run the security review and remaining quality gates, update this section with final counts, then open the A PR and verify remote CI before merge. Continue B–I from the authoritative specification after the A gate.
+
+The owner already completed the requested GitHub browser sign-in. Do not ask for that again. The deployment issue currently recorded is Railway's response above.
+
 | Milestone | Status | Evidence / next gate |
 |---|---|---|
 | A — Foundation | PARTIAL | Runnable local foundation and security tests implemented; remaining acceptance gaps below; no reviewed/merged PR |
@@ -31,7 +43,7 @@ Authoritative specification: [docs/REQUIREMENTS.md](docs/REQUIREMENTS.md), the s
 
 ## Verification results
 
-Latest completed checks in this work (2026-11-02):
+Prior cloud-run checks (2026-11-02), retained as historical evidence; see the Windows continuation above for the current run:
 
 | Command / check | Result | Count / scope |
 |---|---|---|

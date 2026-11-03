@@ -10,6 +10,9 @@ import { seedExamples, exampleId } from '../prisma/seed.js';
 import { keyring } from '../server/crypto.js';
 import { randomBytes } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
+import { purgeExpired } from '../server/lifecycle.js';
+import { apiContracts } from '../shared/contracts.js';
+import { openapiDocument } from '../server/openapi.js';
 
 const origin = 'http://localhost:5173';
 let app: FastifyInstance; let cookie = ''; let csrf = ''; let loginIp = 1;
@@ -62,7 +65,7 @@ describe('security baseline', () => {
   it('never registers test auth in production', async () => {
     const prod = await buildApp({ db, config: { ...readConfig(), NODE_ENV: 'production', APP_ORIGIN: 'https://example.com', testAuth: false, allowedEmails: ['owner@example.com'] } });
     expect((await prod.inject({ method: 'POST', url: '/auth/test', headers: { origin: 'https://example.com' }, payload: { email: 'owner@example.com' } })).statusCode).toBe(404); await prod.close();
-    expect(readConfig({ NODE_ENV: 'production', APP_ORIGIN: 'https://example.com', ALLOWED_EMAILS: 'owner@example.com', E2E_TEST_MODE: 'true', GOOGLE_CLIENT_ID: 'example', GOOGLE_CLIENT_SECRET: 'example', FIELD_ENCRYPTION_KEY: 'example', BLIND_INDEX_KEY: 'example' }).testAuth).toBe(false);
+    expect(readConfig({ NODE_ENV: 'production', DATABASE_URL: 'postgresql://example:production@localhost/metodo', DIRECT_URL: 'postgresql://example:production@localhost/metodo', APP_ORIGIN: 'https://example.com', GOOGLE_REDIRECT_URI: 'https://example.com/auth/google/callback', ALLOWED_EMAILS: 'owner@example.com', E2E_TEST_MODE: 'true', GOOGLE_CLIENT_ID: 'example', GOOGLE_CLIENT_SECRET: 'example', FIELD_ENCRYPTION_KEY: randomBytes(32).toString('base64'), BLIND_INDEX_KEY: randomBytes(32).toString('base64') }).testAuth).toBe(false);
   });
   it('rejects an OAuth callback without state or its binding cookie', async () => expect((await app.inject('/auth/google/callback?code=example&state=example')).statusCode).toBe(400));
   it('does not bypass owner authentication with encoded path variants', async () => {
@@ -113,11 +116,12 @@ describe('records and persistence', () => {
     expect((await request('GET', '/api/clubs')).json().total).toBe(0);
     expect((await request('GET', `/api/records/Club/${row.id}`)).statusCode).toBe(404);
     let item = (await request('GET', '/api/trash')).json()[0];
-    expect((await request('POST', `/api/trash/${item.id}/restore`)).statusCode).toBe(200);
+    expect((await request('POST', `/api/trash/${item.id}/restore`, { version: item.version, recordVersion: item.recordVersion })).statusCode).toBe(200);
     expect((await request('GET', '/api/clubs')).json().total).toBe(1);
     await request('DELETE', `/api/records/Club/${row.id}`, { version: 3 });
     item = (await request('GET', '/api/trash')).json()[0];
-    expect((await request('DELETE', `/api/trash/${item.id}`)).statusCode).toBe(200);
+    const preview = (await request('GET', `/api/trash/${item.id}/preview`)).json();
+    expect((await request('DELETE', `/api/trash/${item.id}`, { version: item.version, recordVersion: item.recordVersion, previewToken: preview.previewToken })).statusCode).toBe(200);
     expect(await db.club.findUnique({ where: { id: row.id } })).toBeNull();
     expect(await db.timelineEvent.count({ where: { entityId: row.id, action: 'purge' } })).toBe(1);
   });
@@ -175,7 +179,101 @@ describe('example seed and suggestion transaction', () => {
   });
   it('blocks verification without a source and never applies an unsupported proposal', async () => {
     await seedExamples(db);
-    expect((await request('POST', `/api/proposals/${exampleId('proposal')}/review`, { action: 'approve' })).statusCode).toBe(400);
-    expect((await request('POST', `/api/proposals/${exampleId('proposal')}/review`, { action: 'approve', sourceUrl: 'https://example.com/source' })).statusCode).toBe(409);
+    expect((await request('POST', `/api/proposals/${exampleId('proposal')}/review`, { version: 1, action: 'approve' })).statusCode).toBe(400);
+    expect((await request('POST', `/api/proposals/${exampleId('proposal')}/review`, { version: 1, action: 'approve', sourceUrl: 'https://example.com/source' })).statusCode).toBe(409);
+  });
+});
+
+describe('foundation acceptance gaps', () => {
+  it('does not allow an edited request to reference a person outside its club', async () => {
+    await seedExamples(db);
+    expect((await request('PATCH', `/api/records/Request/${exampleId('request')}`, { version: 2, changes: { clubId: exampleId('club-1') } })).statusCode).toBe(400);
+    expect((await db.request.findUniqueOrThrow({ where: { id: exampleId('request') } })).clubId).toBe(exampleId('club-0'));
+  });
+  it('keeps field evidence, resets changed manual fields and preserves unrelated values', async () => {
+    const source = { sourceUrl: 'https://example.com/official', sourceType: 'OFFICIAL', retrievedAt: '2026-11-02T00:00:00Z', verificationStatus: 'VERIFIED' };
+    const created = await request('POST', '/api/clubs', { name: 'Örnek Kaynak', city: 'Örnek Şehir', isTracked: true, fieldProvenance: { city: source } });
+    expect(created.statusCode).toBe(201); const row = created.json();
+    expect(row.fieldProvenance.city).toEqual(source); expect(row.fieldProvenance.name.sourceType).toBe('MANUAL');
+    const edited = await request('PATCH', `/api/records/Club/${row.id}`, { version: 1, changes: { city: 'Örnek Yeni Şehir' } });
+    expect(edited.statusCode).toBe(200); expect(edited.json().isTracked).toBe(true);
+    expect(edited.json().fieldProvenance.city.verificationStatus).toBe('UNVERIFIED'); expect(edited.json().fieldProvenance.name).toEqual(row.fieldProvenance.name);
+    expect((await request('POST', '/api/clubs', { name: 'Örnek', fieldProvenance: { city: source } })).statusCode).toBe(400);
+    expect((await request('POST', '/api/clubs', { name: 'Örnek', fieldProvenance: { name: { ...source, sourceUrl: null } } })).statusCode).toBe(400);
+    expect((await request('POST', '/api/clubs', { name: 'Örnek', fieldProvenance: { name: { ...source, sourceUrl: 'javascript:alert(1)' } } })).statusCode).toBe(400);
+  });
+  it('rejects stale trash and underlying-record versions', async () => {
+    const row = await club(); await request('DELETE', `/api/records/Club/${row.id}`, { version: 1 });
+    const item = (await request('GET', '/api/trash')).json()[0];
+    expect((await request('POST', `/api/trash/${item.id}/restore`, { version: 99, recordVersion: item.recordVersion })).statusCode).toBe(409);
+    await db.club.update({ where: { id: row.id }, data: { version: { increment: 1 } } });
+    expect((await request('POST', `/api/trash/${item.id}/restore`, { version: item.version, recordVersion: item.recordVersion })).statusCode).toBe(409);
+    expect((await request('GET', '/api/clubs')).json().total).toBe(0);
+  });
+  it('previews linked records and blocks purging a parent with a player', async () => {
+    const row = await club(); await request('POST', '/api/players', { name: 'Örnek Bağlı Oyuncu', primaryPosition: 'CM', currentClubId: row.id });
+    const preview = (await request('GET', `/api/records/Club/${row.id}/delete-preview`)).json();
+    expect(preview.counts).toMatchObject({ Club: 1, Player: 1 }); expect(preview.canPurge).toBe(false);
+    await request('DELETE', `/api/records/Club/${row.id}`, { version: 1 });
+    const item = (await request('GET', '/api/trash')).json()[0]; const plan = (await request('GET', `/api/trash/${item.id}/preview`)).json();
+    expect((await request('DELETE', `/api/trash/${item.id}`, { version: item.version, recordVersion: item.recordVersion, previewToken: plan.previewToken })).statusCode).toBe(409);
+    expect(await db.player.count()).toBe(1);
+  });
+  it('requires a fresh purge preview after a linked item changes', async () => {
+    const row = await club(); await request('DELETE', `/api/records/Club/${row.id}`, { version: 1 });
+    const item = (await request('GET', '/api/trash')).json()[0]; const plan = (await request('GET', `/api/trash/${item.id}/preview`)).json();
+    await db.note.create({ data: { entityType: 'Club', entityId: row.id, text: 'Örnek not' } });
+    expect((await request('DELETE', `/api/trash/${item.id}`, { version: item.version, recordVersion: item.recordVersion, previewToken: plan.previewToken })).statusCode).toBe(409);
+    expect(await db.club.count()).toBe(1);
+  });
+  it('applies versioned retention settings and logs automatic purge', async () => {
+    const settings = (await request('GET', '/api/settings')).json();
+    expect((await request('PATCH', '/api/settings', { version: settings.version, retentionDays: { Club: 2 } })).statusCode).toBe(200);
+    expect((await request('PATCH', '/api/settings', { version: settings.version, retentionDays: { Club: 3 } })).statusCode).toBe(409);
+    const row = await club(); await request('DELETE', `/api/records/Club/${row.id}`, { version: 1 });
+    const item = await db.trashEntry.findFirstOrThrow();
+    expect(item.expiresAt.getTime() - item.createdAt.getTime()).toBeCloseTo(2 * 86400_000, -3);
+    expect(await purgeExpired(db, new Date(item.expiresAt.getTime() - 1))).toEqual({ purged: 0, blocked: 0 });
+    expect(await purgeExpired(db, new Date(item.expiresAt.getTime() + 1))).toEqual({ purged: 1, blocked: 0 });
+    expect(await db.club.count()).toBe(0); expect(await db.timelineEvent.count({ where: { action: 'purge', entityId: row.id } })).toBe(1);
+  });
+  it('removes examples and unflagged dependents while preserving unrelated records (R11)', async () => {
+    await seedExamples(db); const saved = await club('Örnek Korunacak Kayıt');
+    const person = await db.person.create({ data: { name: 'Örnek Bağımsız Kişi', searchName: 'ornek bagimsiz kisi' } });
+    await db.relation.create({ data: { fromType: 'Person', fromId: person.id, toType: 'Club', toId: exampleId('club-0'), relation: 'contactOf' } });
+    await db.medicalAccessLog.create({ data: { recordId: exampleId('medical'), actor: 'owner', action: 'VIEW' } });
+    const plan = (await request('GET', '/api/admin/examples/preview')).json();
+    expect(plan.counts.MedicalAccessLog).toBe(1); expect(plan.counts.PaymentSchedule).toBe(3);
+    const result = await request('POST', '/api/admin/examples/cleanup', { previewToken: plan.previewToken });
+    expect(result.statusCode, result.body).toBe(200); expect(result.json().counts).toEqual(plan.counts);
+    for (const model of Prisma.dmmf.datamodel.models.filter(model => model.fields.some(field => field.name === 'isExample'))) {
+      const count = await db.$queryRawUnsafe<{ count: bigint }[]>(`SELECT count(*) FROM "${model.name}" WHERE "isExample" = true`);
+      expect(Number(count[0].count), model.name).toBe(0);
+    }
+    expect(await db.club.findUnique({ where: { id: saved.id } })).not.toBeNull(); expect(await db.person.findUnique({ where: { id: person.id } })).not.toBeNull();
+    expect(await db.relation.count()).toBe(0); expect(await db.medicalAccessLog.count()).toBe(0);
+    expect(await db.auditLog.count({ where: { entityType: 'Owner', action: 'purge' } })).toBe(1);
+  });
+  it('rejects stale cleanup previews without deleting anything', async () => {
+    await seedExamples(db); const plan = (await request('GET', '/api/admin/examples/preview')).json();
+    await db.player.update({ where: { id: exampleId('player-0') }, data: { version: { increment: 1 } } });
+    expect((await request('POST', '/api/admin/examples/cleanup', { previewToken: plan.previewToken })).statusCode).toBe(409);
+    expect(await db.player.count()).toBe(4);
+  });
+  it('version-checks proposal reviews and leaves stale proposals untouched', async () => {
+    await seedExamples(db);
+    expect((await request('POST', `/api/proposals/${exampleId('proposal')}/review`, { version: 2, action: 'reject', reason: 'Örnek gerekçe' })).statusCode).toBe(409);
+    expect((await request('POST', `/api/proposals/${exampleId('proposal')}/review`, { version: 1, action: 'reject', reason: 'Örnek gerekçe' })).json().version).toBe(2);
+    expect(await db.timelineEvent.count({ where: { entityId: exampleId('club-0'), action: 'reject' } })).toBe(1);
+  });
+  it('documents all registered API operations and validates empty-route inputs', async () => {
+    const document = openapiDocument();
+    for (const route of apiContracts.filter(route => !route.testOnly)) {
+      expect(app.hasRoute({ method: route.method.toUpperCase() as 'GET', url: route.path }), route.path).toBe(true);
+      expect(document.paths[route.path.replace(/:(\w+)/g, '{$1}')], route.path).toHaveProperty(route.method);
+    }
+    expect(document.paths).not.toHaveProperty('/auth/test');
+    expect((await request('GET', '/api/settings?unexpected=true')).statusCode).toBe(400);
+    expect((await request('POST', '/api/logout', { unexpected: true })).statusCode).toBe(400);
   });
 });

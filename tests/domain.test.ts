@@ -46,6 +46,11 @@ describe('sensitive paths', () => {
     const masked = maskSensitive({ old: fields, new: [fields] });
     expect(JSON.stringify(masked)).not.toContain('secret'); expect(JSON.stringify(masked)).toContain('***');
   });
+  it('keeps validated sensitive-field evidence without allowing business values into metadata', () => {
+    const evidence = { sourceUrl: null, sourceType: 'MANUAL', retrievedAt: '2026-11-02T00:00:00Z', verificationStatus: 'UNVERIFIED' };
+    const masked = maskSensitive({ birthDate: '2000-02-01', fieldProvenance: { birthDate: evidence, email: { ...evidence, value: 'secret@example.com' } } });
+    expect(masked).toEqual({ birthDate: '***', fieldProvenance: { birthDate: evidence } });
+  });
   it('redacts structured request logs', () => {
     let output = '';
     const logger = createLogger({ write: chunk => { output += chunk; } });

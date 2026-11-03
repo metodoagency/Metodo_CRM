@@ -1,6 +1,6 @@
 import EmbeddedPostgres from 'embedded-postgres';
 import { existsSync } from 'node:fs';
-const database = new EmbeddedPostgres({ databaseDir: '.local/postgres', port: 5432, user: 'metodo', password: 'metodo_local_only', authMethod: 'scram-sha-256', persistent: true, postgresFlags: ['-h', '127.0.0.1'] });
+const database = new EmbeddedPostgres({ databaseDir: '.local/postgres', port: 5432, user: 'metodo', password: 'metodo_local_only', authMethod: 'scram-sha-256', persistent: true, initdbFlags: ['--locale=C', '--encoding=UTF8'], postgresFlags: ['-h', '127.0.0.1'] });
 if (!existsSync('.local/postgres/PG_VERSION')) await database.initialise();
 await database.start();
 const client = database.getPgClient('postgres');

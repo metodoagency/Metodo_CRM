@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { Prisma, type PrismaClient } from '@prisma/client';
 import { maskSensitive, type entityTypes } from '../shared/domain.js';
 import { tr, en } from '../shared/locales.js';
+import { z } from 'zod';
 
 export type EntityType = typeof entityTypes[number];
 export type Tx = Prisma.TransactionClient;
@@ -31,10 +32,12 @@ export async function softDelete(db: PrismaClient, type: EntityType, id: string,
   return db.$transaction(async tx => {
     const row = await requireEntity(tx, type, id);
     if (row.version !== version) throw new AppError('STALE_VERSION', 409);
-    const data = { deletedAt: new Date(), version: { increment: 1 } }; const where = { id, version };
+    const settings = await tx.userSettings.findUnique({ where: { ownerId: 'owner' } });
+    const retention = z.record(z.string(), z.number().int().min(1).max(3650)).parse(settings?.retentionDays ?? {});
+    const data = { deletedAt: new Date(), version: { increment: 1 } }; const where = { ...live, id, version };
     const changed = type === 'Club' ? await tx.club.updateMany({ where, data }) : type === 'Player' ? await tx.player.updateMany({ where, data }) : type === 'Person' ? await tx.person.updateMany({ where, data }) : await tx.request.updateMany({ where, data });
     if (changed.count !== 1) throw new AppError('STALE_VERSION', 409);
-    await tx.trashEntry.create({ data: { entityType: type, entityId: id, label: row.name, expiresAt: new Date(Date.now() + 30 * 86400_000), isExample: row.isExample } });
+    await tx.trashEntry.create({ data: { entityType: type, entityId: id, label: row.name, expiresAt: new Date(Date.now() + (retention[type] ?? 30) * 86400_000), isExample: row.isExample } });
     await logEvent(tx, { entityType: type, entityId: id, action: 'delete', name: row.name, isExample: row.isExample });
   });
 }

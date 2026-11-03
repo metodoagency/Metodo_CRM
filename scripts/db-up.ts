@@ -19,7 +19,7 @@ if (docker.status !== 0) {
   if (!await reachable()) {
     mkdirSync('.local', { recursive: true });
     const log = openSync('.local/postgres.log', 'a');
-    const child = spawn(process.execPath, ['--import', 'tsx', 'scripts/local-postgres.ts'], { detached: true, stdio: ['ignore', log, log], env: process.env });
+    const child = spawn(process.execPath, ['--import', 'tsx', 'scripts/local-postgres.ts'], { detached: true, windowsHide: true, stdio: ['ignore', log, log], env: process.env });
     child.unref();
   }
 }

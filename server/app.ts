@@ -16,6 +16,7 @@ import { registerRoutes } from './routes.js';
 import { AppError } from './core.js';
 import { loggerOptions } from './logging.js';
 import { openapiDocument } from './openapi.js';
+import { apiContracts, emptyObject } from '../shared/contracts.js';
 
 export async function buildApp(options: { db?: PrismaClient; config?: Config } = {}) {
   const db = options.db ?? defaultDb; const config = options.config ?? readConfig();
@@ -30,6 +31,14 @@ export async function buildApp(options: { db?: PrismaClient; config?: Config } =
     } }, xFrameOptions: false, referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
   });
   await app.register(rateLimit, { max: 300, timeWindow: '1 minute', keyGenerator: req => req.url.startsWith('/api') && req.cookies[sessionCookie] ? hash(req.cookies[sessionCookie]) : req.ip });
+  app.addHook('preValidation', async req => {
+    const contract = apiContracts.find(route => route.path === req.routeOptions.url && route.method.toUpperCase() === (req.method === 'HEAD' ? 'GET' : req.method));
+    if (!contract) return;
+    (contract.query ?? emptyObject).parse(req.query);
+    (contract.params ?? emptyObject).parse(req.params);
+    if (contract.body) contract.body.parse(req.body);
+    else if (req.body !== undefined) emptyObject.parse(req.body);
+  });
   app.addHook('onRequest', async (req, reply) => {
     reply.header('permissions-policy', 'camera=(), microphone=(), geolocation=(), payment=()');
     // Use the matched route, never a user-controlled raw URL prefix, to decide
@@ -50,8 +59,8 @@ export async function buildApp(options: { db?: PrismaClient; config?: Config } =
   app.setErrorHandler((error, _req, reply) => {
     if (error instanceof ZodError) return reply.code(400).send({ code: 'INVALID_INPUT', fields: error.issues.map(i => i.path.join('.')) });
     if (error instanceof AppError) return reply.code(error.status).send({ code: error.code });
-    if (error instanceof Prisma.PrismaClientKnownRequestError && ['P2003', 'P2014', 'P2002', 'P2034'].includes(error.code)) return reply.code(409).send({ code: 'LINKED_RECORDS' });
-    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2025') return reply.code(404).send({ code: 'NOT_FOUND' });
+    if (error instanceof Prisma.PrismaClientKnownRequestError && ['P2003', 'P2014', 'P2002'].includes(error.code)) return reply.code(409).send({ code: 'LINKED_RECORDS' });
+    if (error instanceof Prisma.PrismaClientKnownRequestError && ['P2025', 'P2034'].includes(error.code)) return reply.code(409).send({ code: 'STALE_VERSION' });
     if (error instanceof Error && 'statusCode' in error && typeof error.statusCode === 'number' && error.statusCode < 500) return reply.code(error.statusCode).send({ code: 'INVALID_INPUT' });
     // No request bodies, tokens or database errors are logged.
     console.error('Request failed:', error instanceof Error ? error.name : 'UnknownError');
