@@ -13,4 +13,9 @@ describe('environment validation', () => {
     expect(() => readConfig({ NODE_ENV: 'production', GOOGLE_CLIENT_SECRET: 'example-secret-never-log', DATABASE_URL: 'postgresql://owner:example-password@localhost/metodo' })).toThrow('GOOGLE_REDIRECT_URI');
     try { readConfig({ FIELD_ENCRYPTION_KEY: 'example-secret-never-log' }); } catch (error) { expect(String(error)).not.toContain('example-secret-never-log'); }
   });
+  it('trusts no proxy by default and accepts only explicit proxy addresses', () => {
+    expect(readConfig({}).TRUSTED_PROXY_CIDRS).toBe('');
+    expect(readConfig({ TRUSTED_PROXY_CIDRS: '127.0.0.1,10.0.0.0/8,::1' }).TRUSTED_PROXY_CIDRS).toContain('10.0.0.0/8');
+    for (const value of ['true', '*', '1', 'example.com', '10.0.0.0/33', '::1/129']) expect(() => readConfig({ TRUSTED_PROXY_CIDRS: value })).toThrow('TRUSTED_PROXY_CIDRS');
+  });
 });

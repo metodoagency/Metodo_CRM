@@ -1,140 +1,95 @@
 # Metodo CRM progress
 
-Authoritative specification: [docs/REQUIREMENTS.md](docs/REQUIREMENTS.md), the second uploaded complete build prompt. It replaces the earlier draft. Work is on `milestone/a-foundation`, committed and pushed to origin. This is **work in progress, not a completed production CRM**. No milestone is marked DONE and no merge is authorized by local test passes alone.
+Updated: 2026-11-03 (Europe/Istanbul).
 
-## Milestone status
+Authoritative specification: [docs/REQUIREMENTS.md](docs/REQUIREMENTS.md). Existing work is preserved in `milestone/a-foundation`; [PR #1](https://github.com/metodoagency/Metodo_CRM/pull/1) is a draft. This is a runnable foundation, **not a completed production CRM**. B–I are not claimed built.
 
-### Windows continuation — 2026-11-02 (in progress)
+## Current milestone
 
-- The existing branch was cloned into an isolated local checkout at commit `c938845`; all prior source and history were retained. Current work remains on `milestone/a-foundation`.
-- GitHub connector reads and native Git clone/fetch are working in this session. Supabase `list_projects` succeeded and returned an empty project list for the connected account. Google Sites opened successfully in the signed-in Edge session; the site list is empty. No Google Site has been published yet.
-- Railway login was exercised with Google and, after the owner completed GitHub sign-in, GitHub. Both returned the service error **`Sign ups are currently disabled. Please try again later.`** at `/auth/error`. This is an observed Railway service/login restriction, not evidence that a new token is required. Deployment remains pending; no public URL is claimed.
-- Implemented in this continuation, pending final acceptance: field-level source validation and source display; safe partial edits that retain unrelated defaults; versioned Trash restore/purge and proposal rejection; dependency previews and preview-digest confirmation; full example/dependent cleanup using schema-derived relations; configurable retention and logged daily purge; complete route contracts/OpenAPI; optional-feature and production environment validation with redacted error output.
-- Windows fixes: npm/npx child commands use Node entry points without shell interpolation; embedded PostgreSQL initializes with an explicit UTF-8/C locale; background startup hides native windows. Local PostgreSQL 16 initialization and migration execution were observed. The current session holds a foreground database process during verification. Restricted local-network access must be granted for PostgreSQL tests; an `EACCES` socket failure must not be diagnosed as a database credential problem.
-- Validation observed for the continuation: strict typecheck and lint PASS; i18n check PASS (298 keys); API document generation PASS; production build PASS. Integration tests and expanded browser tests are currently running. One earlier run had 46/47 passing with the remaining test using invalid example encryption keys; its fixture has been corrected for the strengthened production validator. No final test pass, completed security scan, PR, merge or milestone completion is claimed yet.
-- Exact next step: finish the running integration/browser suites, fix any failures, run the security review and remaining quality gates, update this section with final counts, then open the A PR and verify remote CI before merge. Continue B–I from the authoritative specification after the A gate.
-
-The owner already completed the requested GitHub browser sign-in. Do not ask for that again. The deployment issue currently recorded is Railway's response above.
-
-| Milestone | Status | Evidence / next gate |
+| Milestone | Status | Next gate |
 |---|---|---|
-| A — Foundation | PARTIAL | Runnable local foundation and security tests implemented; remaining acceptance gaps below; no reviewed/merged PR |
-| B — Clubs and players | BLOCKED | Depends on completing A; basic core records exist, advanced modules not started |
-| C — Transfers | BLOCKED | Depends on A/B; R3 is implemented for seed/E2E, other C scope pending |
-| D — Matches and documents | BLOCKED | Depends on C; no TFF fetch/parser or document generator claimed |
-| E — Network and operations | BLOCKED | Depends on prior milestones; tables/examples only |
-| F — Hardening | BLOCKED | Main-route a11y and deployment packaging exercised early; full F pending |
-| G — Medical/minors/data operations | BLOCKED | No production medical/guardian ingestion allowed before this milestone |
-| H — Money and deals | BLOCKED | Schema/skeleton examples only; no financial workflow claimed |
-| I — Intelligence and network | BLOCKED | Not started |
+| A — Foundation | Implemented; final patch validation/CI pending | Commit rate-control fixes, verify final CI, review, merge PR #1 |
+| B — Clubs and players | NOT STARTED | After A merge: M1/M3/M4/M5/M6/M14 basic/M15 and R1/R5/R6/R8 |
+| C — Transfers | NOT STARTED | Core R3 suggestion transaction already exercised; remaining C workflows pending |
+| D — Matches and documents | NOT STARTED | TFF parser, GPS, gallery and PDF/DOCX pending |
+| E — Network and operations | NOT STARTED | Schema/example rows only |
+| F — Hardening | NOT STARTED | Early a11y/headers/packaging checks do not complete F |
+| G — Medical/minors/data operations | NOT STARTED | No real medical or guardian data before G merge |
+| H — Money and deals | NOT STARTED | Schema/example rows only |
+| I — Intelligence and network | NOT STARTED | Full scope remains in requirements |
 
-## Implemented and exercised in this work
+## Foundation implemented
 
-- TypeScript/React 18/Vite/Tailwind/Radix/TanStack Query/React Router/react-hook-form/zod shell; Turkish default, English, dark/light server preferences, responsive drawer/cards and keyboard search.
-- PostgreSQL 16, Prisma 6.19.3 with published WASM migration adapter; 63 models (60 business models plus owner/session/OAuth infrastructure); all business common columns, UUID primary keys, provenance columns, encrypted sensitive fields, indexed relations, Mandate/Deal skeletons and three migrations.
-- Owner OIDC flow with state, PKCE, nonce, JWT issuer/audience/email verification and allowlist; actual Google login remains NOT VERIFIED. Hashed server-side sessions; encrypted stored session emails; __Host cookies; 12-hour absolute and 60-minute idle expiry; rotation on login and revoke-all.
-- Session-bound CSRF and exact application Origin; request authentication based on matched route patterns; route rate limits; CSP allowing Google Sites ancestors; no X-Frame-Options; Permissions-Policy, nosniff, Referrer-Policy and pino redaction.
-- Core club/player/person/request persistence; bidirectional relations; masked bilingual timeline/audit events; core optimistic edits/deletes; Trash/restore/manual purge; safe CSV exclusions; explicit per-field reveal with 60-second auto-hide. Unsupported canonical proposal approval fails closed.
-- R3 creates a Suggestion, relation, Presentation, request status and four timelines atomically. A database trigger failure proves rollback of earlier writes.
-- Fictional relative-date seed, idempotent without overwriting existing records. Names start with Örnek/ÖRNEK, domains are example.com, and business example rows are flagged. Sensitive seed fields are encrypted. Seed refuses production.
-- AES-256-GCM with random IV and authenticated field context; separate HMAC blind indexes; key-ID support and tested persisted batch rotation.
-- Complete Natural Earth 110m boundary asset (177 features); neutral design tokens. Interactive map pending B.
-- Docker/Railway configuration and English/Turkish setup guides; production-image smoke test confirmed SPA/health/API auth/stub absence and embedding headers. No external deployment was performed.
+- TypeScript React/Vite bilingual owner shell, Turkish default, dark/light preferences, responsive navigation, eight main routes.
+- Real PostgreSQL 16, Prisma 6.19.3, 63 models/60 business models, four append-only migrations, UUIDs, owner scope, provenance, versions, relations and fictional seed.
+- Google OIDC implementation with state, PKCE, nonce, signature/issuer/audience/email verification and allowlist; hashed server sessions, encrypted email, 12-hour absolute/60-minute idle expiry, revoke-all, Secure/HttpOnly/__Host/SameSite=None cookies.
+- Origin plus session-bound CSRF on mutations; explicit route contracts, redacted logs, production/test boundary, required Sites CSP and no X-Frame-Options.
+- AES-256-GCM sensitive values, separate keyed blind indexes, 60-second reveal, masked audit/timeline and sensitive CSV exclusion.
+- Core clubs/players/people/requests; versioned writes, bidirectional relations, transactional R3 suggestion/relation/presentation/request/timeline changes and rollback proof.
+- Strict per-field evidence and HTTP(S) source validation. Editing a field manually resets its evidence without resetting unrelated fields.
+- Linked deletion previews, fresh digest confirmation, owner/version checks for Trash restore/purge, FK/polymorphic dependency traversal, safe example cleanup including unflagged dependents and orphan tests.
+- Configurable category retention and logged daily purge. Linked primary records block ordinary purge; guardian/medical records do not auto-purge. History remains for ordinary purge.
+- Full implemented-route OpenAPI, environment validation, Docker/Railway packaging, English/Turkish local/deployment guides. Unsupported future workflows fail closed.
 
-## Verification results
+## Current verification evidence
 
-Prior cloud-run checks (2026-11-02), retained as historical evidence; see the Windows continuation above for the current run:
+| Check | Observed result |
+|---|---|
+| Install/client generation | PASS: 453 packages installed; Prisma client 6.19.3 generated |
+| Local database | PASS: embedded PostgreSQL 16.13, four migrations; separate local test/E2E databases |
+| Full unit/integration run | PASS: 65/65, six files, real PostgreSQL; two later health/proxy regression tests separately verified below |
+| Final focused regression run | PASS: 9/9 (five rate-boundary cases and four environment cases) |
+| Browser + a11y | PASS: 6/6, exit 0; 8 routes × TR/EN, zero serious/critical axe violations |
+| TypeScript / lint | PASS before final health/test/docs additions; final CI will rerun |
+| i18n | PASS: 298 paired keys; checker covers four JSX files |
+| Compliance | PASS structure: three files, all NOT REVIEWED |
+| OpenAPI generation / production build | PASS; final rate-control patch production build also passed |
+| Security gate | PASS: source scan, production audit 0; 17 selected security tests passed, 50 intentionally filtered |
+| Remote CI at `3893162` | PASS: [run 41614213707](https://github.com/metodoagency/Metodo_CRM/actions/runs/41614213707), including install/lint/typecheck/unit/security/build/browser |
+| Final patch remote CI | PENDING; do not infer its result from the prior commit |
 
-| Command / check | Result | Count / scope |
-|---|---|---|
-| npm install | PASS | Repeated installation and generated client succeeded |
-| npm run db:up | PASS | Real PostgreSQL 16 Docker service; repeated reachable check |
-| npm run db:migrate | PASS | Three migrations, development/test/E2E/performance databases and production-image command |
-| npm run seed:example | PASS | Repeated seed; encrypted examples; explicit idempotence integration test |
-| npm test | PASS | 47/47 tests across 4 files, including native PostgreSQL UUID assertions and persisted key rotation |
-| npm run typecheck | PASS | Strict TypeScript; 0 errors |
-| npm run lint | PASS | 0 errors/warnings |
-| npm run build | PASS | Browser and Node production outputs; release forces production React runtime |
-| npm run i18n:check | PASS | 207 paired keys; 3 JSX files; checker rejection tests |
-| npm run test:e2e | PASS | 4 tests: full core flow, iframe fallback, TR a11y, EN a11y |
-| npm run a11y coverage | PASS via test:e2e | 8 main routes × 2 languages; 0 serious/critical violations |
-| npm run compliance:check | PASS structure | 3 files; all remain NOT REVIEWED |
-| npm run security:check | PASS | Secrets/outbound scan; production audit 0 advisories; 11 selected security tests, others deliberately filtered |
-| npm audit (including dev) | PASS | 0 advisories after patching/upgrading dependencies |
-| npm run perf:test | PASS | 10,000 players; 50 samples after 5 warm-ups; p95 31.3 ms; 3 index-scan plans |
-| npm run keys:rotate | PASS integration | Real encrypted row re-encrypted with new key ID; plaintext and version verified |
-| npm run jobs:daily | PASS limited scope | Expired session/OAuth maintenance only; business notification jobs pending C |
-| npm run api:docs | PASS limited scope | Core create/list OpenAPI generated and authenticated route registered; full route coverage pending |
-| Docker build / production smoke | PASS | Image built; health 200, SPA 200, API 401, test auth 404; CSP correct on all four |
+Windows Playwright tests passed cleanly outside the desktop sandbox. Inside that sandbox all six assertions passed, but the sandbox prevented Playwright's Windows taskkill teardown and the process did not exit. Direct API/Vite child commands replace npm/concurrently in the test server configuration. No sandbox/certificate/authentication protections were disabled in application code.
 
-The API performance measurement uses Fastify injection and local PostgreSQL, not public-network latency. Machine: Linux x64, 5 logical CPUs exposed, AMD EPYC 9V74. See [docs/performance.md](docs/performance.md). No Lighthouse score is claimed.
+The previous Linux cloud run additionally exercised Docker production smoke, 10,000-player query plans and key rotation. Those are historical checks, not fresh Windows measurements. Historical progress is retained in Git history, including `3893162:PROGRESS.md`.
 
-The first query-plan run failed (149.1 ms p95 with sequential scans). Partial active-record indexes fixed it; no planner settings were forced. Initial browser label/preference issues, an async auth-response deadlock, and vulnerable dependency versions were corrected and affected checks rerun.
+## Security review and corrections
 
-## Assumptions
+Completed Codex Security scan: `1dd3d56c-7833-480b-8a53-c18fb53fe51c`, immutable main `e917f55` through local `c11c0c7`. The GitHub commit `3893162` has the identical tree `c05801a`. All 94 changed inventory paths/66 source entries were accounted for.
 
-- **reference CV not provided**. The reference folder is empty; use the M8 section order later. Neutral design tokens are used because no Figma/Canva/Drive design was connected.
-- Sensitive dates must not be stored in plaintext DATE columns. Birth dates use encrypted text plus blind indexes; non-sensitive calendar dates remain PostgreSQL DATE. This prioritizes section 2.6 confidentiality over the conflicting universal DATE wording in section 5.
-- `DIRECT_URL` is declared in the schema and selected explicitly by `prisma.config.ts` for migrations. Runtime Prisma uses `DATABASE_URL`. The driver's warning about ignored schema URL fields is expected; selection is explicit and tested.
-- The published Prisma WASM migration interface avoids a blocked native-engine download. A catalog-only adapter projection casts PostgreSQL `name` values to text. Package checksums and TLS were never bypassed. `deepmerge-ts`, `glob` and `minimatch` use compatible patched overrides, exercised by generation/build/tests.
-- One `owner` scope is used. Example records do not grant login access; ALLOWED_EMAILS remains authoritative.
-- Docker is available in this instance. Unprivileged embedded PostgreSQL fallback is provided but its startup path is NOT VERIFIED here because the working Docker database occupies the development port.
-- Seed and test data remain fictional. No real football record, automatic Transfermarkt lookup, competitor scraping, legal conclusion, contact messaging or AI call was added.
-- Unsupported features fail closed or are absent. `export:subject` explicitly exits NOT DONE rather than producing an incomplete privacy export.
+Two LOW findings: session database work preceded the effective anonymous limiter; production unconditionally trusted forwarded addresses. Fixes now enforce a 600/minute IP budget **before** API/health database queries and an independent 300/minute valid-session budget. Proxy trust defaults off; only configured explicit IP/CIDR peers are trusted. Authentication remains 10/minute per IP. Focused tests cover stable/rotating invalid cookies, unchanged DB counts after rejection, cross-IP session quotas, health aliases, spoofed forwarded addresses and a trusted-peer chain.
+
+Follow-up independent review found the health-route regression; it was corrected and covered by a shared-budget test. Required Google framing remains unchanged. The unsupported hostile Google-ancestor clickjacking hypothesis was not promoted to a finding; its initial validation proof gap remains in partial coverage. Real published-Sites browser behavior is still unverified.
+
+The sealed report describes its original revision; current fixes are not retroactively presented as part of that snapshot. Final patch checks and CI must pass before merge. Limits are per process; multiple replicas need a shared store or verified edge budget.
+
+## Access and Google Sites
+
+- GitHub connected reads/writes work. Native clone/fetch work; native push's credential helper failed under the Windows app container. The connected Git Data API successfully uploaded the exact immutable tree and created PR #1. No new GitHub token/login is requested.
+- Supabase list_projects succeeded: the connected account currently exposes an empty project list. Production project provisioning is pending; this does not mean the account is disconnected.
+- Railway Google login and GitHub login both returned **Sign ups are currently disabled. Please try again later.** The owner already completed GitHub sign-in. The same service error was visible on 2026-11-03; do not ask for GitHub sign-in again.
+- Google Sites is signed in. Created and verified a saved **Metodo CRM** draft: [editor](https://sites.google.com/d/1abOP0osCXLaF0o4hfcBQ1ZySVcONrqls/p/1QhnYKXSyZKCLMe3V40mMs5JmWYlgn3Lx/edit). Title is set; Drive confirms all changes saved. No existing user Site was overwritten.
+- Google Sites publication waits for the actual verified HTTPS app URL. **Public app URL: NOT AVAILABLE. Public Google Site URL: NOT PUBLISHED.** No guessed URL or test-auth deployment is claimed.
 
 ## Owner input needed
 
-Do not paste secret values into chat. Configure them securely in local `.env` for development and hosting-provider secrets for production.
+1. Railway's observed service restriction prevents project creation/deployment through the signed-in flow. Needed if Railway remains the host: an active Railway account/project that can pass that restriction, or resolution by Railway. This is a provider response, not a request for another GitHub token. Independent application work continues.
+2. Reference CV: **reference CV not provided**. The requirements' default M8 layout will be used; no upload is needed to continue.
+3. Compliance files remain **NOT REVIEWED** until owner review. They are owner-authored checklist placeholders, not verified legal conclusions.
 
-1. Owner's `ALLOWED_EMAILS`; Google Web OAuth `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` and registered callback URI.
-2. An owner-authorized Railway project/repository connection. No Railway tool, deployment identity or token was available. A public URL cannot be supplied until an actual deployment/domain exists. **Public URL: NOT AVAILABLE.**
-3. Supabase (or another PostgreSQL 16 host): pooled `DATABASE_URL`, direct `DIRECT_URL`, provider-required TLS configuration and backup policy.
-4. Independent `FIELD_ENCRYPTION_KEY` and `BLIND_INDEX_KEY` (32-byte base64 keys); key custody/rotation plan and key ID.
-5. S3-compatible storage endpoint/bucket/region/access credentials when implementing the production storage adapter. Never expose a service-role key to the browser.
-6. Optional provider credentials/license notes, AI keys and consent, SMTP for owner-only digest, IMAP and Sheets access only when the corresponding features are implemented and enabled.
-7. Reference CV under `docs/reference-cv/`, if available, and owner review of all compliance files. Their current reviewedAt values are `NOT REVIEWED`.
-8. GitHub API access to create/review a milestone PR and observe CI. Existing native Git reads work, but `gh api repos/metodoagency/Metodo_CRM --jq '.permissions'` returned `Get "https://api.github.com/repos/metodoagency/Metodo_CRM": Forbidden`. This does not establish that a new token is required. Retry after the relevant access/policy changes.
+Production Google OAuth settings, database/storage resources and encryption keys must be configured securely through existing authorized accounts when deployment is provisioned. Existing cloud OAuth projects have not yet been inspected here; do not assume credentials are missing merely because they are absent from this local process. Never paste secrets into chat or commits.
 
-## NOT VERIFIED and concrete errors
+## Exact next steps
 
-- Real Google OIDC sign-in and a published Google Sites iframe: owner credentials and public deployment absent. Local iframe fallback is tested; third-party-cookie behavior remains browser-dependent.
-- GitHub PR/remote CI/merge: the native Git push succeeded. Draft PR creation then returned `Post "https://api.github.com/graphql": Forbidden`. No PR or merge was created, and remote CI status is not verified. The exact review-ready body is saved in [docs/milestone-a-pr.md](docs/milestone-a-pr.md). Do not claim green CI or merge from local results.
-- Codex Security completed scan: the skill is listed, but its scan MCP tools and terminal helper files were not available. Reading its referenced preflight returned `failed to read skill resource`. The [skill](skill://Plugin_1e648473be9c8191a91ac3947151af55/security-diff-scan/SKILL.md) requires: "Run the security_diff_scan preflight ... before reviewing files or creating a goal." No scan ID, completed report or sealed review is claimed. Independent security tests/audits ran; see [threat model](docs/security/threat-model.md).
-- Playwright-managed browser download returned `403 ... Domain forbidden` for cdn.playwright.dev. Browser validation succeeded with installed `/usr/bin/chromium`; this is not a browser-test blocker.
-- Native Prisma download initially returned 403 for binaries.prisma.sh. The supported WASM adapter/client is now exercised; no verification was disabled.
-- `prisma migrate diff --from-migrations` failed with P3006 (`type "AgeCategory" already exists`) using the experimental shadow-database path. Subsequent index SQL was generated by comparing schema files without a shadow database; deployment of all three migrations is verified. Do not use the affected shadow-diff path until investigated.
-- Full section 13 E2E flows for medical/guardian, deals/receivables, share links, purge dry run, PDF/DOCX and Lighthouse are unrun because those features are not implemented. Passing core tests do not cover them.
+1. Expanded local security/build gates passed. Commit final A fixes and current documentation, then upload through the working GitHub connector.
+2. Update PR #1's evidence, observe green CI for its exact final head and finish review before merging.
+3. Start milestone B on its own branch and implement its complete requirements with tests. Continue C–I without waiting for another owner “continue” message.
+4. Retry authorized hosting/provisioning when the provider path is usable; verify real OIDC, HTTPS health, headers and production stub absence.
+5. Embed the verified app URL in the existing Google Sites draft, publish and verify the published frame and top-level login fallback.
 
-## Compliance file status
+## Constraints and known risks
 
-| File | Status | reviewedAt |
-|---|---|---|
-| config/compliance/ffar.json | NOT REVIEWED | NOT REVIEWED |
-| config/compliance/tff-menajer.json | NOT REVIEWED | NOT REVIEWED |
-| config/compliance/minors.json | NOT REVIEWED | NOT REVIEWED |
+No real football records or credentials are fabricated. Seed records are visibly fictional and encrypted where required. No automatic Transfermarkt fetching, external-contact messaging, legal conclusions or public test stub. Sensitive dates use encrypted text rather than plaintext DATE; other calendar dates use DATE. Reference design uses neutral tokens and complete Natural Earth 110m boundaries.
 
-These are owner-authored review prompts, not verified regulatory interpretations.
+Production upload/storage, backups, full subject export, medical policy, financial workflows, licensed imports, PWA and document generators are not built. Feature matrix remains honest: [matrix](docs/benchmark/feature-matrix.md). Passing foundation tests does not establish these modules.
 
-## Remaining A acceptance gaps / exact next step
-
-**Next: finish A on this branch before starting milestone B or merging.** Implement centralized optimistic-version enforcement for every remaining writer (Trash restore/review/retention and administrative operations), validate per-field provenance consistently, complete linked-record deletion preview and example cleanup with orphan tests, finish all route OpenAPI and environment-variable validation, and obtain a completed Codex Security review. The current ordinary core-record edit/delete/settings paths have version checks; unsupported proposal approval is blocked. Automatic 30-day logged purge and configurable retention remain pending, not silently enabled.
-
-Then run all quality gates, open/update the milestone PR with the test-summary table, observe green CI, and merge only after milestone acceptance and review. Continue B–I in order using separate branches/PRs.
-
-## Feature matrix / deployment / reusable environment
-
-[Feature matrix](docs/benchmark/feature-matrix.md): BUILT 0, PARTIAL 10, NOT BUILT 23, OUT OF SCOPE 0 across the 33 requested complete categories. Schema-only categories are not counted built.
-
-Exact local commands and Railway/Supabase/public-domain steps are in [README.md](README.md) and [Türkçe kurulum](docs/KURULUM-TR.md). No public app or Google Site was created.
-
-Cloud environment draft: saved complete `install_script`, `start_skill`, and custom network requirements for Google OIDC and api.github.com. Saving is confirmed; runtime application/publication is **not** claimed. Review and save in environment settings, then publish the cloud environment when appropriate. Live development processes must restart after restoration.
-
-## Tool availability checked for A
-
-- Cloud Environment and Onboarding tools available and exercised. Terminal/Git/PostgreSQL/Chromium available. GitHub plugin, Supabase, Railway, Figma, Canva, Drive, Calendar, Gmail, Firecrawl and a browser connector were not exposed as callable tools; native/local fallbacks used where relevant.
-- Codex Security skills listed, scan tools/helpers absent as described above. No unsupported plugin was installed or invented.
-- Other listed skill packages (Power BI, Creative Production, Data Analytics, TWG, ChatCut, Firebase, Logtura, Sentry) were not needed for this architecture; account connectivity was not tested.
-
-## Known risks
-
-Google Sites third-party cookie restrictions; future TFF DOM changes and robots/access policy; manual Transfermarkt values requiring owner provenance; AI costs and payload consent when implemented; licensed provider availability; raw key custody; unreviewed compliance prompts; incomplete modules. Do not treat this WIP branch as production-ready.
+Local commands and deployment steps: [README](README.md), [Türkçe kurulum](docs/KURULUM-TR.md). Current tools: GitHub and Codex Security MCP work; Supabase read access works; Edge works for Sites/Railway. Cloud Environment runtime tools are absent in this desktop session; that is a tool limitation, not evidence that the original cloud account lacks access.

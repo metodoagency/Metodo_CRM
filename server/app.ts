@@ -21,7 +21,8 @@ import { apiContracts, emptyObject } from '../shared/contracts.js';
 export async function buildApp(options: { db?: PrismaClient; config?: Config } = {}) {
   const db = options.db ?? defaultDb; const config = options.config ?? readConfig();
   keyring();
-  const app = Fastify({ bodyLimit: 1024 * 1024, logger: loggerOptions, trustProxy: config.NODE_ENV === 'production' });
+  const trustedProxies = config.TRUSTED_PROXY_CIDRS.split(',').map(value => value.trim()).filter(Boolean);
+  const app = Fastify({ bodyLimit: 1024 * 1024, logger: loggerOptions, trustProxy: trustedProxies.length ? trustedProxies : false });
   await app.register(cookie);
   await app.register(helmet, {
     contentSecurityPolicy: { directives: {
@@ -30,7 +31,11 @@ export async function buildApp(options: { db?: PrismaClient; config?: Config } =
       objectSrc: ["'none'"], baseUri: ["'self'"], formAction: ["'self'"], upgradeInsecureRequests: config.NODE_ENV === 'production' ? [] : null,
     } }, xFrameOptions: false, referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
   });
-  await app.register(rateLimit, { max: 300, timeWindow: '1 minute', keyGenerator: req => req.url.startsWith('/api') && req.cookies[sessionCookie] ? hash(req.cookies[sessionCookie]) : req.ip });
+  await app.register(rateLimit, { global: false });
+  // Run before session lookup: an arbitrary cookie must not cause unbounded DB work.
+  // Independent createRateLimit counters avoid the plugin's once-per-request hook flag.
+  const preAuthLimit = app.createRateLimit({ max: 600, timeWindow: '1 minute', keyGenerator: req => req.ip });
+  const sessionLimit = app.createRateLimit({ max: 300, timeWindow: '1 minute', keyGenerator: req => hash(req.cookies[sessionCookie]!) });
   app.addHook('preValidation', async req => {
     const contract = apiContracts.find(route => route.path === req.routeOptions.url && route.method.toUpperCase() === (req.method === 'HEAD' ? 'GET' : req.method));
     if (!contract) return;
@@ -45,6 +50,10 @@ export async function buildApp(options: { db?: PrismaClient; config?: Config } =
     // which routes require authentication (including encoded path variants).
     const apiRoute = req.routeOptions.url?.startsWith('/api/') ?? false;
     if (apiRoute) reply.header('cache-control', 'no-store');
+    if (apiRoute || ['/health', '/healthz'].includes(req.routeOptions.url ?? '')) {
+      const limit = await preAuthLimit(req);
+      if (!limit.isAllowed && limit.isExceeded) return reply.header('retry-after', limit.ttlInSeconds).code(429).send({ code: 'RATE_LIMITED' });
+    }
     if (!['GET', 'HEAD', 'OPTIONS'].includes(req.method) && (apiRoute || req.routeOptions.url === '/auth/test')) {
       if (req.headers.origin !== new URL(config.APP_ORIGIN).origin) return reply.code(403).send({ code: 'INVALID_ORIGIN' });
     }
@@ -53,6 +62,8 @@ export async function buildApp(options: { db?: PrismaClient; config?: Config } =
     const session = token ? await db.session.findUnique({ where: { id: hash(token) } }) : null;
     if (!session || session.expiresAt.getTime() <= Date.now() || session.lastSeenAt.getTime() < Date.now() - 3600_000) return reply.code(401).send({ code: 'UNAUTHORIZED' });
     if (!config.allowedEmails.includes(decrypt(session.email, 'Session.email'))) return reply.code(403).send({ code: 'FORBIDDEN' });
+    const limit = await sessionLimit(req);
+    if (!limit.isAllowed && limit.isExceeded) return reply.header('retry-after', limit.ttlInSeconds).code(429).send({ code: 'RATE_LIMITED' });
     if (!['GET', 'HEAD', 'OPTIONS'].includes(req.method) && !verifyCsrf(token!, req.headers['x-csrf-token'])) return reply.code(403).send({ code: 'INVALID_CSRF' });
     await db.session.update({ where: { id: session.id }, data: { lastSeenAt: new Date() } });
   });

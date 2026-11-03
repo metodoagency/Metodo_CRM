@@ -1,11 +1,16 @@
 import 'dotenv/config';
 import { z } from 'zod';
+import { isIP } from 'node:net';
 
 const emptyOptional = <T extends z.ZodType>(schema: T) => z.preprocess(value => value === '' ? undefined : value, schema.optional());
 const flag = z.enum(['true', 'false']).default('false');
 const key = z.string().regex(/^[A-Za-z0-9+/]{43}=$/, 'Must be a 32-byte base64 key');
 const databaseUrl = z.url().refine(value => ['postgres:', 'postgresql:'].includes(new URL(value).protocol), 'Must be a PostgreSQL URL');
 const httpUrl = z.url().refine(value => ['https:', 'http:'].includes(new URL(value).protocol), 'Must be an HTTP(S) URL');
+const proxyAddresses = z.string().default('').refine(value => value.split(',').map(part => part.trim()).filter(Boolean).every(part => {
+  const [address, prefix, extra] = part.split('/'); const family = isIP(address);
+  return family !== 0 && extra === undefined && (prefix === undefined || (/^\d+$/.test(prefix) && Number(prefix) <= (family === 4 ? 32 : 128)));
+}), 'Must contain only explicit proxy IP addresses or CIDRs');
 const configuration = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   DATABASE_URL: databaseUrl.default('postgresql://metodo:metodo_local_only@127.0.0.1:5432/metodo'),
@@ -20,6 +25,7 @@ const configuration = z.object({
     catch { ctx.addIssue({ code: 'custom', message: 'Must be a JSON object of key IDs to 32-byte base64 keys' }); }
   }),
   PORT: z.coerce.number().int().min(1).max(65535).default(3000), HOST: z.string().min(1).default('0.0.0.0'),
+  TRUSTED_PROXY_CIDRS: proxyAddresses,
   STORAGE_DRIVER: z.enum(['local', 's3']).default('local'), STORAGE_PATH: z.string().min(1).default('.local/uploads'),
   S3_ENDPOINT: emptyOptional(httpUrl), S3_BUCKET: z.string().default(''), S3_REGION: z.string().default(''),
   S3_ACCESS_KEY_ID: z.string().default(''), S3_SECRET_ACCESS_KEY: z.string().default(''),
