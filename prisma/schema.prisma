@@ -1481,6 +1481,10 @@ model UserSettings {
  matchingWeights Json @default("{}")
  tffUrls Json @default("{}")
  retentionDays Json @default("{}")
+ privacyNoticeVersion String?
+ privacyAcknowledgedAt DateTime?
+ privacyAcknowledgedLanguage String?
+ breachContact String?
  googleSheetsEnabled Boolean @default(false)
  aiEnabled Boolean @default(false)
  aiConsent Boolean @default(false)

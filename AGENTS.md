@@ -49,7 +49,7 @@ P12 Deterministic accuracy. Money, percentages, per-90 values, ages, deadlines a
 React 18, Vite, TypeScript, Tailwind CSS, shadcn/ui or Radix primitives, TanStack Query, React Router, react-hook-form with zod, i18next (tr and en), date-fns with the tr and enUS locales, Recharts, react-leaflet with Leaflet, Lucide icons. World boundaries: Natural Earth 110m countries GeoJSON (public domain), committed under public/geo/ or src/assets/geo/. Fetch it from the public domain source nvkelso/natural-earth-vector (ne_110m_admin_0_countries.geojson) or generate a valid, complete 110m file, and commit it.
 
 ### 2.2 Backend
-Node 20 or newer, Fastify, TypeScript, zod validation on every route, Prisma ORM, PostgreSQL 16. zod-to-openapi generates the API document, served at /api/docs. pino writes structured logs with redaction (section 2.8).
+Node 20 or newer, Fastify, TypeScript, zod validation on every route, Prisma ORM. Owner-approved production database: existing Supabase PostgreSQL 17; retain local PostgreSQL 16 and verify compatibility on 16/17 in CI. zod-to-openapi generates the API document, served at /api/docs. pino writes structured logs with redaction (section 2.8).
 
 ### 2.3 Authentication
 - Single owner. Google OpenID Connect sign-in. Only emails listed in the ALLOWED_EMAILS environment variable may sign in. Everyone else receives 403. Unauthenticated API calls receive 401.

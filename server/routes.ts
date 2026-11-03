@@ -11,6 +11,10 @@ import { provenanceFor } from '../shared/provenance.js';
 import { cleanupExamples, deletionPreview, examplePreview, listTrash, purgeTrash, restoreTrash } from './lifecycle.js';
 import { proposalContext, reviewProposal } from './proposals.js';
 import { reviewInput } from '../shared/contracts.js';
+import { registerPrivacy } from './privacy.js';
+import { registerRetention } from './retention.js';
+import { validateRetentionPeriods } from './lifecycle.js';
+import { settingsInput } from '../shared/contracts.js';
 
 const idParams = z.object({ id: z.string().uuid() });
 const entityParams = z.object({ type: z.enum(entityTypes), id: z.string().uuid() });
@@ -19,16 +23,19 @@ const masked = (row: unknown) => maskSensitive(row);
 const trashWrite = z.object({ version: z.number().int().positive(), recordVersion: z.number().int().positive() }).strict();
 
 export async function registerRoutes(app: FastifyInstance, db: PrismaClient) {
+  await registerPrivacy(app, db);
+  await registerRetention(app, db);
   app.get('/api/me', async req => ({ id: 'owner', csrfToken: csrfToken(req.cookies[sessionCookie]!) }));
-  app.get('/api/settings', async () => db.userSettings.upsert({ where: { ownerId: 'owner' }, create: { ownerId: 'owner' }, update: {} }));
+  app.get('/api/settings', async () => masked(await db.userSettings.upsert({ where: { ownerId: 'owner' }, create: { ownerId: 'owner' }, update: {} })));
   app.patch('/api/settings', async req => {
-    const { version, ...data } = z.object({ version: z.number().int().positive(), language: z.enum(['tr', 'en']).optional(), theme: z.enum(['dark', 'light']).optional(), retentionDays: z.partialRecord(z.enum(entityTypes), z.number().int().min(1).max(3650)).optional() }).strict().parse(req.body);
+    const { version, ...data } = settingsInput.parse(req.body);
+    if (data.retentionDays) validateRetentionPeriods(data.retentionDays);
     return db.$transaction(async tx => {
       const before = await tx.userSettings.findUnique({ where: { ownerId: 'owner' } });
       if (!before || before.version !== version) throw new AppError('STALE_VERSION', 409);
       const after = await tx.userSettings.update({ where: { ownerId: 'owner', version }, data: { ...data, version: { increment: 1 } } });
       await logEvent(tx, { entityType: 'UserSettings', entityId: after.id, action: 'update', name: tr.settings, summaries: { tr: tr.timeline_update.replace('{name}', tr.settings), en: en.timeline_update.replace('{name}', en.settings) }, diffs: { old: before, new: data } });
-      return after;
+      return masked(after);
     });
   });
   app.get('/api/overview', async () => {

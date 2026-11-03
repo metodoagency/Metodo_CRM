@@ -1,8 +1,12 @@
 import { adminTr, adminEn } from './admin-locales.js';
 import { clubTr, clubEn } from './club-locales.js';
+import { privacyTr, privacyEn } from './privacy-locales.js';
+import { retentionTr, retentionEn } from './retention-locales.js';
 export const tr = {
   ...adminTr,
   ...clubTr,
+  ...privacyTr,
+  ...retentionTr,
   "brand": "Metodo",
   "crm": "CRM",
   "tagline": "Futbolun ilişkilerini yönetin.",
@@ -214,6 +218,8 @@ export const tr = {
 export const en: Record<keyof typeof tr, string> = {
   ...adminEn,
   ...clubEn,
+  ...privacyEn,
+  ...retentionEn,
   "brand": "Metodo",
   "crm": "CRM",
   "tagline": "Manage the relationships behind football.",

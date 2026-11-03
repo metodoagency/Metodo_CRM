@@ -3,7 +3,7 @@ import { fieldSource, withProvenance } from './provenance.js';
 
 export const positions = ['GK', 'CB', 'FB', 'DM', 'CM', 'AM', 'WF', 'CF'] as const;
 export const statuses = ['OWN', 'TARGET', 'INTERMEDIARY', 'MANDATED'] as const;
-export const sensitiveKeys = new Set(['birthDate', 'phone', 'email', 'healthNotes', 'injuryNotes', 'guardian', 'medicalRecords', 'salaryAmount', 'salary', 'bonuses', 'commissionTerms', 'birthDateIndex', 'phoneIndex', 'emailIndex']);
+export const sensitiveKeys = new Set(['birthDate', 'phone', 'email', 'healthNotes', 'injuryNotes', 'guardian', 'medicalRecords', 'salaryAmount', 'salary', 'bonuses', 'commissionTerms', 'birthDateIndex', 'phoneIndex', 'emailIndex', 'breachContact']);
 export function normalizeSearch(value: string): string {
   return value.toLocaleLowerCase('tr').replace(/ı/g, 'i').normalize('NFD').replace(/\p{Diacritic}/gu, '');
 }

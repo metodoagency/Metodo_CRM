@@ -7,8 +7,12 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { api, body, loadSession } from './api';
+import languageInstance from './i18n';
 import { Modal, Empty, ErrorMessage, Badge } from './components';
 import { AdminControls, FieldEvidence, ImpactList, type Impact } from './admin';
+import { IncidentChecklist, PrivacyNotice } from './privacy';
+import { RetentionControls, SensitiveAccessLog } from './retention';
+import type { PrivacyState } from '../shared/privacy';
 import type { List, RecordRow, RecordType, Overview, Timeline } from './types';
 import { clubInput, playerInput, personInput, requestInput, positions, statuses, relationTypes, relationInput, suggestionInput } from '../shared/domain';
 
@@ -27,13 +31,13 @@ export function App() {
   const client = useQueryClient();
   const session = useQuery({ queryKey: ['session'], queryFn: loadSession });
   const settings = useQuery({ queryKey: ['settings'], queryFn: () => api<{ language: string; theme: string; version: number }>('/api/settings'), enabled: !!session.data });
+  const privacy = useQuery({ queryKey: ['privacy'], queryFn: () => api<PrivacyState>('/api/privacy'), enabled: !!session.data });
   const [menu, setMenu] = useState(false);
   const [search, setSearch] = useState(false);
   const [create, setCreate] = useState<RecordType>();
   useEffect(() => { document.title = t('brand') + ' ' + t('crm'); document.documentElement.lang = i18n.language; }, [t, i18n.language]);
-  useEffect(() => {
-    if (settings.data) { void i18n.changeLanguage(settings.data.language); document.documentElement.classList.toggle('dark', settings.data.theme === 'dark'); }
-  }, [settings.data, i18n]);
+  useEffect(() => { if (settings.data?.language) void languageInstance.changeLanguage(settings.data.language); }, [settings.data?.language]);
+  useEffect(() => { if (settings.data?.theme) document.documentElement.classList.toggle('dark', settings.data.theme === 'dark'); }, [settings.data?.theme]);
   useEffect(() => {
     const handler = (event: KeyboardEvent) => {
       const target = event.target as HTMLElement;
@@ -49,13 +53,16 @@ export function App() {
   }
   if (session.isPending) return <div className="login-wrap" role="status">{t('loading')}</div>;
   if (!session.data) return <Login onLogin={() => { void client.invalidateQueries({ queryKey: ['session'] }); }} />;
+  if (privacy.isPending || settings.isPending) return <main className="login-wrap" role="status">{t('loading')}</main>;
+  if (privacy.isError) return <main className="login-wrap"><ErrorMessage /><button className="secondary" onClick={() => { void privacy.refetch(); }}>{t('privacyRetry')}</button></main>;
+  if (privacy.data.acknowledgementRequired) return <main className="p-6"><PrivacyNotice state={privacy.data} required /></main>;
   return <>
     {menu && <button className="mobile-scrim" aria-label={t('close')} onClick={() => setMenu(false)} />}
     <aside className={`sidebar ${menu ? 'open' : ''}`}>
       <Link to="/" className="brand"><Globe2 size={27} className="text-accent" />{t('brand')}<span>{t('crm')}</span></Link>
       <div className="nav-label">{t('workspace')}</div>
       <nav aria-label={t('workspace')}>{pages.map(p => <NavLink key={p.path} to={p.path} end={p.path === '/'} className="nav-item" onClick={() => setMenu(false)}><p.icon size={18} />{t(p.key)}</NavLink>)}</nav>
-      <div className="mt-8"><NavLink to="/trash" className="nav-item"><Trash2 size={18} />{t('trash')}</NavLink><NavLink to="/settings" className="nav-item"><Settings size={18} />{t('settings')}</NavLink></div>
+      <div className="mt-8"><NavLink to="/trash" className="nav-item"><Trash2 size={18} />{t('trash')}</NavLink><NavLink to="/settings" className="nav-item"><Settings size={18} />{t('settings')}</NavLink><NavLink to="/privacy" className="nav-item"><ShieldCheck size={18} />{t('privacyTitle')}</NavLink><NavLink to="/incident" className="nav-item"><ShieldCheck size={18} />{t('breachTitle')}</NavLink></div>
       <div className="sidebar-footer"><div className="flex items-center gap-3"><div className="avatar"><UserRound size={18} /></div><div><div className="text-xs font-medium">{t('owner')}</div><div className="muted text-[10px] mt-1">{t('private')}</div></div><button className="ml-auto icon-button" aria-label={t('logout')} onClick={() => { void api('/api/logout', { method: 'POST' }).then(() => client.clear()); window.setTimeout(() => location.reload(), 300); }}><LogOut size={15} /></button></div></div>
     </aside>
     <div className="main"><header className="topbar">
@@ -70,6 +77,7 @@ export function App() {
       <Route path="/record/:type/:id" element={<Detail />} />
       <Route path="/trash" element={<Trash />} /><Route path="/proposals" element={<Proposals />} />
       <Route path="/settings" element={<Preferences />} />
+      <Route path="/privacy" element={<PrivacyNotice state={privacy.data} />} /><Route path="/incident" element={<IncidentChecklist />} />
     </Routes><p className="footer-note">{t('foundation')} · {t('foundationNote')}</p></main></div>
     {create && <CreateRecord type={create} onClose={() => setCreate(undefined)} />}
     {search && <GlobalSearch onClose={() => setSearch(false)} />}
@@ -175,7 +183,7 @@ function Trash() {
   return <><h1>{t('trash')}</h1><div className="panel mt-7 panel-body">{!data.data?.length ? <Empty /> : data.data.map(row => <div key={row.id} className="list-line"><span>{row.label}</span><button className="secondary ml-auto" disabled={mutation.isPending} onClick={() => mutation.mutate({ id: row.id, action: 'restore' })}>{t('restore')}</button><button className="danger" onClick={() => setPurge(row.id)}>{t('purge')}</button></div>)}{mutation.isError && <ErrorMessage />}</div>{purge && <Modal title={t('purge')} onClose={() => setPurge(undefined)}><p className="subtitle">{t('purgeConfirm')}</p>{preview.isPending && <p role="status">{t('previewLoading')}</p>}{preview.isError && <ErrorMessage />}{preview.data && <ImpactList plan={preview.data} />}<div className="form-footer"><button className="secondary" onClick={() => { void preview.refetch(); refresh(); }}>{t('refreshPreview')}</button><button className="danger" disabled={!preview.data?.canPurge || mutation.isPending} onClick={() => mutation.mutate({ id: purge, action: 'purge' })}>{t('purge')}</button></div></Modal>}</>;
 }
 function Preferences() {
-  const { t } = useTranslation(); return <><h1>{t('settings')}</h1><div className="panel panel-body mt-7 space-y-6"><h2>{t('security')}</h2><p className="notice">{t('consent')}</p><button className="danger" onClick={() => { void api('/api/logout-all', { method: 'POST' }).then(() => location.reload()); }}>{t('logoutAll')}</button><h2>{t('compliance')}</h2><p className="notice">{t('notReviewed')}</p><p className="subtitle">{t('legal')}</p></div><AdminControls /></>;
+  const { t } = useTranslation(); return <><h1>{t('settings')}</h1><div className="panel panel-body mt-7 space-y-6"><h2>{t('security')}</h2><p className="notice">{t('consent')}</p><button className="danger" onClick={() => { void api('/api/logout-all', { method: 'POST' }).then(() => location.reload()); }}>{t('logoutAll')}</button><h2>{t('compliance')}</h2><p className="notice">{t('notReviewed')}</p><p className="subtitle">{t('legal')}</p></div><RetentionControls /><SensitiveAccessLog /><AdminControls /></>;
 }
 function Proposals() {
   const { t } = useTranslation(); const refresh = useRefresh(); const [selected, setSelected] = useState<string>();

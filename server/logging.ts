@@ -1,5 +1,5 @@
 import pino, { type DestinationStream } from 'pino';
-export const logRedactions = ['req.headers.cookie', 'req.headers.authorization', 'req.headers["x-csrf-token"]', 'email', 'phone', 'birthDate', 'healthNotes', 'injuryNotes', 'guardian', 'salary', 'salaryAmount', 'bonuses', 'commissionTerms', '*.email', '*.phone', '*.birthDate', '*.healthNotes', '*.injuryNotes', '*.guardian', '*.salary', '*.salaryAmount', '*.bonuses', '*.commissionTerms', 'req.body', 'res.headers["set-cookie"]'];
+export const logRedactions = ['req.headers.cookie', 'req.headers.authorization', 'req.headers["x-csrf-token"]', 'email', 'phone', 'birthDate', 'healthNotes', 'injuryNotes', 'guardian', 'salary', 'salaryAmount', 'bonuses', 'commissionTerms', 'breachContact', '*.email', '*.phone', '*.birthDate', '*.healthNotes', '*.injuryNotes', '*.guardian', '*.salary', '*.salaryAmount', '*.bonuses', '*.commissionTerms', '*.breachContact', 'req.body', 'res.headers["set-cookie"]'];
 export const loggerOptions = {
   level: process.env.NODE_ENV === 'test' ? 'silent' : 'info',
   redact: { paths: logRedactions, censor: '***' },

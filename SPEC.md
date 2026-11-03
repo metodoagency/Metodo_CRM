@@ -4,6 +4,10 @@ The complete baseline in [docs/REQUIREMENTS.md](docs/REQUIREMENTS.md) is incorpo
 
 ## SPEC update 1 — 2026-11-03
 
+## Approved execution decisions — 2026-11-03
+
+The owner approved SESSION_PLAN.md's 54 packages: existing Supabase PostgreSQL 17 in production, PostgreSQL 16/17 compatibility tests, Render Free single web service with private Supabase persistent storage, no paid upgrades, Codex-mediated Gmail read-only proposal import, core pilot after package29 and complete delivery after54. This supersedes older Railway-first and PostgreSQL16-only deployment wording. Preserve existing Railway packaging for portability; do not wait for its signup restriction to clear. Free hosting has sleep/quotas and is not a 24/7 SLA. Late/missed jobs are tracked; monthly backup verification uses a local Windows helper. No real minor/medical/guardian production data before H acceptance. The original software/acceptance scope is retained.
+
 ### Data acquisition policy (replaces P4 and every earlier scraping permission)
 
 - No automated fetching, crawling, scraping or parsing of Transfermarkt or any other commercial site, under any circumstances, including personal use. Do not implement such code. Opening a link for the owner to read manually is allowed.

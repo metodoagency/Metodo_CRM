@@ -1,4 +1,6 @@
 import { z } from 'zod';
+import { acknowledgePrivacy, incidentContactInput } from './privacy.js';
+import { retentionPeriods, retentionPreviewInput, retentionPurgeInput } from './retention.js';
 import { clubInput, entityTypes, isoDate, personInput, playerInput, relationInput, requestInput, suggestionInput } from './domain.js';
 
 export const idParams = z.object({ id: z.uuid() }).strict();
@@ -7,7 +9,7 @@ export const listQuery = z.object({ page: z.coerce.number().int().min(1).default
 export const versionInput = z.object({ version: z.number().int().positive() }).strict();
 export const trashWrite = versionInput.extend({ recordVersion: z.number().int().positive() });
 export const previewConfirmation = z.object({ previewToken: z.string().regex(/^[a-f0-9]{64}$/) }).strict();
-export const settingsInput = versionInput.extend({ language: z.enum(['tr', 'en']).optional(), theme: z.enum(['dark', 'light']).optional(), retentionDays: z.partialRecord(z.enum(entityTypes), z.number().int().min(1).max(3650)).optional() });
+export const settingsInput = versionInput.extend({ language: z.enum(['tr', 'en']).optional(), theme: z.enum(['dark', 'light']).optional(), retentionDays: retentionPeriods.optional() });
 export const reviewInput = versionInput.extend({ action: z.enum(['approve', 'reject']), sourceUrl: z.url().refine(value => ['https:', 'http:'].includes(new URL(value).protocol)).optional(), reason: z.string().trim().min(3).max(4000).optional(), personId: z.uuid().optional(), effectiveDate: isoDate.optional(), clubVersion: z.number().int().positive().optional(), personVersion: z.number().int().positive().optional(), tenureToken: z.string().regex(/^[a-f0-9]{64}$/).optional() });
 export const revealInput = z.object({ field: z.enum(['birthDate', 'phone', 'email', 'healthNotes', 'injuryNotes']) }).strict();
 export const patchInput = versionInput.extend({ changes: z.record(z.string(), z.unknown()) });
@@ -19,6 +21,14 @@ export const apiContracts: ApiContract[] = [
   { method: 'post', path: '/auth/test', public: true, testOnly: true, body: z.object({ email: z.email() }).strict() },
   { method: 'post', path: '/api/logout' }, { method: 'post', path: '/api/logout-all' },
   { method: 'get', path: '/api/me' }, { method: 'get', path: '/api/settings' }, { method: 'patch', path: '/api/settings', body: settingsInput },
+  { method: 'get', path: '/api/privacy' },
+  { method: 'post', path: '/api/privacy/acknowledge', body: acknowledgePrivacy },
+  { method: 'patch', path: '/api/privacy/incident-contact', body: incidentContactInput },
+  { method: 'post', path: '/api/privacy/incident-contact/reveal' },
+  { method: 'get', path: '/api/admin/retention' },
+  { method: 'post', path: '/api/admin/retention/preview', body: retentionPreviewInput },
+  { method: 'post', path: '/api/admin/retention/purge', body: retentionPurgeInput },
+  { method: 'get', path: '/api/admin/access-log', query: listQuery },
   { method: 'get', path: '/api/overview' }, { method: 'get', path: '/api/docs' },
   ...([['clubs', clubInput], ['players', playerInput], ['people', personInput], ['requests', requestInput]] as const).flatMap(([path, schema]): ApiContract[] => [
     { method: 'get', path: `/api/${path}`, query: listQuery }, { method: 'post', path: `/api/${path}`, body: schema, success: 201 },

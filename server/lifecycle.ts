@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 import { Prisma, type PrismaClient } from '@prisma/client';
 import { AppError, live, logEvent, type EntityType, type Tx } from './core.js';
+import { retentionPeriods, type RetentionPlan } from '../shared/retention.js';
 
 // Identifiers come exclusively from the compiled Prisma schema. All data values
 // are parameters; no request value can become a SQL identifier.
@@ -61,7 +62,45 @@ function preview(graph: Graph, selected: Set<string>) {
   const records = [...graph].flatMap(([type, rows]) => rows.filter(row => selected.has(keyOf(type, row.id))).map(row => ({ type, id: row.id, version: row.version }))).sort((a, b) => keyOf(a.type, a.id).localeCompare(keyOf(b.type, b.id), 'en'));
   const counts: Record<string, number> = {};
   for (const row of records) counts[row.type] = (counts[row.type] ?? 0) + 1;
-  return { total: records.length, counts, previewToken: createHash('sha256').update(JSON.stringify(records)).digest('hex') };
+  return { total: records.length, counts, records, previewToken: createHash('sha256').update(JSON.stringify(records)).digest('hex') };
+}
+
+export const retentionTables = Prisma.dmmf.datamodel.models.map(model => ({ type: model.name, mode: model.fields.some(field => field.name === 'deletedAt') ? 'softDeleted' as const : ['Session', 'OAuthAttempt'].includes(model.name) ? 'securityExpiry' as const : 'protected' as const }));
+export function validateRetentionPeriods(input: unknown) {
+  const periods = retentionPeriods.parse(input);
+  if (Object.keys(periods).some(type => !retentionTables.some(table => table.type === type && table.mode === 'softDeleted'))) throw new AppError('INVALID_ENTITY');
+  return periods;
+}
+
+export async function retentionPreview(tx: Tx, type: string, asOf = new Date()) {
+  if (!retentionTables.some(table => table.type === type && table.mode === 'softDeleted')) throw new AppError('INVALID_ENTITY');
+  const settings = await tx.userSettings.findUniqueOrThrow({ where: { ownerId: 'owner' } });
+  const days = validateRetentionPeriods(settings.retentionDays)[type] ?? null;
+  const graph = await loadGraph(tx);
+  const cutoff = days === null ? null : new Date(asOf.getTime() - days * 86400_000);
+  const roots = new Set(graph.get(type)!.filter(row => row.deletedAt && cutoff && row.deletedAt <= cutoff).map(row => keyOf(type, row.id)));
+  const selected = selection(graph, roots, true);
+  // A retained parent must never silently erase an active business record.
+  const blocking = [...selected].filter(key => {
+    const [model, id] = key.split(':');
+    return !ancillary.has(model) && !graph.get(model)!.find(row => row.id === id)!.deletedAt;
+  });
+  const result = preview(graph, selected);
+  const plan: RetentionPlan = { ...result, table: type, asOf: asOf.toISOString(), days, canPurge: blocking.length === 0, blockingCount: blocking.length,
+    previewToken: createHash('sha256').update(JSON.stringify({ table: type, asOf: asOf.toISOString(), settingsVersion: settings.version, days, records: result.records, blocking })).digest('hex') };
+  return { graph, selected, result: plan };
+}
+export async function purgeRetention(db: PrismaClient, input: { table: string; asOf: string; previewToken: string }, now = new Date()) {
+  const asOf = new Date(input.asOf);
+  if (asOf > now || now.getTime() - asOf.getTime() > 10 * 60_000) throw new AppError('STALE_PREVIEW', 409);
+  return db.$transaction(async tx => {
+    const plan = await retentionPreview(tx, input.table, asOf);
+    if (plan.result.previewToken !== input.previewToken) throw new AppError('STALE_PREVIEW', 409);
+    if (!plan.result.canPurge) throw new AppError('LINKED_RECORDS', 409);
+    await removeSelected(tx, plan.graph, plan.selected);
+    await logEvent(tx, { entityType: 'Owner', entityId: 'owner', action: 'purge', name: input.table, diffs: { table: input.table, counts: plan.result.counts, previewToken: input.previewToken } });
+    return { ok: true, total: plan.result.total, counts: plan.result.counts };
+  }, { isolationLevel: 'Serializable', timeout: 30000 });
 }
 function deletionOrder(graph: Graph): string[] {
   const ordered: string[] = []; const visiting = new Set<string>();
@@ -141,19 +180,4 @@ export async function purgeTrash(db: PrismaClient, id: string, version: number, 
     await logEvent(tx, { entityType: item.entityType, entityId: item.entityId, name: item.label, action: 'purge', isExample: item.isExample, diffs: { counts: plan.result.counts } });
     return { ok: true };
   }, { isolationLevel: 'Serializable', timeout: 30000 });
-}
-export async function purgeExpired(db: PrismaClient, now = new Date(), ownerSelectedTables: readonly string[] = []) {
-  let purged = 0; let blocked = 0;
-  // SPEC update 1: retention dates alone never authorize automatic deletion.
-  if (!ownerSelectedTables.length) return { purged, blocked };
-  for (const item of (await listTrash(db)).filter(item => ownerSelectedTables.includes(item.entityType) && item.expiresAt <= now)) {
-    if (!item.recordVersion || ['Guardian', 'MedicalRecord'].includes(item.entityType)) { blocked++; continue; }
-    try { await purgeTrash(db, item.id, item.version, item.recordVersion); purged++; }
-    catch (error) {
-      const expectedConflict = error instanceof AppError && [404, 409].includes(error.status) || error instanceof Prisma.PrismaClientKnownRequestError && ['P2003', 'P2014', 'P2034'].includes(error.code);
-      if (!expectedConflict) throw error;
-      blocked++;
-    }
-  }
-  return { purged, blocked };
 }

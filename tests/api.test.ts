@@ -10,7 +10,7 @@ import { seedExamples, exampleId } from '../prisma/seed.js';
 import { keyring } from '../server/crypto.js';
 import { randomBytes } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
-import { purgeExpired } from '../server/lifecycle.js';
+import { dailyJobs } from '../server/jobs.js';
 import { apiContracts } from '../shared/contracts.js';
 import { openapiDocument } from '../server/openapi.js';
 
@@ -34,6 +34,37 @@ beforeEach(async () => {
 afterAll(async () => { await app.close(); await db.$disconnect(); });
 
 describe('security baseline', () => {
+  it('version-checks privacy acknowledgement, preserves it across sessions and renews outdated notices', async () => {
+    const state = (await request('GET', '/api/privacy')).json();
+    expect(state.acknowledgementRequired).toBe(true);
+    expect((await request('POST', '/api/privacy/acknowledge', { version: state.version, noticeVersion: 'old', language: 'tr' })).statusCode).toBe(400);
+    expect((await request('POST', '/api/privacy/acknowledge', { version: state.version + 1, noticeVersion: state.noticeVersion, language: 'tr' })).statusCode).toBe(409);
+    const input = { version: state.version, noticeVersion: state.noticeVersion, language: 'en' };
+    expect((await request('POST', '/api/privacy/acknowledge', input)).statusCode).toBe(200);
+    expect((await request('POST', '/api/privacy/acknowledge', input)).statusCode).toBe(200);
+    await login(); expect((await request('GET', '/api/privacy')).json().acknowledgementRequired).toBe(false);
+    const saved = await db.userSettings.findUniqueOrThrow({ where: { ownerId: 'owner' } });
+    expect(saved.privacyAcknowledgedLanguage).toBe('en'); expect(saved.privacyAcknowledgedAt).not.toBeNull();
+    expect(await db.auditLog.count({ where: { entityId: saved.id } })).toBe(1);
+    await db.userSettings.update({ where: { id: saved.id }, data: { privacyNoticeVersion: 'older' } });
+    expect((await request('GET', '/api/privacy')).json().acknowledgementRequired).toBe(true);
+  });
+  it('encrypts incident contact, masks settings and logs reveals without the value', async () => {
+    const state = (await request('GET', '/api/privacy')).json(); const value = 'incident@example.com';
+    expect((await request('PATCH', '/api/privacy/incident-contact', { version: state.version, value })).statusCode).toBe(200);
+    expect((await request('PATCH', '/api/privacy/incident-contact', { version: state.version, value: 'replacement@example.com' })).statusCode).toBe(409);
+    const saved = await db.userSettings.findUniqueOrThrow({ where: { ownerId: 'owner' } });
+    expect(saved.breachContact).not.toContain(value); expect(decrypt(saved.breachContact!, 'UserSettings.breachContact')).toBe(value);
+    expect((await request('GET', '/api/settings')).body).not.toContain(saved.breachContact!);
+    expect((await request('PATCH', '/api/settings', { version: saved.version, theme: 'light' })).body).not.toContain(saved.breachContact!);
+    expect((await request('GET', '/api/privacy')).body).not.toContain(value);
+    const reveal = await request('POST', '/api/privacy/incident-contact/reveal');
+    expect(reveal.json()).toEqual({ value, expiresIn: 60 });
+    const audit = await db.auditLog.findMany({ where: { entityId: saved.id } });
+    expect(JSON.stringify(audit)).not.toContain(value); expect(audit.filter(row => row.action === 'reveal')).toHaveLength(1);
+    expect((await request('POST', '/api/privacy/incident-contact/reveal', { extra: value })).statusCode).toBe(400);
+    expect((await app.inject({ method: 'POST', url: '/api/privacy/incident-contact/reveal', headers: { cookie, origin } })).statusCode).toBe(403);
+  });
   it('returns 401 without authentication and 403 outside the allowlist (R15)', async () => {
     expect((await app.inject('/api/clubs')).statusCode).toBe(401);
     expect((await login('outsider@example.com')).statusCode).toBe(403);
@@ -226,18 +257,58 @@ describe('foundation acceptance gaps', () => {
     expect((await request('DELETE', `/api/trash/${item.id}`, { version: item.version, recordVersion: item.recordVersion, previewToken: plan.previewToken })).statusCode).toBe(409);
     expect(await db.club.count()).toBe(1);
   });
-  it('applies versioned retention settings and logs automatic purge', async () => {
+  it('applies retention only to previewed deleted records and never through daily jobs', async () => {
     const settings = (await request('GET', '/api/settings')).json();
     expect((await request('PATCH', '/api/settings', { version: settings.version, retentionDays: { Club: 2 } })).statusCode).toBe(200);
     expect((await request('PATCH', '/api/settings', { version: settings.version, retentionDays: { Club: 3 } })).statusCode).toBe(409);
     const row = await club(); await request('DELETE', `/api/records/Club/${row.id}`, { version: 1 });
     const item = await db.trashEntry.findFirstOrThrow();
     expect(item.expiresAt.getTime() - item.createdAt.getTime()).toBeCloseTo(2 * 86400_000, -3);
-    expect(await purgeExpired(db, new Date(item.expiresAt.getTime() - 1))).toEqual({ purged: 0, blocked: 0 });
-    expect(await purgeExpired(db, new Date(item.expiresAt.getTime() + 1))).toEqual({ purged: 0, blocked: 0 });
+    await db.club.update({ where: { id: row.id }, data: { deletedAt: new Date(Date.now() - 3 * 86400_000) } });
+    await db.trashEntry.update({ where: { id: item.id }, data: { expiresAt: new Date(Date.now() - 86400_000) } });
+    expect((await dailyJobs()).trash).toEqual({ purged: 0, blocked: 0 });
     expect(await db.club.count({ where: { id: row.id } })).toBe(1);
-    expect(await purgeExpired(db, new Date(item.expiresAt.getTime() + 1), ['Club'])).toEqual({ purged: 1, blocked: 0 });
-    expect(await db.club.count()).toBe(0); expect(await db.timelineEvent.count({ where: { action: 'purge', entityId: row.id } })).toBe(1);
+    const plan = (await request('POST', '/api/admin/retention/preview', { table: 'Club' })).json();
+    expect(plan.records).toContainEqual({ type: 'Club', id: row.id, version: 2 });
+    const input = { table: 'Club', asOf: plan.asOf, previewToken: plan.previewToken };
+    expect((await request('POST', '/api/admin/retention/purge', input)).statusCode).toBe(200);
+    expect((await request('POST', '/api/admin/retention/purge', input)).statusCode).toBe(409);
+    expect(await db.club.count()).toBe(0); expect(await db.auditLog.count({ where: { action: 'purge' } })).toBe(1);
+  });
+  it('covers every table and defaults to indefinite retention outside security expiry', async () => {
+    const catalog = (await request('GET', '/api/admin/retention')).json();
+    expect(catalog.tables.map((row: { type: string }) => row.type).sort()).toEqual(Prisma.dmmf.datamodel.models.map(model => model.name).sort());
+    expect(catalog.periods).toEqual({}); expect(catalog.automaticBusinessDeletion).toBe(false);
+    for (const retentionDays of [{ Unknown: 1 }, { Session: 1 }, { Club: 0 }]) expect((await request('PATCH', '/api/settings', { version: catalog.version, retentionDays })).statusCode).toBe(400);
+    expect((await request('PATCH', '/api/settings', { version: catalog.version, retentionDays: { WorkLog: 14, MedicalRecord: 365 } })).statusCode).toBe(200);
+    const row = await db.workLog.create({ data: { name: 'Örnek silinmiş çalışma', date: new Date('2020-01-01'), summary: 'Örnek not', category: 'Örnek kategori', durationMin: 15, status: 'DONE', deletedAt: new Date('2020-01-01') } });
+    let plan = (await request('POST', '/api/admin/retention/preview', { table: 'WorkLog' })).json();
+    expect(plan.records).toContainEqual({ type: 'WorkLog', id: row.id, version: 1 });
+    const state = (await request('GET', '/api/settings')).json();
+    expect((await request('PATCH', '/api/settings', { version: state.version, retentionDays: {} })).statusCode).toBe(200);
+    expect((await request('POST', '/api/admin/retention/purge', { table: 'WorkLog', asOf: plan.asOf, previewToken: plan.previewToken })).statusCode).toBe(409);
+    plan = (await request('POST', '/api/admin/retention/preview', { table: 'WorkLog' })).json(); expect(plan.total).toBe(0);
+    expect(await db.workLog.count()).toBe(1);
+  });
+  it('rejects stale retention previews and blocks active dependent business records', async () => {
+    const state = (await request('GET', '/api/settings')).json(); await request('PATCH', '/api/settings', { version: state.version, retentionDays: { Club: 1 } });
+    const row = await club(); await request('DELETE', `/api/records/Club/${row.id}`, { version: 1 });
+    await db.club.update({ where: { id: row.id }, data: { deletedAt: new Date('2020-01-01') } });
+    let plan = (await request('POST', '/api/admin/retention/preview', { table: 'Club' })).json();
+    await db.note.create({ data: { entityType: 'Club', entityId: row.id, text: 'Örnek yeni bağlantı' } });
+    expect((await request('POST', '/api/admin/retention/purge', { table: 'Club', asOf: plan.asOf, previewToken: plan.previewToken })).statusCode).toBe(409);
+    await db.player.create({ data: { name: 'Örnek Korunacak Oyuncu', searchName: 'ornek korunacak oyuncu', primaryPosition: 'CM', currentClubId: row.id } });
+    plan = (await request('POST', '/api/admin/retention/preview', { table: 'Club' })).json(); expect(plan.canPurge).toBe(false);
+    expect((await request('POST', '/api/admin/retention/purge', { table: 'Club', asOf: plan.asOf, previewToken: plan.previewToken })).statusCode).toBe(409);
+    expect(await db.club.count()).toBe(1); expect(await db.player.count()).toBe(1); expect(await db.note.count()).toBe(1);
+  });
+  it('exposes only field-view metadata even if a historical log has extra sensitive properties', async () => {
+    const value = 'contact@example.com';
+    await db.auditLog.create({ data: { actor: 'owner', action: 'reveal', entityType: 'Person', entityId: exampleId('view'), diffs: { field: 'email', value, arbitrary: 'sensitive extra' } } });
+    const result = (await request('GET', '/api/admin/access-log')).json();
+    expect(result.items[0]).toMatchObject({ field: 'email', actor: 'owner', entityType: 'Person' });
+    expect(JSON.stringify(result)).not.toContain(value); expect(JSON.stringify(result)).not.toContain('sensitive extra');
+    expect(Object.keys(result.items[0]).sort()).toEqual(['id', 'actor', 'entityType', 'entityId', 'field', 'occurredAt'].sort());
   });
   it('removes examples and unflagged dependents while preserving unrelated records (R11)', async () => {
     await seedExamples(db); const saved = await club('Örnek Korunacak Kayıt');

@@ -1,6 +1,6 @@
 # Metodo CRM
 
-Single-owner football-office CRM. **Milestone A is in progress. This is not a production-complete CRM.** The authoritative specification is [docs/REQUIREMENTS.md](docs/REQUIREMENTS.md). See [PROGRESS.md](PROGRESS.md) for observed checks, remaining features and owner prerequisites.
+Single-owner football-office CRM. **Milestone A is merged; B is in progress. Accepted scope:10%. This is not a production-complete CRM.** The authoritative specification is [docs/REQUIREMENTS.md](docs/REQUIREMENTS.md). See [PROGRESS.md](PROGRESS.md) for observed checks, remaining features and owner prerequisites.
 
 Implemented foundation: React 18/TypeScript/Tailwind shell in Turkish and English; PostgreSQL 16/Prisma schema and migration; club, player, person and request records; transactional suggestions; bidirectional relations; masked timelines; soft deletion/Trash; server-side settings; OIDC flow; encrypted sensitive values; CSRF; secure owner sessions; embedding headers. Later module interfaces are not represented as completed features.
 
@@ -11,7 +11,7 @@ Requires Node 22.12+ (or 20.19+/24+) and npm. Docker is preferred for PostgreSQL
 ```sh
 git clone https://github.com/metodoagency/Metodo_CRM.git
 cd Metodo_CRM
-git checkout milestone/a-foundation
+git checkout milestone/b-clubs
 cp .env.example .env
 npm install
 npm run db:up
@@ -35,23 +35,13 @@ npm run api:docs
 npm run jobs:daily
 ```
 
-Tests create **separate local databases** `metodo_test` and `metodo_e2e`. They refuse an external database. Browser tests use system Chromium when installed; otherwise run `npx playwright install --with-deps chromium`. The test auth endpoint is registered only in automated test mode, never in production, even if `E2E_TEST_MODE=true` is accidentally set there. Do not enable test mode on a public server. `npm run a11y` checks eight main routes in both languages. `npm run db:stop` stops the development database without deleting data.
+Tests create **separate local databases** `metodo_test` and `metodo_e2e`. They refuse an external database. Browser tests use system Chromium when installed; otherwise run `npx playwright install --with-deps chromium`. The test auth endpoint is registered only in automated test mode, never in production, even if `E2E_TEST_MODE=true` is accidentally set there. Do not enable test mode on a public server. `npm run a11y` checks ten main routes in both languages. `npm run db:stop` stops the development database without deleting data.
 
-## Production deployment: Railway + Supabase PostgreSQL
+## Production deployment: Render Free + Supabase PostgreSQL17
 
-Do not use this foundation for real medical/guardian records before milestone G is merged. Complete the outstanding security review and feature gates before real business use. No public deployment has been created by this checkout; the live URL is **NOT AVAILABLE** until an owner-authorized hosting project is connected and deployed.
+The owner-approved free service has been created at https://metodo-crm.onrender.com; it is **not ready for login or business use** until database/OAuth/secrets and the health check are verified. Follow [the exact local and deployment steps](docs/DEPLOY_RENDER.md). The optional `render.yaml` describes a fresh free Docker service; do not create a duplicate of the existing service.
 
-1. Merge only a reviewed milestone PR with green CI. In Railway, create a project and connect `metodoagency/Metodo_CRM` at that approved commit. Railway reads `railway.json` and the multi-stage `Dockerfile`.
-2. Create a Supabase PostgreSQL database. Set `DATABASE_URL` to its **pooled** URI and `DIRECT_URL` to its **direct/session** URI for migrations. Preserve provider-required TLS settings and certificate verification. Database passwords stay in provider secret settings.
-3. Add these Railway variables: `NODE_ENV=production`, `HOST=0.0.0.0`, `ALLOWED_EMAILS` (your owner email), `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `FIELD_ENCRYPTION_KEY`, `BLIND_INDEX_KEY`, `FIELD_ENCRYPTION_KEY_ID=primary`, and `STORAGE_DRIVER=s3`. Each encryption key is an independent 32-byte base64 value. Generate each securely, for example with `openssl rand -base64 32`, and enter it directly into provider secrets. Do not commit keys or paste them into chat. For S3 storage add endpoint, bucket, region and access credentials; the production upload adapter is NOT DONE and uploads remain unavailable.
-4. In Railway **Settings → Networking → Generate Domain**, obtain your public HTTPS domain. Set `APP_ORIGIN` to that exact origin and `GOOGLE_REDIRECT_URI` to that origin followed by `/auth/google/callback`. Add the same callback URI in the Google OAuth client. Never use a guessed domain as the live URL.
-5. Deploy. Railway's pre-deploy command is `npm run db:migrate`; its start command is `npm start`. Never run the fictional seed in production. The process fails closed if required auth/encryption configuration is missing. Check Railway's deployment logs and `/healthz`.
-6. Open the HTTPS URL directly and verify Google sign-in with your allowed email; verify a different email gets 403. In a terminal, run `curl -sSI https://YOUR_ACTUAL_DOMAIN/` and verify the header below and the absence of `X-Frame-Options`. Replace the domain with the actual value from Railway.
-7. In Google Sites choose **Insert → Embed → By URL**, paste the verified app HTTPS URL, resize the frame and publish. This task already has an owner-authorized Metodo CRM draft; its saved editor link and deployment status are in PROGRESS.md.
-
-Forwarding headers are untrusted by default, including in production. Configure `TRUSTED_PROXY_CIDRS` only with verified ingress IP addresses/CIDRs and verify that direct callers cannot supply a trusted client address. API and database-backed health requests share a 600/minute IP budget before database queries; authenticated API requests also have a separate 300/minute session budget. Authentication routes retain their 10/minute IP limit. These in-memory limits apply per process; multiple replicas require a shared limiter store or an independently verified edge budget.
-
-Production serves the built SPA and API from **one origin**. The image includes system Chromium for future Playwright document generation and uses an unprivileged process. It stores no production user uploads on local disk. The API document is generated by zod-to-openapi and available as owner-authenticated JSON at `/api/docs` (core create/list routes; remaining route documentation is pending).
+A is merged; B stays draft until package11 acceptance. No real minor, medical or guardian production data before H. Google Sites embedding is scheduled for the verified pilot at package29 and final delivery54. See [the54-package ledger](SESSION_PLAN.md) and [current evidence](PROGRESS.md).
 
 ## Google Sites embedding
 
@@ -83,10 +73,10 @@ No innovation-layer feature is claimed complete. The foundation provides auditab
 
 ## Out of scope
 
-- Automated Transfermarkt extraction; automated TFF fetching beyond user-triggered, robots-allowed requests.
+- Automated fetching, crawling or parsing of Transfermarkt or any other commercial site; TFF beyond owner-triggered, robots-allowed checks.
 - Legal advice, legal conclusions and automated market valuations.
 - Automated outbound WhatsApp, SMS, email to contacts, social posting or cold outreach.
-- Video storage beyond the optional small-clip module; multi-user roles.
+- Video storage (links with timestamps only); multi-user roles.
 - Real player, club or person data in this repository.
 
 See [Türkçe kurulum](docs/KURULUM-TR.md), [feature matrix](docs/benchmark/feature-matrix.md) and [security threat model](docs/security/threat-model.md).
