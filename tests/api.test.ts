@@ -180,7 +180,7 @@ describe('example seed and suggestion transaction', () => {
   it('blocks verification without a source and never applies an unsupported proposal', async () => {
     await seedExamples(db);
     expect((await request('POST', `/api/proposals/${exampleId('proposal')}/review`, { version: 1, action: 'approve' })).statusCode).toBe(400);
-    expect((await request('POST', `/api/proposals/${exampleId('proposal')}/review`, { version: 1, action: 'approve', sourceUrl: 'https://example.com/source' })).statusCode).toBe(409);
+    expect((await request('POST', `/api/proposals/${exampleId('proposal')}/review`, { version: 1, action: 'approve', sourceUrl: 'https://example.com/source' })).statusCode).toBe(400);
   });
 });
 
@@ -234,7 +234,9 @@ describe('foundation acceptance gaps', () => {
     const item = await db.trashEntry.findFirstOrThrow();
     expect(item.expiresAt.getTime() - item.createdAt.getTime()).toBeCloseTo(2 * 86400_000, -3);
     expect(await purgeExpired(db, new Date(item.expiresAt.getTime() - 1))).toEqual({ purged: 0, blocked: 0 });
-    expect(await purgeExpired(db, new Date(item.expiresAt.getTime() + 1))).toEqual({ purged: 1, blocked: 0 });
+    expect(await purgeExpired(db, new Date(item.expiresAt.getTime() + 1))).toEqual({ purged: 0, blocked: 0 });
+    expect(await db.club.count({ where: { id: row.id } })).toBe(1);
+    expect(await purgeExpired(db, new Date(item.expiresAt.getTime() + 1), ['Club'])).toEqual({ purged: 1, blocked: 0 });
     expect(await db.club.count()).toBe(0); expect(await db.timelineEvent.count({ where: { action: 'purge', entityId: row.id } })).toBe(1);
   });
   it('removes examples and unflagged dependents while preserving unrelated records (R11)', async () => {

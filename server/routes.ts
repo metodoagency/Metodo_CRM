@@ -9,6 +9,8 @@ import { sessionCookie } from './auth.js';
 import { tr, en } from '../shared/locales.js';
 import { provenanceFor } from '../shared/provenance.js';
 import { cleanupExamples, deletionPreview, examplePreview, listTrash, purgeTrash, restoreTrash } from './lifecycle.js';
+import { proposalContext, reviewProposal } from './proposals.js';
+import { reviewInput } from '../shared/contracts.js';
 
 const idParams = z.object({ id: z.string().uuid() });
 const entityParams = z.object({ type: z.enum(entityTypes), id: z.string().uuid() });
@@ -215,21 +217,9 @@ export async function registerRoutes(app: FastifyInstance, db: PrismaClient) {
     const { page } = listQuery.parse(req.query);
     return db.updateProposal.findMany({ where: { ...live, approvalStatus: 'PENDING' }, orderBy: { createdAt: 'desc' }, skip: (page - 1) * 50, take: 50 });
   });
+  app.get('/api/proposals/:id/context', async req => proposalContext(db, idParams.parse(req.params).id));
   app.post('/api/proposals/:id/review', async req => {
     const { id } = idParams.parse(req.params);
-    const data = z.object({ version: z.number().int().positive(), action: z.enum(['approve', 'reject']), sourceUrl: z.string().url().optional(), reason: z.string().min(3).optional() }).strict().parse(req.body);
-    return db.$transaction(async tx => {
-      const proposal = await tx.updateProposal.findFirst({ where: { ...live, id, approvalStatus: 'PENDING' } }); if (!proposal) throw new AppError('NOT_FOUND', 404);
-      if (proposal.version !== data.version) throw new AppError('STALE_VERSION', 409);
-      if (data.action === 'approve') {
-        if (!data.sourceUrl) throw new AppError('SOURCE_REQUIRED');
-        // Canonical changes are blocked until their domain-specific validators
-        // are implemented in B. Never report approval without applying a change.
-        throw new AppError('PROPOSAL_TYPE_PENDING', 409);
-      }
-      if (!data.reason) throw new AppError('REASON_REQUIRED');
-      const row = await tx.updateProposal.update({ where: { ...live, id, version: data.version, approvalStatus: 'PENDING' }, data: { approvalStatus: 'REJECTED', rejectionReason: data.reason, reviewedAt: new Date(), version: { increment: 1 } } });
-      await logEvent(tx, { entityType: proposal.targetType, entityId: proposal.targetId, name: proposal.name, action: 'reject', isExample: proposal.isExample }); return row;
-    });
+    return reviewProposal(db, id, reviewInput.parse(req.body));
   });
 }

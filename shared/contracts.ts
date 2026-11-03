@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { clubInput, entityTypes, personInput, playerInput, relationInput, requestInput, suggestionInput } from './domain.js';
+import { clubInput, entityTypes, isoDate, personInput, playerInput, relationInput, requestInput, suggestionInput } from './domain.js';
 
 export const idParams = z.object({ id: z.uuid() }).strict();
 export const entityParams = z.object({ type: z.enum(entityTypes), id: z.uuid() }).strict();
@@ -8,7 +8,7 @@ export const versionInput = z.object({ version: z.number().int().positive() }).s
 export const trashWrite = versionInput.extend({ recordVersion: z.number().int().positive() });
 export const previewConfirmation = z.object({ previewToken: z.string().regex(/^[a-f0-9]{64}$/) }).strict();
 export const settingsInput = versionInput.extend({ language: z.enum(['tr', 'en']).optional(), theme: z.enum(['dark', 'light']).optional(), retentionDays: z.partialRecord(z.enum(entityTypes), z.number().int().min(1).max(3650)).optional() });
-export const reviewInput = versionInput.extend({ action: z.enum(['approve', 'reject']), sourceUrl: z.url().optional(), reason: z.string().trim().min(3).max(4000).optional() });
+export const reviewInput = versionInput.extend({ action: z.enum(['approve', 'reject']), sourceUrl: z.url().refine(value => ['https:', 'http:'].includes(new URL(value).protocol)).optional(), reason: z.string().trim().min(3).max(4000).optional(), personId: z.uuid().optional(), effectiveDate: isoDate.optional(), clubVersion: z.number().int().positive().optional(), personVersion: z.number().int().positive().optional(), tenureToken: z.string().regex(/^[a-f0-9]{64}$/).optional() });
 export const revealInput = z.object({ field: z.enum(['birthDate', 'phone', 'email', 'healthNotes', 'injuryNotes']) }).strict();
 export const patchInput = versionInput.extend({ changes: z.record(z.string(), z.unknown()) });
 export type ApiContract = { method: 'get' | 'post' | 'patch' | 'delete'; path: string; query?: z.ZodType; params?: z.ZodType; body?: z.ZodType; success?: number; public?: boolean; testOnly?: boolean; csv?: boolean };
@@ -40,6 +40,7 @@ export const apiContracts: ApiContract[] = [
   { method: 'post', path: '/api/admin/examples/cleanup', body: previewConfirmation },
   { method: 'get', path: '/api/export/:type', params: z.object({ type: z.enum(entityTypes) }).strict(), csv: true },
   { method: 'get', path: '/api/proposals', query: listQuery },
+  { method: 'get', path: '/api/proposals/:id/context', params: idParams },
   { method: 'post', path: '/api/proposals/:id/review', params: idParams, body: reviewInput },
 ];
 export const emptyObject = z.object({}).strict();

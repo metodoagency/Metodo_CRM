@@ -142,9 +142,11 @@ export async function purgeTrash(db: PrismaClient, id: string, version: number, 
     return { ok: true };
   }, { isolationLevel: 'Serializable', timeout: 30000 });
 }
-export async function purgeExpired(db: PrismaClient, now = new Date()) {
+export async function purgeExpired(db: PrismaClient, now = new Date(), ownerSelectedTables: readonly string[] = []) {
   let purged = 0; let blocked = 0;
-  for (const item of (await listTrash(db)).filter(item => item.expiresAt <= now)) {
+  // SPEC update 1: retention dates alone never authorize automatic deletion.
+  if (!ownerSelectedTables.length) return { purged, blocked };
+  for (const item of (await listTrash(db)).filter(item => ownerSelectedTables.includes(item.entityType) && item.expiresAt <= now)) {
     if (!item.recordVersion || ['Guardian', 'MedicalRecord'].includes(item.entityType)) { blocked++; continue; }
     try { await purgeTrash(db, item.id, item.version, item.recordVersion); purged++; }
     catch (error) {

@@ -2,6 +2,45 @@
 
 Updated: 2026-11-03 (Europe/Istanbul).
 
+## SPEC update 1 — 2026-11-03
+
+All owner instructions are retained subject to the explicit replacements in SPEC.md. SPEC.md incorporates the full baseline, and AGENTS.md plus docs/REQUIREMENTS.md now prohibit all automated commercial-site fetching/crawling/parsing. TFF is owner-triggered only after robots permission, otherwise CSV; never scheduled. Market/contract inputs need source URL/date/method. No licensed provider is implemented now; adapter interfaces only, implementation deferred by owner instruction. Gmail is read-only and proposal-only; no sending. Voice notes are owner dictation with optional local transcription only.
+
+New G1–G15 is inserted after F; former G/H/I becomes H/I/J without dropping scope. Privacy notice, table retention, value-free view logs, encrypted sensitive backups, breach checklist and local/per-document-consented processing are mandatory production gates. None of those new UI/workflows is claimed complete merely because this amendment is written. Required first-login, contract approval, consent/preview and backup mismatch tests are NOT DONE until their features are implemented. A static acquisition-policy test is added now.
+
+Runtime correction: purgeExpired defaults to no selected tables and does not delete expired business records; daily jobs therefore no longer auto-purge them. Existing manual confirmed purge remains. Full per-table retention UI/explicit opt-in is pending; duration alone never authorizes deletion.
+
+### Accepted progress: 10%
+
+Method: completed milestone acceptance gates / ten current milestones, equal weighting. This is not an effort estimate. Partial implementation, schema, resources and drafts receive no completion credit.
+
+| Stage | Accepted completion | Actual status |
+|---|---:|---|
+| A Foundation | 100% | Merged PR #1; final CI 67 tests, 17 security, six browser scenarios |
+| B Clubs/players | 0% | IN PROGRESS: core records exist; initial coach-departure API; UI and full B tests/modules pending |
+| C Transfers | 0% | R3 foundation transaction exists; full milestone not accepted |
+| D Matches/documents | 0% | NOT DONE |
+| E Network/operations | 0% | Schema/examples only |
+| F Hardening | 0% | Early a11y/headers checked; full scope and new minimum protection gates pending |
+| G Additional workflows G1–G15 | 0% | New scope recorded; NOT DONE |
+| H Medical/minors/data operations (former G) | 0% | NOT DONE |
+| I Money/deals (former H) | 0% | NOT DONE |
+| J Intelligence/network (former I) | 0% | NOT DONE; overlaps with new G must be implemented once and cross-referenced |
+
+Production delivery: no public application URL or published Google Site yet. Supabase project and saved Sites draft are resources, not completed deployment. Required frame-ancestors and no-X-Frame-Options behavior remain unchanged.
+
+SPEC update validation observed: acquisition-policy tests 2/2 PASS; real PostgreSQL targeted retention test 1/1 PASS (expired record survives default run, selected-table purge is logged). TypeScript/lint ran; final full B suite and new UI/workflow tests remain pending. The four other requested feature-specific tests remain NOT DONE alongside their unimplemented features.
+
+## Latest continuation
+
+- A is COMPLETE and PR #1 merged as `db76f90`, after exact-head CI run 41615343695 passed: 67 unit/integration tests, 17 selected security tests, six browser/a11y scenarios, build/lint/typecheck/i18n/compliance. Current branch: `milestone/b-clubs`.
+- B is IN PROGRESS, not complete. Initial coach-departure approval/context API implementation adds explicit person selection, source validation, proposal/club/person versions, tenure preview digest, serializable changes and a two-day HIGH task. UI and dedicated atomicity/regression tests are still pending; do not merge B yet. Existing approval-without-person test now expects rejection with 400.
+- Owner explicitly authorized accepting the displayed Google Cloud terms and selecting Supabase organization Metodo_CRM. Cloud terms were accepted; no need to ask again.
+- Supabase project `frjgxbnsfjlriexdwtdl` is ACTIVE_HEALTHY in eu-central-1, quoted 0 USD/month. Read-only SQL confirmed PostgreSQL 17.11 and no public tables. The specification targets PostgreSQL 16; do not silently label this a PostgreSQL 16 deployment. No application schema or real data has been written there, and runtime connection/storage configuration remains pending.
+- Next: test and finish B approval UI, complete the other B modules, update generated OpenAPI and feature matrix. Continue OAuth setup from the open Cloud Console and provision hosting when Railway's signup restriction is resolved. Existing Google Sites draft is saved, not published.
+
+The earlier sections below describe the pre-merge checkpoint and are superseded by this entry where they differ.
+
 Authoritative specification: [docs/REQUIREMENTS.md](docs/REQUIREMENTS.md). Existing work is preserved in `milestone/a-foundation`; [PR #1](https://github.com/metodoagency/Metodo_CRM/pull/1) is a draft. This is a runnable foundation, **not a completed production CRM**. B–I are not claimed built.
 
 ## Current milestone
