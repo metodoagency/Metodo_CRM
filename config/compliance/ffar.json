@@ -1,0 +1,16 @@
+{
+  "status": "NOT REVIEWED",
+  "entries": [
+    {
+      "id": "ffar-review",
+      "text": {
+        "tr": "Temsil kapsamını ve güncel düzenlemeleri kontrol edin.",
+        "en": "Check the representation scope and current regulations."
+      },
+      "appliesWhen": "always",
+      "tag": "owner-authored",
+      "version": "0.1.0",
+      "reviewedAt": "NOT REVIEWED"
+    }
+  ]
+}

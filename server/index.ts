@@ -1,0 +1,11 @@
+import { buildApp } from './app.js';
+import { readConfig } from './config.js';
+import { db } from './db.js';
+import cron from 'node-cron';
+import { dailyJobs } from './jobs.js';
+const config = readConfig();
+const app = await buildApp({ config });
+await app.listen({ host: config.HOST, port: config.PORT });
+console.log(`Metodo API listening on port ${config.PORT}`);
+const job = cron.schedule('0 3 * * *', () => { void dailyJobs().catch(() => app.log.error('Daily maintenance failed')); }, { timezone: 'Europe/Istanbul' });
+for (const signal of ['SIGTERM', 'SIGINT']) process.on(signal, () => { void job.stop(); void app.close().then(() => db.$disconnect()).then(() => process.exit(0)); });
