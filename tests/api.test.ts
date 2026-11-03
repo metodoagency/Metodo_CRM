@@ -13,6 +13,7 @@ import { spawnSync } from 'node:child_process';
 import { dailyJobs } from '../server/jobs.js';
 import { apiContracts } from '../shared/contracts.js';
 import { openapiDocument } from '../server/openapi.js';
+import { MigrationPg } from '../scripts/migration-adapter.js';
 
 const origin = 'http://localhost:5173';
 let app: FastifyInstance; let cookie = ''; let csrf = ''; let loginIp = 1;
@@ -34,6 +35,22 @@ beforeEach(async () => {
 afterAll(async () => { await app.close(); await db.$disconnect(); });
 
 describe('security baseline', () => {
+  it('keeps procedural migration batches intact and rolls back a failed batch', async () => {
+    const adapter = await new MigrationPg({ connectionString: process.env.DATABASE_URL }).connect();
+    try {
+      await adapter.executeScript("DO $test$ BEGIN PERFORM length('a;b'); PERFORM 1; END $test$; SELECT 1;");
+      await expect(adapter.executeScript('CREATE TABLE "_MetodoMigrationAtomicTest" (id int); DO $test$ BEGIN RAISE EXCEPTION \'expected migration failure\'; END $test$;')).rejects.toThrow();
+      const rows = await db.$queryRaw<{ name: string | null }[]>`SELECT to_regclass('public."_MetodoMigrationAtomicTest"')::text AS name`;
+      expect(rows[0].name).toBeNull();
+    } finally { await db.$executeRawUnsafe('DROP TABLE IF EXISTS "_MetodoMigrationAtomicTest"'); await adapter.dispose(); }
+  });
+  it('enables row security for every CRM table and never grants the public role table access', async () => {
+    const names = [...Prisma.dmmf.datamodel.models.map(model => model.dbName ?? model.name), '_prisma_migrations'];
+    const rows = await db.$queryRaw<{ name: string; enabled: boolean }[]>(Prisma.sql`SELECT c.relname::text AS name, c.relrowsecurity AS enabled FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace WHERE n.nspname = 'public' AND c.relname::text IN (${Prisma.join(names)})`);
+    expect(rows).toHaveLength(names.length); expect(rows.every(row => row.enabled)).toBe(true);
+    const grants = await db.$queryRaw<{ table_name: string }[]>(Prisma.sql`SELECT table_name::text FROM information_schema.table_privileges WHERE table_schema = 'public' AND grantee IN ('PUBLIC', 'anon', 'authenticated') AND table_name IN (${Prisma.join(names)})`);
+    expect(grants).toEqual([]);
+  });
   it('version-checks privacy acknowledgement, preserves it across sessions and renews outdated notices', async () => {
     const state = (await request('GET', '/api/privacy')).json();
     expect(state.acknowledgementRequired).toBe(true);
