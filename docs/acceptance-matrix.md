@@ -11,7 +11,7 @@ Live commercial/provider implementation is explicitly deferred by SPEC update1. 
 | M3 | Kulüp güncellemeleri ve kaynaklar | 08 | PARTIAL | — |
 | M4 | TFF personel | 08 | PARTIAL | — |
 | M5 | Oyuncu veritabanı | 09 | PARTIAL | Foundation API tests; full baseline subsection remains pending |
-| M6 | Oyuncu kartı/profil | 10 | PARTIAL | — |
+| M6 | Oyuncu kartı/profil | 06,10 | PARTIAL | Basic versioned profile PDF/DOCX, tests/documents.test.ts and player export browser flow. Scoring, league fit, history and the full card remain in10. |
 | M7 | Sözleşmeler | 14 | NOT_DONE | — |
 | M8 | Performans/GPS/CV | 17,18 | NOT_DONE | — |
 | M9 | Talepler | 12 | PARTIAL | Foundation API tests; full baseline subsection remains pending |

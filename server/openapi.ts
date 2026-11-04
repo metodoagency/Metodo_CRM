@@ -8,6 +8,11 @@ export function openapiDocument() {
   const error = z.object({ code: z.string(), fields: z.array(z.string()).optional() });
   for (const route of apiContracts.filter(route => !route.testOnly)) {
     const mutation = route.method !== 'get';
+    let success = { description: route.success === 302 ? 'Top-level OAuth redirect' : 'Successful response' };
+    if (route.csv) success = Object.assign({ description: 'CSV excluding sensitive fields' }, { content: { 'text/csv': { schema: z.string() } } });
+    if (route.download) success = Object.assign({ description: 'Versioned document attachment' }, {
+      content: Object.fromEntries(route.download.map(mime => [mime, { schema: z.string().openapi({ type: 'string', format: 'binary' }) }])),
+    });
     registry.registerPath({
       method: route.method, path: route.path.replace(/:(\w+)/g, '{$1}'), security: route.public ? [] : [{ OwnerSession: [] }],
       request: {
@@ -18,7 +23,7 @@ export function openapiDocument() {
         ...(mutation && !route.public ? { headers: z.object({ 'x-csrf-token': z.string().min(1), origin: z.url() }) } : {}),
       },
       responses: {
-        [route.success ?? 200]: route.csv ? { description: 'CSV excluding sensitive fields', content: { 'text/csv': { schema: z.string() } } } : { description: route.success === 302 ? 'Top-level OAuth redirect' : 'Successful response' },
+        [route.success ?? 200]: success,
         ...Object.fromEntries([[400, 'Invalid input'], [401, 'Unauthenticated'], [403, 'Owner, Origin or CSRF restriction'], [404, 'Not found'], [409, 'Stale version, stale preview or linked records'], [429, 'Rate limited'], [503, 'Service unavailable']].map(([status, description]) => [status, { description: String(description), content: { 'application/json': { schema: error } } }])),
       },
     });

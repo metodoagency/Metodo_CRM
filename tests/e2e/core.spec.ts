@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { PDFParse } from 'pdf-parse';
 import { signIn } from './login';
 import pg from 'pg';
 
@@ -80,6 +81,19 @@ test('owner creates club and player, suggests a player and reads the shared time
   await page.getByLabel('Doğum tarihi', { exact: true }).fill('2000-02-01');
   await page.getByRole('button', { name: 'Oluştur', exact: true }).click();
   await expect(page.getByRole('heading', { name: playerName })).toBeVisible();
+  const profileDownload = page.waitForEvent('download');
+  const profileResponse = page.waitForResponse(response => response.url().includes('/api/documents/profile/') && response.request().method() === 'POST');
+  await page.getByRole('button', { name: 'Profil PDF indir', exact: true }).click();
+  const [profileFile, profileHttp] = await Promise.all([profileDownload, profileResponse]);
+  expect(profileHttp.headers()['x-metodo-document-engine']).toBe('chromium');
+  expect(profileFile.suggestedFilename()).toBe('metodo-profile-tr.pdf');
+  const profileStream = await profileFile.createReadStream();
+  const profileChunks = []; for await (const chunk of profileStream) profileChunks.push(Buffer.from(chunk));
+  const profileParser = new PDFParse({ data: new Uint8Array(Buffer.concat(profileChunks)) });
+  try {
+    const profile = (await profileParser.getText()).text;
+    expect(profile).toContain(playerName); expect(profile).toContain('Şablon profile-1'); expect(profile).not.toContain('01.02.2000');
+  } finally { await profileParser.destroy(); }
   await expect(page.getByRole('button', { name: '60 saniye göster' })).toBeVisible();
   await expect(page.getByText('2000-02-01', { exact: true })).toHaveCount(0);
   await page.clock.install();

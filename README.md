@@ -6,7 +6,7 @@ Implemented foundation: React 18/TypeScript/Tailwind shell in Turkish and Englis
 
 ## Local development
 
-Requires Node 22.12+ (or 20.19+/24+) and npm. Docker is preferred for PostgreSQL 16. An existing reachable `DATABASE_URL` is reused; an unreachable external URL is never replaced. If Docker is unavailable, the startup script tries `pg_ctlcluster 16 main start`, then a pinned PostgreSQL 16 binary under `.local/` for unprivileged machines. This is real PostgreSQL, not an in-memory database. The fallback is for development only.
+Requires Node 22.12 or later and npm. Docker is preferred for PostgreSQL 16. The startup script reuses a reachable `DATABASE_URL`. When the local default needs starting and Docker is unavailable, it tries `pg_ctlcluster 16 main start`, then a pinned PostgreSQL 16 binary under `.local/` for development.
 
 ```sh
 git clone https://github.com/metodoagency/Metodo_CRM.git
@@ -35,7 +35,9 @@ npm run api:docs
 npm run jobs:daily
 ```
 
-Tests create **separate local databases** `metodo_test` and `metodo_e2e`. They refuse an external database. Browser tests use system Chromium when installed; otherwise run `npx playwright install --with-deps chromium`. The test auth endpoint is registered only in automated test mode, never in production, even if `E2E_TEST_MODE=true` is accidentally set there. Do not enable test mode on a public server. `npm run a11y` checks ten main routes in both languages. `npm run db:stop` stops the development database without deleting data.
+Tests create **separate local databases** `metodo_test` and `metodo_e2e`. They refuse an external database. Browser tests use system Chromium when installed. Install it with `npx playwright install chromium` when needed. The test auth endpoint is registered only in automated test mode, never in production, even if `E2E_TEST_MODE=true` is accidentally set there. Do not enable test mode on a public server. `npm run a11y` checks the main routes and record details in both languages. `npm run db:stop` stops the development database without deleting data.
+
+Player cards offer Turkish and English PDF and Word profiles. Both formats use the same allowlisted profile fields, sources and version metadata. The PDF renderer uses Chromium when available and PDFKit as its local fallback. Private uploads and document processing consent are covered in the [file guide](docs/FILES_AND_PROCESSING.md).
 
 ## Production deployment: Render Free + Supabase PostgreSQL17
 

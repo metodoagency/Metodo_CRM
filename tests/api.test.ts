@@ -19,6 +19,7 @@ import { DocumentProcessing, type DocumentProcessor } from '../server/processing
 import type { ProcessingPreview } from '../shared/files.js';
 import { readFile } from 'node:fs/promises';
 import { purgeTrash } from '../server/lifecycle.js';
+import JSZip from 'jszip';
 
 const fileStorage = new LocalFileStorage('.local/tmp/api-files');
 const processingCalls: ProcessingPreview['payload'][] = [];
@@ -155,6 +156,31 @@ describe('sensitive paths: files and per-document processing', () => {
 });
 
 describe('security baseline', () => {
+  it('exports a versioned English profile with provenance and excludes sensitive data', async () => {
+    const source = { sourceUrl: 'https://example.com/profile-source', sourceType: 'OFFICIAL', retrievedAt: '2026-11-02T00:00:00Z', verificationStatus: 'VERIFIED' };
+    const player = (await request('POST', '/api/players', {
+      name: 'Örnek ŞĞİ Profili', primaryPosition: 'CM', birthDate: '2000-02-01', fieldProvenance: { name: source },
+    })).json();
+    await db.player.update({ where: { id: player.id }, data: { healthNotes: encrypt('Örnek hassas sağlık kaydı', 'Player.healthNotes'), notes: 'Örnek özel not', heightCm: 181 } });
+    const path = `/api/documents/profile/${player.id}`;
+    const input = { format: 'docx', language: 'en', version: player.version };
+    expect((await app.inject({ method: 'POST', url: path, headers: { origin }, payload: input })).statusCode).toBe(401);
+    expect((await request('POST', path, { ...input, version: 99 })).statusCode).toBe(409);
+    expect((await request('POST', path, { ...input, includeSensitive: true })).statusCode).toBe(400);
+    const result = await request('POST', path, input);
+    expect(result.statusCode).toBe(200);
+    expect(result.headers['cache-control']).toBe('no-store');
+    expect(result.headers['content-disposition']).toContain('metodo-profile-en.docx');
+    const zip = await JSZip.loadAsync(result.rawPayload);
+    const xml = await zip.file('word/document.xml')!.async('string');
+    expect(xml).toContain('Player profile');
+    expect(xml).toContain(source.sourceUrl);
+    expect(xml).toContain('Height (cm) · 181');
+    expect(xml).not.toMatch(/2000-02-01|hassas sağlık kaydı|Örnek özel not|v1\.dev\./);
+    expect(await zip.file('word/footer1.xml')!.async('string')).toContain('Record version 1');
+    const logged = await db.timelineEvent.findFirstOrThrow({ where: { entityId: player.id, action: 'export' } });
+    expect(logged.diffs).toMatchObject({ format: 'docx', language: 'en', template: 'profile-1', sourceVersions: [{ type: 'Player', id: player.id, version: 1 }], snapshotHash: expect.stringMatching(/^[a-f0-9]{64}$/) });
+  });
   it('keeps procedural migration batches intact and rolls back a failed batch', async () => {
     const adapter = await new MigrationPg({ connectionString: process.env.DATABASE_URL }).connect();
     try {

@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { fileVersion, processingApprovalInput, processingPreviewInput } from './files.js';
+import { documentInput, documentMime } from './documents.js';
 import { acknowledgePrivacy, incidentContactInput } from './privacy.js';
 import { retentionPeriods, retentionPreviewInput, retentionPurgeInput } from './retention.js';
 import { clubInput, entityTypes, isoDate, personInput, playerInput, relationInput, requestInput, suggestionInput } from './domain.js';
@@ -14,8 +15,9 @@ export const settingsInput = versionInput.extend({ language: z.enum(['tr', 'en']
 export const reviewInput = versionInput.extend({ action: z.enum(['approve', 'reject']), sourceUrl: z.url().refine(value => ['https:', 'http:'].includes(new URL(value).protocol)).optional(), reason: z.string().trim().min(3).max(4000).optional(), personId: z.uuid().optional(), effectiveDate: isoDate.optional(), clubVersion: z.number().int().positive().optional(), personVersion: z.number().int().positive().optional(), tenureToken: z.string().regex(/^[a-f0-9]{64}$/).optional() });
 export const revealInput = z.object({ field: z.enum(['birthDate', 'phone', 'email', 'healthNotes', 'injuryNotes']) }).strict();
 export const patchInput = versionInput.extend({ changes: z.record(z.string(), z.unknown()) });
-export type ApiContract = { method: 'get' | 'post' | 'patch' | 'delete'; path: string; query?: z.ZodType; params?: z.ZodType; body?: z.ZodType; success?: number; public?: boolean; testOnly?: boolean; csv?: boolean; multipart?: boolean };
+export type ApiContract = { method: 'get' | 'post' | 'patch' | 'delete'; path: string; query?: z.ZodType; params?: z.ZodType; body?: z.ZodType; success?: number; public?: boolean; testOnly?: boolean; csv?: boolean; multipart?: boolean; download?: readonly string[] };
 export const apiContracts: ApiContract[] = [
+  { method: 'post', path: '/api/documents/profile/:id', params: idParams, body: documentInput, download: Object.values(documentMime) },
   { method: 'get', path: '/api/records/:type/:id/files', params: entityParams },
   { method: 'post', path: '/api/records/:type/:id/files', params: entityParams, multipart: true, success: 201 },
   { method: 'post', path: '/api/files/:id/download', params: idParams, body: fileVersion },
