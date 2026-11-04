@@ -135,6 +135,40 @@ test('owner manages club geography and downloads a private file with logged acce
   await exerciseClubMap(page, club, { origin: 'http://localhost:5173', 'x-csrf-token': me.csrfToken });
 });
 
+test('staff proposal stays pending through preview and applies after explicit approval', async ({ page }) => {
+  await signIn(page);
+  const me = await (await page.request.get('/api/me')).json();
+  const headers = { origin: 'http://localhost:5173', 'x-csrf-token': me.csrfToken };
+  const name = `Örnek Atama ${Date.now()}`;
+  const clubResponse = await page.request.post('/api/clubs', { headers, data: { name } });
+  const personResponse = await page.request.post('/api/people', { headers, data: { name, role: 'HEAD_COACH' } });
+  expect(clubResponse.status()).toBe(201); expect(personResponse.status()).toBe(201);
+  const club = await clubResponse.json();
+  const staff = () => page.request.get(`/api/clubs/${club.id}/sections/staff`).then(response => response.json());
+  await page.goto(`/record/Club/${club.id}`);
+  await page.getByRole('button', { name: 'Güncellemeler', exact: true }).click();
+  await page.getByRole('button', { name: 'Personel önerisi ekle' }).click();
+  const dialog = page.getByRole('dialog');
+  await dialog.getByLabel('Güncelleme türü').selectOption('coach_appointment');
+  await dialog.getByLabel('Ad', { exact: true }).fill(name);
+  await dialog.getByLabel('Değişiklik özeti').fill('Örnek atama önerisi');
+  await dialog.getByLabel('Kaynak URL (isteğe bağlı)').fill('https://example.com/appointment');
+  await dialog.getByRole('button', { name: 'Kaydet', exact: true }).click();
+  await expect(dialog).toHaveCount(0);
+  await expect(page.getByRole('link', { name, exact: true })).toBeVisible();
+  await page.getByRole('link', { name, exact: true }).click();
+  await page.locator('.list-line').filter({ hasText: name }).getByRole('button', { name: 'Güncellemeyi incele' }).click();
+  await dialog.getByLabel('Kişi adına göre ara').fill(name);
+  await dialog.getByLabel('Atanacak kişiyi seçin').selectOption({ label: name });
+  await dialog.getByLabel('Başlangıç tarihi').fill('2025-01-15');
+  await dialog.getByRole('button', { name: 'Değişikliği önizle' }).click();
+  await expect(dialog.getByText(`${name} · Teknik direktör · 15.01.2025 tarihinde başlayacak`)).toBeVisible();
+  expect((await staff()).items).toEqual([]);
+  await dialog.getByRole('button', { name: 'Onayla ve uygula' }).click();
+  await expect(dialog).toHaveCount(0);
+  expect((await staff()).items).toMatchObject([{ name, label: 'HEAD_COACH' }]);
+});
+
 test('iframe shows top-level login fallback', async ({ page }) => {
   await page.goto('/');
   await page.evaluate(() => { const iframe = document.createElement('iframe'); iframe.src = '/'; iframe.title = 'test-frame'; document.body.replaceChildren(iframe); });

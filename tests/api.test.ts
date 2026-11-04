@@ -222,6 +222,87 @@ describe('club network', () => {
   });
 });
 
+describe('club staff approval', () => {
+  async function setup(type: 'coach_departure' | 'coach_appointment') {
+    const team = await club();
+    const person = async (name: string, role: 'HEAD_COACH' | 'ASSISTANT') => {
+      const result = await request('POST', '/api/people', { name, role });
+      expect(result.statusCode, result.body).toBe(201);
+      return result.json<{ id: string; version: number }>();
+    };
+    const [head, assistant, candidate] = await Promise.all([
+      person('Örnek Teknik Direktör', 'HEAD_COACH'), person('Örnek Yardımcı', 'ASSISTANT'), person('Örnek Aday', 'HEAD_COACH'),
+    ]);
+    const startDate = new Date('2024-01-01T00:00:00Z');
+    const tenure = (personId: string, role: string | null) => db.relation.create({ data: { fromType: 'Person', fromId: personId, toType: 'Club', toId: team.id, relation: 'memberOf', role, startDate } });
+    const [headTenure, headOtherRole, assistantTenure] = await Promise.all([
+      tenure(head.id, null), tenure(head.id, 'YOUTH_COORDINATOR'), tenure(assistant.id, 'ASSISTANT'),
+    ]);
+    const created = await request('POST', `/api/clubs/${team.id}/staff-proposals`, { name: 'Örnek Personel Önerisi', type, summary: 'Örnek kaynaklı değişiklik' });
+    expect(created.statusCode, created.body).toBe(201);
+    const proposal = created.json<{ id: string; version: number; approvalStatus: string }>();
+    expect(proposal.approvalStatus).toBe('PENDING');
+    expect(await db.relation.count({ where: { toId: team.id } })).toBe(3);
+    const route = `/api/proposals/${proposal.id}`;
+    const context = async () => {
+      const result = await request('GET', `${route}/context`);
+      expect(result.statusCode, result.body).toBe(200);
+      return result.json().people.find((row: { id: string }) => row.id === head.id);
+    };
+    const review = (details: Record<string, unknown>) => request('POST', `${route}/review`, {
+      action: 'approve', version: proposal.version, clubVersion: team.version, effectiveDate: '2025-01-15', sourceUrl: 'https://example.com/notice', ...details,
+    });
+    const endDate = async (id: string) => (await db.relation.findUniqueOrThrow({ where: { id } })).endDate;
+    return { team, head, assistant, candidate, headTenure, headOtherRole, assistantTenure, proposal, context, review, endDate };
+  }
+
+  it('closes only the explicitly selected departing person and logs an atomic follow-up', async () => {
+    const { team, head, headTenure, headOtherRole, assistantTenure, context, review, endDate } = await setup('coach_departure');
+    expect((await review({})).json().code).toBe('PERSON_REQUIRED');
+    expect(await endDate(headTenure.id)).toBeNull();
+    const selection = await context();
+    const result = await review({ personId: head.id, personVersion: selection.version, tenureToken: selection.tenureToken });
+    expect(result.statusCode, result.body).toBe(200);
+    expect(await endDate(headTenure.id)).toEqual(new Date('2025-01-15T00:00:00Z'));
+    expect(await endDate(headOtherRole.id)).toEqual(new Date('2025-01-15T00:00:00Z'));
+    expect(await endDate(assistantTenure.id)).toBeNull();
+    expect(await db.task.findFirst({ where: { entityId: team.id, priority: 'HIGH' } })).not.toBeNull();
+    const events = await db.timelineEvent.findMany({ where: { action: 'coach_departure' } });
+    expect(events.map(row => row.entityId)).toEqual(expect.arrayContaining([team.id, head.id]));
+    expect(new Set(events.map(row => row.batchId)).size).toBe(1);
+  });
+
+  it('creates an appointment without closing any open tenure when no predecessor is selected', async () => {
+    const { team, candidate, headTenure, assistantTenure, review, endDate } = await setup('coach_appointment');
+    const approval = { personId: candidate.id, personVersion: candidate.version, staffRole: 'HEAD_COACH' };
+    expect(await db.relation.count({ where: { fromId: candidate.id } })).toBe(0);
+    const result = await review(approval);
+    expect(result.statusCode, result.body).toBe(200);
+    const created = await db.relation.findFirstOrThrow({ where: { fromId: candidate.id, toId: team.id } });
+    expect(created).toMatchObject({ role: 'HEAD_COACH', startDate: new Date('2025-01-15T00:00:00Z'), sourceUrl: 'https://example.com/notice', verificationStatus: 'VERIFIED' });
+    expect(await endDate(headTenure.id)).toBeNull();
+    expect(await endDate(assistantTenure.id)).toBeNull();
+    expect((await review(approval)).statusCode).toBe(404);
+    expect(await db.relation.count({ where: { fromId: candidate.id } })).toBe(1);
+  });
+
+  it('rejects a stale predecessor selection and ends only the selected head coach role after refresh', async () => {
+    const { head, candidate, headTenure, headOtherRole, assistantTenure, proposal, context, review, endDate } = await setup('coach_appointment');
+    const approval = { personId: candidate.id, personVersion: candidate.version, staffRole: 'HEAD_COACH' };
+    const initial = await context();
+    await db.relation.update({ where: { id: headTenure.id }, data: { version: { increment: 1 } } });
+    expect((await review({ ...approval, predecessor: { personId: head.id, version: initial.version, tenureToken: initial.headCoachToken } })).json().code).toBe('PREVIEW_STALE');
+    expect(await db.relation.count({ where: { fromId: candidate.id } })).toBe(0);
+    expect((await db.updateProposal.findUniqueOrThrow({ where: { id: proposal.id } })).approvalStatus).toBe('PENDING');
+    const refreshed = await context();
+    const result = await review({ ...approval, predecessor: { personId: head.id, version: refreshed.version, tenureToken: refreshed.headCoachToken } });
+    expect(result.statusCode, result.body).toBe(200);
+    expect(await endDate(headTenure.id)).toEqual(new Date('2025-01-15T00:00:00Z'));
+    expect(await endDate(headOtherRole.id)).toBeNull();
+    expect(await endDate(assistantTenure.id)).toBeNull();
+  });
+});
+
 describe('security baseline', () => {
   it('exports a versioned English profile with provenance and excludes sensitive data', async () => {
     const source = { sourceUrl: 'https://example.com/profile-source', sourceType: 'OFFICIAL', retrievedAt: '2026-11-02T00:00:00Z', verificationStatus: 'VERIFIED' };

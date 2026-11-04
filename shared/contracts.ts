@@ -14,7 +14,24 @@ export const versionInput = z.object({ version: z.number().int().positive() }).s
 export const trashWrite = versionInput.extend({ recordVersion: z.number().int().positive() });
 export const previewConfirmation = z.object({ previewToken: z.string().regex(/^[a-f0-9]{64}$/) }).strict();
 export const settingsInput = versionInput.extend({ language: z.enum(['tr', 'en']).optional(), theme: z.enum(['dark', 'light']).optional(), retentionDays: retentionPeriods.optional() });
-export const reviewInput = versionInput.extend({ action: z.enum(['approve', 'reject']), sourceUrl: z.url().refine(value => ['https:', 'http:'].includes(new URL(value).protocol)).optional(), reason: z.string().trim().min(3).max(4000).optional(), personId: z.uuid().optional(), effectiveDate: isoDate.optional(), clubVersion: z.number().int().positive().optional(), personVersion: z.number().int().positive().optional(), tenureToken: z.string().regex(/^[a-f0-9]{64}$/).optional() });
+export const staffRoles = ['HEAD_COACH', 'ASSISTANT', 'GOALKEEPER_COACH', 'YOUTH_COORDINATOR', 'OTHER'] as const;
+const recordVersion = z.number().int().positive();
+const tenureDigest = z.string().regex(/^[a-f0-9]{64}$/);
+const proposalSourceUrl = z.url({ protocol: /^https?$/ }).max(2048);
+export const staffProposalInput = z.object({
+  type: z.enum(['coach_departure', 'coach_appointment']),
+  name: z.string().trim().min(1).max(160), summary: z.string().trim().min(1).max(4000),
+  sourceUrl: proposalSourceUrl.optional(),
+}).strict();
+export const reviewInput = versionInput.extend({
+  action: z.enum(['approve', 'reject']),
+  sourceUrl: proposalSourceUrl.optional(),
+  reason: z.string().trim().min(3).max(4000).optional(),
+  personId: z.uuid().optional(), effectiveDate: isoDate.optional(),
+  clubVersion: recordVersion.optional(), personVersion: recordVersion.optional(), tenureToken: tenureDigest.optional(),
+  staffRole: z.enum(staffRoles).optional(),
+  predecessor: z.object({ personId: z.uuid(), version: recordVersion, tenureToken: tenureDigest }).strict().optional(),
+});
 export const revealInput = z.object({ field: z.enum(['birthDate', 'phone', 'email', 'healthNotes', 'injuryNotes']) }).strict();
 export const patchInput = versionInput.extend({ changes: z.record(z.string(), z.unknown()) });
 export type ApiContract = { method: 'get' | 'post' | 'patch' | 'delete'; path: string; query?: z.ZodType; params?: z.ZodType; body?: z.ZodType; success?: number; public?: boolean; testOnly?: boolean; csv?: boolean; multipart?: boolean; download?: readonly string[] };
@@ -72,6 +89,7 @@ export const apiContracts: ApiContract[] = [
   { method: 'post', path: '/api/admin/examples/cleanup', body: previewConfirmation },
   { method: 'get', path: '/api/export/:type', params: z.object({ type: z.enum(entityTypes) }).strict(), csv: true },
   { method: 'get', path: '/api/proposals', query: listQuery },
+  { method: 'post', path: '/api/clubs/:id/staff-proposals', params: idParams, body: staffProposalInput, success: 201 },
   { method: 'get', path: '/api/proposals/:id/context', params: idParams },
   { method: 'post', path: '/api/proposals/:id/review', params: idParams, body: reviewInput },
 ];

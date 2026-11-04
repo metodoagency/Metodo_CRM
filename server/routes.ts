@@ -9,8 +9,8 @@ import { sessionCookie } from './auth.js';
 import { tr, en } from '../shared/locales.js';
 import { provenanceFor } from '../shared/provenance.js';
 import { cleanupExamples, deletionPreview, examplePreview, listTrash, purgeTrash, restoreTrash } from './lifecycle.js';
-import { proposalContext, reviewProposal } from './proposals.js';
-import { clubListQuery, reviewInput, settingsInput } from '../shared/contracts.js';
+import { createStaffProposal, proposalContext, reviewProposal } from './proposals.js';
+import { clubListQuery, reviewInput, settingsInput, staffProposalInput } from '../shared/contracts.js';
 import { registerPrivacy } from './privacy.js';
 import { registerRetention } from './retention.js';
 import { validateRetentionPeriods } from './lifecycle.js';
@@ -225,7 +225,14 @@ export async function registerRoutes(app: FastifyInstance, db: PrismaClient) {
   });
   app.get('/api/proposals', async req => {
     const { page } = listQuery.parse(req.query);
-    return db.updateProposal.findMany({ where: { ...live, approvalStatus: 'PENDING' }, orderBy: { createdAt: 'desc' }, skip: (page - 1) * 50, take: 50 });
+    return db.updateProposal.findMany({
+      where: { ...live, approvalStatus: 'PENDING' }, orderBy: [{ createdAt: 'desc' }, { id: 'asc' }], skip: (page - 1) * 50, take: 50,
+      select: { id: true, version: true, name: true, summary: true, type: true },
+    });
+  });
+  app.post('/api/clubs/:id/staff-proposals', async (req, reply) => {
+    const proposal = await createStaffProposal(db, idParams.parse(req.params).id, staffProposalInput.parse(req.body));
+    return reply.code(201).send(proposal);
   });
   app.get('/api/proposals/:id/context', async req => proposalContext(db, idParams.parse(req.params).id));
   app.post('/api/proposals/:id/review', async req => {

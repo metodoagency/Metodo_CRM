@@ -16,6 +16,7 @@ import { AttachmentPanel, FileMaintenance } from './files';
 import { ProfileExport } from './profile-export';
 import { ClubExplorer, clubSearchParams } from './club-explorer';
 import { ClubWorkspace } from './club-workspace';
+import { Proposals } from './proposals';
 import { hasCoordinates, type ClubFilters } from '../shared/club-network';
 import type { PrivacyState } from '../shared/privacy';
 import type { ClubRecord, List, RecordRow, RecordType, Overview, Timeline } from './types';
@@ -201,12 +202,6 @@ function Trash() {
 }
 function Preferences() {
   const { t } = useTranslation(); return <><h1>{t('settings')}</h1><div className="panel panel-body mt-7 space-y-6"><h2>{t('security')}</h2><p className="notice">{t('consent')}</p><button className="danger" onClick={() => { void api('/api/logout-all', { method: 'POST' }).then(() => location.reload()); }}>{t('logoutAll')}</button><h2>{t('compliance')}</h2><p className="notice">{t('notReviewed')}</p><p className="subtitle">{t('legal')}</p></div><RetentionControls /><FileMaintenance /><SensitiveAccessLog /><AdminControls /></>;
-}
-function Proposals() {
-  const { t } = useTranslation(); const refresh = useRefresh(); const [selected, setSelected] = useState<string>();
-  const data = useQuery({ queryKey: ['proposals'], queryFn: () => api<{ id: string; name: string; summary: string; version: number }[]>('/api/proposals') });
-  const mutation = useMutation({ mutationFn: (input: { id: string; reason: string }) => api(`/api/proposals/${input.id}/review`, { method: 'POST', body: body({ action: 'reject', reason: input.reason, version: data.data?.find(row => row.id === input.id)?.version }) }), onSuccess: () => { refresh(); setSelected(undefined); } });
-  return <><h1>{t('proposals')}</h1><p className="notice mt-5">{t('proposalPending')}</p><div className="panel panel-body mt-5">{!data.data?.length ? <Empty /> : data.data.map(row => <div className="list-line" key={row.id}><div><strong>{row.name}</strong><p className="muted mt-2">{row.summary}</p></div><button className="secondary ml-auto" onClick={() => setSelected(row.id)}>{t('reject')}</button></div>)}</div>{selected && <Modal title={t('reject')} onClose={() => setSelected(undefined)}><form onSubmit={e => { e.preventDefault(); mutation.mutate({ id: selected, reason: String(new FormData(e.currentTarget).get('reason')) }); }}><label className="field">{t('reason')}<textarea name="reason" required minLength={3} /></label>{mutation.isError && <ErrorMessage />}<div className="form-footer"><button className="primary">{t('reject')}</button></div></form></Modal>}</>;
 }
 function GlobalSearch({ onClose }: { onClose: () => void }) {
   const { t } = useTranslation(); const [q, setQ] = useState(''); const navigate = useNavigate();

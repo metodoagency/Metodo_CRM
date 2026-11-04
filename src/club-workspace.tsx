@@ -5,6 +5,7 @@ import { Link } from 'react-router-dom';
 import { api, ApiError, body } from './api';
 import { Badge, Empty, ErrorMessage, Modal } from './components';
 import { geographyKey } from './club-explorer';
+import { StaffProposalForm } from './proposals';
 import { clubLocationInput, hasCoordinates, type ClubGeography, type ClubSection, type ClubSectionRow } from '../shared/club-network';
 import type { ClubRecord } from './types';
 
@@ -102,6 +103,7 @@ function ClubSectionPanel({ club, section }: { club: ClubRecord; section: ClubSe
   const [page, setPage] = useState(1);
   const [scope, setScope] = useState<keyof typeof playerScopes>('squad');
   const [addingNote, setAddingNote] = useState(false);
+  const [addingProposal, setAddingProposal] = useState(false);
   const queryKey = ['club-section', club.id, section];
   const query = useQuery({ queryKey: [...queryKey, page, scope], queryFn: () => api<{ items: ClubSectionRow[]; more: boolean }>(`/api/clubs/${club.id}/sections/${section}?page=${page}&players=${scope}`) });
   const note = useMutation({
@@ -117,6 +119,8 @@ function ClubSectionPanel({ club, section }: { club: ClubRecord; section: ClubSe
       </select></label>}
     {section === 'notes' && <><button className="secondary mt-3" onClick={() => { note.reset(); setAddingNote(true); }}>{t('clubAddNote')}</button>
       {club.notes && <p className="notice mt-3 whitespace-pre-wrap break-words">{club.notes}</p>}</>}
+    {section === 'updates' && <button className="secondary mt-3" onClick={() => setAddingProposal(true)}>{t('staffProposalNew')}</button>}
+    {addingProposal && <StaffProposalForm clubId={club.id} onClose={() => { setAddingProposal(false); setPage(1); }} />}
     {query.isError && <ErrorMessage />}
     {query.isPending && <p role="status">{t('loading')}</p>}
     {query.data && (!query.data.items.length ? <Empty /> : <ul className="divide-y mt-3">{query.data.items.map(row => <li key={row.id} className="py-3 break-words">
