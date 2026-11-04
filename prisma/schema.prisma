@@ -213,6 +213,8 @@ enum NotificationStatus {
 }
 
 model Owner {
+ processingConsents ProcessingConsent[]
+ storageDeletions StorageDeletion[]
  pressItemRecords PressItem[]
  mediaContactRecords MediaContact[]
  shareLinkRecords ShareLink[]
@@ -1398,6 +1400,7 @@ model Notification {
 }
 
 model Attachment {
+ processingConsents ProcessingConsent[]
  licenseRecordLinks LicenseRecord[]
  expenseClaimLinks ExpenseClaim[]
  medicalRecordLinks MedicalRecord[]
@@ -1420,6 +1423,8 @@ model Attachment {
  entityType String
  entityId String
  storageKey String
+ storageDriver String @default("local")
+ contentHash String?
  mimeType String
  sizeBytes Int
  captureDate DateTime? @db.Date
@@ -1429,6 +1434,54 @@ model Attachment {
  @@index([entityId])
  @@index([ownerId, captureDate])
  @@index([ownerId, autoDeleteDate])
+}
+
+model ProcessingConsent {
+ id String @id @default(uuid()) @db.Uuid
+ ownerId String @default("owner")
+ owner Owner @relation(fields: [ownerId], references: [id])
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+ deletedAt DateTime?
+ createdBy String @default("owner")
+ updatedBy String @default("owner")
+ version Int @default(1)
+ isExample Boolean @default(false)
+ fieldProvenance Json @default("{}")
+ sourceUrl String?
+ sourceType SourceType @default(MANUAL)
+ retrievedAt DateTime @default(now())
+ verificationStatus VerificationStatus @default(UNVERIFIED)
+ name String @default("processing")
+ attachmentId String @db.Uuid
+ attachment Attachment @relation(fields: [attachmentId], references: [id])
+ attachmentVersion Int
+ adapterId String
+ adapterRevision String
+ adapterLocation String
+ destination String
+ processingPayload String
+ processingResult String?
+ previewToken String
+ expiresAt DateTime
+ approvedAt DateTime?
+ consumedAt DateTime?
+ status String @default("PENDING")
+ @@index([ownerId, deletedAt])
+ @@index([attachmentId])
+}
+
+// Infrastructure outbox: abandoned uploads and owner-confirmed purge only.
+model StorageDeletion {
+ id String @id @default(uuid()) @db.Uuid
+ ownerId String @default("owner")
+ owner Owner @relation(fields: [ownerId], references: [id])
+ createdAt DateTime @default(now())
+ driver String
+ storageKey String
+ notBefore DateTime
+ attempts Int @default(0)
+ @@index([ownerId, driver, notBefore])
 }
 
 model SavedView {

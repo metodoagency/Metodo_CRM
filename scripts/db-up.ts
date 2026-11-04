@@ -2,8 +2,9 @@ import 'dotenv/config';
 import { spawn, spawnSync } from 'node:child_process';
 import { mkdirSync, openSync } from 'node:fs';
 import pg from 'pg';
+import { readConfig } from '../server/config.js';
 
-const fallback = 'postgresql://metodo:metodo_local_only@127.0.0.1:5432/metodo';
+const fallback = readConfig({ NODE_ENV: 'development' }).DATABASE_URL;
 const connectionString = process.env.DATABASE_URL || fallback;
 async function reachable(): Promise<boolean> {
   const client = new pg.Client({ connectionString, connectionTimeoutMillis: 1500 });
@@ -23,8 +24,13 @@ if (docker.status !== 0) {
     child.unref();
   }
 }
-for (let i = 0; i < 90; i++) {
+// A Windows crash-recovery fsync can exceed45 seconds. Keep a live server's
+// lock intact and wait for readiness rather than starting another instance.
+const deadline = Date.now() + 180000;
+let nextStatus = Date.now() + 30000;
+while (Date.now() < deadline) {
   if (await reachable()) { console.log('PostgreSQL ready'); process.exit(0); }
-  await new Promise(r => setTimeout(r, 500));
+  if (Date.now() >= nextStatus) { console.log('Waiting for local PostgreSQL startup/recovery'); nextStatus = Date.now() + 30000; }
+  await new Promise(r => setTimeout(r, 1000));
 }
 throw new Error('PostgreSQL startup failed; inspect .local/postgres.log or docker compose logs db');

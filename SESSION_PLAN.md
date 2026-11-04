@@ -25,7 +25,7 @@ Owner-approved 2026-11-03. An oturum is a verified work package, not a message c
 | 02 | Ücretsiz yayın altyapısı | Render + Supabase 17 + Google OIDC; gerçek HTTPS sağlık/giriş; stub yok. | IN_PROGRESS |
 | 03 | Gizlilik ve ihlal sayfası | TR/EN ilk giriş bildirimi, sürüm kaydı, ihlal adımları ve sahip iletişim alanı. | DONE |
 | 04 | Saklama ve erişim günlüğü | Tüm tablolarda varsayılan otomatik silme yok; önizlemeli purge; değersiz hassas alan erişim kaydı. | DONE |
-| 05 | Güvenli dosya ve işlem onayı | 10 MB, MIME/magic-byte, EXIF temizliği, özel depolama, beş dakikalık indirme; belge başına harici işlem onayı. | NOT_STARTED |
+| 05 | Güvenli dosya ve işlem onayı | 10 MB, MIME/magic-byte, EXIF temizliği, özel depolama, beş dakikalık indirme; belge başına harici işlem onayı. | IN_PROGRESS |
 | 06 | Ortak belge motoru | TR/EN PDF/DOCX, tek veri kaynağı, fallback, sürüm/kaynak ve hassas veri hariç tutma. | NOT_STARTED |
 | 07 | Kulüp ağı | M1: ülke/bölge ağacı, sayılar, gerçek koordinatlar, tüm bağlı detay panelleri. | NOT_STARTED |
 | 08 | Personel ve güncellemeler | M3/M4 R1/R2: kaynaklı öneri onayı, doğru kişi/görev, sürüm/digest, sahip tetiklemeli robots izinli TFF. | NOT_STARTED |

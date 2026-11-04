@@ -1,10 +1,10 @@
-import { beforeAll, afterAll, beforeEach, describe, it, expect } from 'vitest';
+import { beforeAll, afterAll, beforeEach, afterEach, describe, it, expect } from 'vitest';
 import type { FastifyInstance } from 'fastify';
 import { Prisma } from '@prisma/client';
 import { db } from '../server/db.js';
 import { buildApp } from '../server/app.js';
 import { readConfig } from '../server/config.js';
-import { decrypt } from '../server/crypto.js';
+import { decrypt, encrypt } from '../server/crypto.js';
 import { hash } from '../server/auth.js';
 import { seedExamples, exampleId } from '../prisma/seed.js';
 import { keyring } from '../server/crypto.js';
@@ -14,6 +14,15 @@ import { dailyJobs } from '../server/jobs.js';
 import { apiContracts } from '../shared/contracts.js';
 import { openapiDocument } from '../server/openapi.js';
 import { MigrationPg } from '../scripts/migration-adapter.js';
+import { LocalFileStorage, drainStorageDeletions } from '../server/storage.js';
+import { DocumentProcessing, type DocumentProcessor } from '../server/processing.js';
+import type { ProcessingPreview } from '../shared/files.js';
+import { readFile } from 'node:fs/promises';
+import { purgeTrash } from '../server/lifecycle.js';
+
+const fileStorage = new LocalFileStorage('.local/tmp/api-files');
+const processingCalls: ProcessingPreview['payload'][] = [];
+const processor: DocumentProcessor = { id: 'example-processor', revision: '1', location: 'external', destination: 'https://example.com/process', process: async payload => { processingCalls.push(payload); return { candidates: [{ salary: '100', excerpt: payload.text }] }; } };
 
 const origin = 'http://localhost:5173';
 let app: FastifyInstance; let cookie = ''; let csrf = ''; let loginIp = 1;
@@ -25,14 +34,125 @@ async function login(email = 'owner@example.com') {
 }
 function request(method: 'GET' | 'POST' | 'PATCH' | 'DELETE', url: string, payload?: Record<string, unknown>) { return app.inject({ method, url, headers: { cookie, origin, 'x-csrf-token': csrf }, ...(payload === undefined ? {} : { payload }) }); }
 async function club(name = 'Örnek Test Kulübü') { return (await request('POST', '/api/clubs', { name })).json(); }
-beforeAll(async () => { app = await buildApp({ db, config: readConfig({ ...process.env, NODE_ENV: 'test', APP_ORIGIN: origin, ALLOWED_EMAILS: 'owner@example.com' }) }); });
+beforeAll(async () => { app = await buildApp({ db, storage: fileStorage, processors: [processor], config: readConfig({ ...process.env, NODE_ENV: 'test', APP_ORIGIN: origin, ALLOWED_EMAILS: 'owner@example.com', EXTERNAL_PROCESSING_ENABLED: 'true' }) }); });
 beforeEach(async () => {
+  processingCalls.length = 0; processor.destination = 'https://example.com/process';
   if (!process.env.DATABASE_URL?.includes('/metodo_test')) throw new Error('Unsafe test database');
   const tables = Prisma.dmmf.datamodel.models.map(m => `"${m.dbName || m.name}"`).join(',');
   await db.$executeRawUnsafe(`TRUNCATE ${tables} CASCADE`);
   expect((await login()).statusCode).toBe(200);
 });
+afterEach(async () => {
+  const files = await db.attachment.findMany({ select: { storageKey: true } }); const jobs = await db.storageDeletion.findMany({ select: { storageKey: true } });
+  for (const file of [...files, ...jobs]) if (/^[a-f0-9]{64}$/.test(file.storageKey)) await fileStorage.remove(file.storageKey);
+});
 afterAll(async () => { await app.close(); await db.$disconnect(); });
+
+const pdfFile = Buffer.from('%PDF-1.7\n%%EOF');
+function uploadFile(id: string, data = pdfFile, mime = 'application/pdf', extra = '') {
+  const boundary = 'example-boundary';
+  const payload = Buffer.concat([Buffer.from(`--${boundary}\r\nContent-Disposition: form-data; name="file"; filename="Örnek belge.pdf"\r\nContent-Type: ${mime}\r\n\r\n`), data, Buffer.from(`\r\n${extra}--${boundary}--\r\n`)]);
+  return app.inject({ method: 'POST', url: `/api/records/Club/${id}/files`, payload, headers: { cookie, origin, 'x-csrf-token': csrf, 'content-type': `multipart/form-data; boundary=${boundary}` } });
+}
+async function processingPreview() {
+  const entity = await club(); const file = (await uploadFile(entity.id)).json();
+  const res = await request('POST', '/api/processing/preview', { attachmentId: file.id, attachmentVersion: file.version, adapterId: processor.id, text: 'Örnek özel sözleşme alıntısı' });
+  expect(res.statusCode, res.body).toBe(201); return { preview: res.json() as ProcessingPreview, file, entity };
+}
+describe('sensitive paths: files and per-document processing', () => {
+  it('stores an owner upload privately, logs value-free access, and blocks access through a deleted parent', async () => {
+    const entity = await club(); const res = await uploadFile(entity.id); expect(res.statusCode, res.body).toBe(201);
+    const file = res.json(); expect(res.body).not.toContain('storageKey'); expect(res.body).not.toContain('contentHash');
+    const stored = await db.attachment.findUniqueOrThrow({ where: { id: file.id } });
+    expect(stored.storageKey).toMatch(/^[a-f0-9]{64}$/); expect(stored.storageKey).not.toContain('belge');
+    expect(await readFile(`.local/tmp/api-files/${stored.storageKey}`)).toEqual(pdfFile); expect(await db.storageDeletion.count()).toBe(0);
+    expect((await app.inject({ url: `/api/files/${file.id}/content` })).statusCode).toBe(401);
+    const signed = await request('POST', `/api/files/${file.id}/download`, { version: file.version }); expect(signed.json().expiresIn).toBe(300);
+    const content = await request('GET', signed.json().url); expect(content.rawPayload).toEqual(pdfFile); expect(content.headers['content-disposition']).toContain('attachment'); expect(content.headers['cache-control']).toBe('no-store');
+    const access = (await request('GET', '/api/admin/access-log')).json(); expect(access.items.some((item: { field: string }) => item.field === 'document')).toBe(true); expect(JSON.stringify(access)).not.toContain('PDF-1.7');
+    expect((await request('POST', `/api/files/${file.id}/download`, { version: 99 })).statusCode).toBe(409);
+    await request('DELETE', `/api/records/Club/${entity.id}`, { version: entity.version }); expect((await request('GET', signed.json().url)).statusCode).toBe(404);
+  });
+  it('rejects MIME spoofing, oversized and extra multipart parts before creating metadata', async () => {
+    const entity = await club(); expect((await uploadFile(entity.id, pdfFile, 'image/png')).statusCode).toBe(400);
+    expect((await uploadFile(entity.id, Buffer.alloc(10 * 1024 * 1024 + 1))).statusCode).toBe(413);
+    expect((await uploadFile(entity.id, pdfFile, 'application/pdf', '--example-boundary\r\nContent-Disposition: form-data; name="unexpected"\r\n\r\nvalue\r\n')).statusCode).toBe(413);
+    expect(await db.attachment.count()).toBe(0); expect(await db.storageDeletion.count()).toBe(0);
+    expect((await app.inject({ method: 'POST', url: `/api/records/Club/${entity.id}/files`, headers: { cookie, origin } })).statusCode).toBe(403);
+    expect((await uploadFile('00000000-0000-4000-8000-000000000000')).statusCode).toBe(404);
+  });
+  it('queues physical deletion atomically with the approved purge, retries failure, and protects referenced objects', async () => {
+    const entity = await club(); const file = (await uploadFile(entity.id)).json(); const stored = await db.attachment.findUniqueOrThrow({ where: { id: file.id } });
+    await db.storageDeletion.create({ data: { driver: 'local', storageKey: stored.storageKey, notBefore: new Date(0) } });
+    expect((await drainStorageDeletions(db, fileStorage)).removed).toBe(0); expect(await fileStorage.read(stored.storageKey)).toEqual(pdfFile);
+    await db.storageDeletion.deleteMany();
+    await request('DELETE', `/api/records/Club/${entity.id}`, { version: entity.version }); const trash = await db.trashEntry.findFirstOrThrow({ where: { entityId: entity.id } });
+    const plan = (await request('GET', `/api/trash/${trash.id}/preview`)).json();
+    await purgeTrash(db, trash.id, trash.version, entity.version + 1, plan.previewToken);
+    expect(await db.attachment.count()).toBe(0); expect(await db.storageDeletion.count()).toBe(1);
+    const now = new Date(); const failedStorage = { ...fileStorage, driver: 'local' as const, put: fileStorage.put.bind(fileStorage), read: fileStorage.read.bind(fileStorage), remove: async () => { throw Error('example failure'); } };
+    expect((await drainStorageDeletions(db, failedStorage, now)).removed).toBe(0); expect((await db.storageDeletion.findFirstOrThrow()).attempts).toBe(1);
+    expect((await drainStorageDeletions(db, fileStorage, new Date(now.getTime() + 3600_001))).removed).toBe(1); await expect(fileStorage.read(stored.storageKey)).rejects.toThrow();
+  });
+  it('never calls an external adapter before exact consent and encrypts payload and output without canonical writes', async () => {
+    const { preview, entity } = await processingPreview(); expect(processingCalls).toHaveLength(0);
+    expect((await request('POST', `/api/processing/${preview.id}/run`, { version: 1 })).statusCode).toBe(403);
+    expect((await request('POST', `/api/processing/${preview.id}/approve`, { version: 1, approved: false, previewToken: preview.previewToken })).statusCode).toBe(400);
+    expect((await request('POST', `/api/processing/${preview.id}/approve`, { version: 1, approved: true, previewToken: 'a'.repeat(64) })).statusCode).toBe(409);
+    const approved = await request('POST', `/api/processing/${preview.id}/approve`, { version: 1, approved: true, previewToken: preview.previewToken }); expect(approved.statusCode).toBe(200);
+    expect(processingCalls).toHaveLength(0);
+    const run = await request('POST', `/api/processing/${preview.id}/run`, { version: approved.json().version }); expect(run.statusCode, run.body).toBe(200);
+    expect(processingCalls).toEqual([preview.payload]);
+    expect((await request('POST', `/api/processing/${preview.id}/run`, { version: approved.json().version })).statusCode).toBe(409);
+    const stored = await db.processingConsent.findUniqueOrThrow({ where: { id: preview.id } });
+    expect(stored.processingPayload).not.toContain(preview.payload.text); expect(decrypt(stored.processingPayload, 'ProcessingConsent.processingPayload')).toBe(JSON.stringify(preview.payload));
+    expect(stored.processingResult).toMatch(/^v1\./); expect(JSON.stringify(await db.auditLog.findMany())).not.toContain(preview.payload.text);
+    expect(await db.club.findUnique({ where: { id: entity.id } })).toMatchObject({ name: entity.name, version: entity.version }); expect(await db.updateProposal.count()).toBe(0);
+  });
+  it('drains storage only after an authenticated purge commits', async () => {
+    const entity = await club(); const file = (await uploadFile(entity.id)).json();
+    const stored = await db.attachment.findUniqueOrThrow({ where: { id: file.id } });
+    await request('DELETE', `/api/records/Club/${entity.id}`, { version: entity.version });
+    const trash = await db.trashEntry.findFirstOrThrow({ where: { entityId: entity.id } });
+    const plan = (await request('GET', `/api/trash/${trash.id}/preview`)).json();
+    const payload = { version: trash.version, recordVersion: entity.version + 1, previewToken: plan.previewToken };
+    expect((await app.inject({ method: 'DELETE', url: `/api/trash/${trash.id}`, headers: { origin }, payload })).statusCode).toBe(401);
+    expect(await fileStorage.read(stored.storageKey)).toEqual(pdfFile);
+    expect((await request('DELETE', `/api/trash/${trash.id}`, payload)).statusCode).toBe(200);
+    await expect.poll(() => db.storageDeletion.count({ where: { storageKey: stored.storageKey } }), { timeout: 5000 }).toBe(0);
+    await expect(fileStorage.read(stored.storageKey)).rejects.toThrow();
+  });
+  it('rejects missing documents, stale document versions, changed destinations and expired previews', async () => {
+    const { preview, file } = await processingPreview();
+    processor.destination = 'https://example.com/changed';
+    expect((await request('POST', `/api/processing/${preview.id}/approve`, { version: 1, approved: true, previewToken: preview.previewToken })).statusCode).toBe(409);
+    processor.destination = 'https://example.com/process'; await db.attachment.update({ where: { id: file.id }, data: { version: { increment: 1 } } });
+    expect((await request('GET', `/api/processing/${preview.id}`)).statusCode).toBe(409);
+    await db.attachment.update({ where: { id: file.id }, data: { version: 1 } }); await db.processingConsent.update({ where: { id: preview.id }, data: { expiresAt: new Date(0) } });
+    expect((await request('POST', `/api/processing/${preview.id}/approve`, { version: 1, approved: true, previewToken: preview.previewToken })).statusCode).toBe(409); expect(processingCalls).toHaveLength(0);
+    expect((await request('POST', '/api/processing/preview', { adapterId: processor.id, attachmentId: '00000000-0000-4000-8000-000000000000', attachmentVersion: 1, text: 'Örnek' })).statusCode).toBe(404);
+  });
+  it('keeps external processing disabled by default and prevents replay after a processor failure', async () => {
+    const { preview } = await processingPreview();
+    const disabled = new DocumentProcessing(db, readConfig({ NODE_ENV: 'test' }), [processor]);
+    await expect(disabled.run(preview.id, { version: 1 })).rejects.toMatchObject({ code: 'PROCESSING_UNAVAILABLE' }); expect(disabled.available()).toEqual([]);
+    let calls = 0; const failed = new DocumentProcessing(db, readConfig({ NODE_ENV: 'test', EXTERNAL_PROCESSING_ENABLED: 'true' }), [{ ...processor, process: async () => { calls++; throw Error('example failure'); } }]);
+    const approved = await failed.approve(preview.id, { version: 1, approved: true, previewToken: preview.previewToken });
+    await expect(failed.run(preview.id, approved)).rejects.toThrow();
+    // Run takes only a version: strict input also rejects an injected payload/id.
+    await expect(failed.run(preview.id, { version: approved.version })).rejects.toMatchObject({ code: 'PROCESSING_FAILED' });
+    await expect(failed.run(preview.id, { version: approved.version })).rejects.toMatchObject({ code: 'STALE_PREVIEW' }); expect(calls).toBe(1);
+  });
+  it('rejects altered encrypted payloads and allows only one concurrent execution of an approved preview', async () => {
+    const { preview } = await processingPreview();
+    await db.processingConsent.update({ where: { id: preview.id }, data: { processingPayload: encrypt(JSON.stringify({ ...preview.payload, text: 'Örnek değiştirilmiş metin' }), 'ProcessingConsent.processingPayload') } });
+    expect((await request('POST', `/api/processing/${preview.id}/approve`, { version: 1, previewToken: preview.previewToken, approved: true })).statusCode).toBe(409); expect(processingCalls).toHaveLength(0);
+    await db.processingConsent.update({ where: { id: preview.id }, data: { processingPayload: encrypt(JSON.stringify(preview.payload), 'ProcessingConsent.processingPayload') } });
+    const approved = (await request('POST', `/api/processing/${preview.id}/approve`, { version: 1, previewToken: preview.previewToken, approved: true })).json();
+    const results = await Promise.all([request('POST', `/api/processing/${preview.id}/run`, { version: approved.version }), request('POST', `/api/processing/${preview.id}/run`, { version: approved.version })]);
+    expect(results.map(result => result.statusCode).sort()).toEqual([200, 409]); expect(processingCalls).toHaveLength(1);
+  });
+});
 
 describe('security baseline', () => {
   it('keeps procedural migration batches intact and rolls back a failed batch', async () => {

@@ -49,7 +49,7 @@ test('table retention defaults to indefinite and purges only the confirmed recor
   try { await client.query('UPDATE "Club" SET "deletedAt" = $1, "version" = "version" + 1 WHERE "id" = $2', [new Date('2020-01-01'), id]); } finally { await client.end(); }
   await page.goto('/settings');
   await expect(page.getByLabel('Tablo', { exact: true })).toBeVisible();
-  await expect(page.getByLabel('Tablo', { exact: true }).locator('option')).toHaveCount(60);
+  await expect(page.getByLabel('Tablo', { exact: true }).locator('option')).toHaveCount(61);
   await page.getByLabel('Tablo', { exact: true }).selectOption('WorkLog');
   await expect(page.getByLabel('Gün', { exact: true })).toHaveValue('');
   await page.getByLabel('Tablo', { exact: true }).selectOption('Club'); await page.getByLabel('Gün', { exact: true }).fill('1');
@@ -101,6 +101,24 @@ test('owner creates club and player, suggests a player and reads the shared time
   await page.getByRole('link', { name: new RegExp(playerName) }).click();
   await expect(page.getByText(/Örnek SK A kulübüne önerildi/)).toBeVisible();
 });
+test('owner uploads a private file and downloads it after a logged access action', async ({ page }) => {
+  await signIn(page); const me = await (await page.request.get('/api/me')).json();
+  const response = await page.request.post('/api/clubs', { headers: { origin: 'http://localhost:5173', 'x-csrf-token': me.csrfToken }, data: { name: `Örnek Dosya Kulübü ${Date.now()}` } });
+  expect(response.status()).toBe(201); const club = await response.json(); await page.goto(`/record/Club/${club.id}`);
+  const pdf = Buffer.from('%PDF-1.7\n%%EOF');
+  await page.getByLabel('Dosya seç', { exact: true }).setInputFiles({ name: 'Örnek dosya.pdf', mimeType: 'application/pdf', buffer: pdf });
+  await page.getByRole('button', { name: 'Dosyayı yükle', exact: true }).click();
+  await expect(page.getByText('Örnek dosya.pdf', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'İndirme bağlantısı oluştur', exact: true }).click();
+  const downloading = page.waitForEvent('download'); await page.getByRole('link', { name: 'Dosyayı indir', exact: true }).click();
+  const download = await downloading; const stream = await download.createReadStream(); const chunks = []; for await (const chunk of stream) chunks.push(Buffer.from(chunk)); expect(Buffer.concat(chunks)).toEqual(pdf);
+  await page.getByRole('button', { name: 'Belge işleme', exact: true }).click();
+  await expect(page.getByRole('dialog').getByText(/Henüz bir belge işleme adaptörü/)).toBeVisible();
+  await page.getByRole('button', { name: 'Kapat', exact: true }).click();
+  await page.getByRole('link', { name: 'Ayarlar', exact: true }).click();
+  await expect(page.getByText('Dosya içeriği', { exact: true }).first()).toBeVisible();
+});
+
 test('iframe shows top-level login fallback', async ({ page }) => {
   await page.goto('/');
   await page.evaluate(() => { const iframe = document.createElement('iframe'); iframe.src = '/'; iframe.title = 'test-frame'; document.body.replaceChildren(iframe); });

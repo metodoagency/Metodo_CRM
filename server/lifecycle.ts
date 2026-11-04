@@ -115,6 +115,12 @@ function deletionOrder(graph: Graph): string[] {
   return ordered;
 }
 async function removeSelected(tx: Tx, graph: Graph, selected: Set<string>) {
+  // Outbox creation and metadata removal commit together. Physical deletion is
+  // retryable and occurs only after the owner's exact purge has committed.
+  for (const row of graph.get('Attachment') ?? []) if (selected.has(keyOf('Attachment', row.id))) {
+    const file = await tx.attachment.findFirstOrThrow({ where: { id: row.id, ownerId: 'owner' } });
+    await tx.storageDeletion.create({ data: { driver: file.storageDriver, storageKey: file.storageKey, notBefore: new Date() } });
+  }
   for (const type of deletionOrder(graph)) {
     const ids = graph.get(type)!.filter(row => selected.has(keyOf(type, row.id))).map(row => row.id);
     for (let offset = 0; offset < ids.length; offset += 200) {
@@ -138,7 +144,7 @@ export async function cleanupExamples(db: PrismaClient, expected: string) {
     return plan.result;
   }, { isolationLevel: 'Serializable', timeout: 30000 });
 }
-const ancillary = new Set(['Relation', 'Note', 'Attachment', 'Task', 'Notification', 'UpdateProposal', 'ShareLink', 'TrashEntry']);
+const ancillary = new Set(['Relation', 'Note', 'Attachment', 'ProcessingConsent', 'Task', 'Notification', 'UpdateProposal', 'ShareLink', 'TrashEntry']);
 export async function deletionPreview(tx: Tx, type: EntityType, id: string) {
   const graph = await loadGraph(tx);
   if (!graph.get(type)?.some(row => row.id === id)) throw new AppError('NOT_FOUND', 404);

@@ -14,6 +14,7 @@ export function openapiDocument() {
         ...(route.params ? { params: route.params as z.ZodObject } : {}),
         ...(route.query ? { query: route.query as z.ZodObject } : {}),
         ...(route.body ? { body: { required: true, content: { 'application/json': { schema: route.body } } } } : {}),
+        ...(route.multipart ? { body: { required: true, content: { 'multipart/form-data': { schema: z.object({ file: z.string().openapi({ type: 'string', format: 'binary' }) }) } } } } : {}),
         ...(mutation && !route.public ? { headers: z.object({ 'x-csrf-token': z.string().min(1), origin: z.url() }) } : {}),
       },
       responses: {

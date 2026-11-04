@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import ts from 'typescript';
 
 const walk = (dir: string): string[] => readdirSync(dir, { withFileTypes: true }).flatMap(entry => entry.isDirectory() ? walk(join(dir, entry.name)) : /\.tsx?$/.test(entry.name) ? [join(dir, entry.name)] : []);
-const clients = /^(node:)?https?$|^(axios|undici|got|node-fetch|cross-fetch|superagent|request|playwright|puppeteer)(\/|$)/;
+const clients = /^(node:)?https?$|^(axios|undici|got|node-fetch|cross-fetch|superagent|request|playwright|puppeteer)(\/|$)|^@aws-sdk\//;
 export function networkCode(source: string) {
   const tree = ts.createSourceFile('module.tsx', source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
   let found = false;
@@ -23,7 +23,7 @@ export function networkCode(source: string) {
 it('enforces the no-commercial-scraping policy with a network-code allowlist', () => {
   // No acquisition adapter exists yet. New networking modules require a policy
   // review and explicit tests; commercial-site acquisition is never exempted.
-  const permitted = new Set(['server/auth.ts', 'src/api.ts']);
+  const permitted = new Set(['server/auth.ts', 'server/storage.ts', 'src/api.ts']);
   for (const file of ['server', 'shared', 'src'].flatMap(walk)) {
     const path = file.replaceAll('\\', '/'); const source = readFileSync(file, 'utf8');
     if (!networkCode(source)) continue;
