@@ -10,11 +10,12 @@ import { tr, en } from '../shared/locales.js';
 import { provenanceFor } from '../shared/provenance.js';
 import { cleanupExamples, deletionPreview, examplePreview, listTrash, purgeTrash, restoreTrash } from './lifecycle.js';
 import { proposalContext, reviewProposal } from './proposals.js';
-import { reviewInput } from '../shared/contracts.js';
+import { clubListQuery, reviewInput, settingsInput } from '../shared/contracts.js';
 import { registerPrivacy } from './privacy.js';
 import { registerRetention } from './retention.js';
 import { validateRetentionPeriods } from './lifecycle.js';
-import { settingsInput } from '../shared/contracts.js';
+import { clubWhere, registerClubNetwork } from './club-network.js';
+import { registerClubSections } from './club-sections.js';
 
 const idParams = z.object({ id: z.string().uuid() });
 const entityParams = z.object({ type: z.enum(entityTypes), id: z.string().uuid() });
@@ -25,6 +26,8 @@ const trashWrite = z.object({ version: z.number().int().positive(), recordVersio
 export async function registerRoutes(app: FastifyInstance, db: PrismaClient) {
   await registerPrivacy(app, db);
   await registerRetention(app, db);
+  await registerClubNetwork(app, db);
+  await registerClubSections(app, db);
   app.get('/api/me', async req => ({ id: 'owner', csrfToken: csrfToken(req.cookies[sessionCookie]!) }));
   app.get('/api/settings', async () => masked(await db.userSettings.upsert({ where: { ownerId: 'owner' }, create: { ownerId: 'owner' }, update: {} })));
   app.patch('/api/settings', async req => {
@@ -49,9 +52,9 @@ export async function registerRoutes(app: FastifyInstance, db: PrismaClient) {
     return { clubs, players, requests, proposals, tasks, meetings, recent, notifications };
   });
   app.get('/api/clubs', async req => {
-    const { page, q } = listQuery.parse(req.query);
-    const where = { ...live, searchName: { contains: normalizeSearch(q) } };
-    const [items, total] = await db.$transaction([db.club.findMany({ where, orderBy: { name: 'asc' }, skip: (page - 1) * 50, take: 50 }), db.club.count({ where })]);
+    const { page, q, ...filters } = clubListQuery.parse(req.query);
+    const where = clubWhere(filters, q);
+    const [items, total] = await db.$transaction([db.club.findMany({ where, orderBy: [{ name: 'asc' }, { id: 'asc' }], skip: (page - 1) * 50, take: 50 }), db.club.count({ where })], { isolationLevel: 'RepeatableRead' });
     return { items, total, page };
   });
   app.post('/api/clubs', async (req, reply) => {

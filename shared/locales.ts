@@ -4,6 +4,7 @@ import { privacyTr, privacyEn } from './privacy-locales.js';
 import { retentionTr, retentionEn } from './retention-locales.js';
 import { fileTr, fileEn } from './file-locales.js';
 import { documentTr, documentEn } from './document-locales.js';
+import { clubNetworkTr, clubNetworkEn } from './club-network-locales.js';
 export const tr = {
   ...adminTr,
   ...clubTr,
@@ -11,6 +12,7 @@ export const tr = {
   ...retentionTr,
   ...fileTr,
   ...documentTr,
+  ...clubNetworkTr,
   "brand": "Metodo",
   "crm": "CRM",
   "tagline": "Futbolun ilişkilerini yönetin.",
@@ -226,6 +228,7 @@ export const en: Record<keyof typeof tr, string> = {
   ...retentionEn,
   ...fileEn,
   ...documentEn,
+  ...clubNetworkEn,
   "brand": "Metodo",
   "crm": "CRM",
   "tagline": "Manage the relationships behind football.",

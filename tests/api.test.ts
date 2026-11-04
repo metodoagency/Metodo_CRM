@@ -155,6 +155,73 @@ describe('sensitive paths: files and per-document processing', () => {
   });
 });
 
+describe('club network', () => {
+  it('counts and filters owner clubs and maps only valid coordinate pairs', async () => {
+    const continent = (await request('POST', '/api/clubs/geography', { type: 'Continent', name: 'Örnek Kıta' })).json();
+    const country = (await request('POST', '/api/clubs/geography', { type: 'Country', name: 'Örnek Ülke', isoCode: 'XA', continentId: continent.id })).json();
+    const other = (await request('POST', '/api/clubs/geography', { type: 'Country', name: 'Örnek İkinci Ülke', isoCode: 'XB', continentId: continent.id })).json();
+    const region = (await request('POST', '/api/clubs/geography', { type: 'Region', name: 'Örnek Bölge', countryId: country.id })).json();
+    expect((await request('POST', '/api/clubs/geography', { type: 'Country', name: 'Örnek Tekrar', isoCode: 'xa', continentId: continent.id })).statusCode).toBe(409);
+    const mapped = await club('Örnek Koordinatlı Kulüp');
+    const missing = await club('Örnek Konumsuz Kulüp');
+    const unassigned = await club('Örnek Ülkesiz Kulüp');
+    const loc = { version: mapped.version, countryId: country.id, regionId: region.id, lat: 0, lng: 0, city: null, stadium: null, relationStatus: 'ACTIVE', isTracked: true };
+    expect((await request('PATCH', `/api/clubs/${mapped.id}/location`, { ...loc, countryId: other.id })).statusCode).toBe(400);
+    expect((await request('PATCH', `/api/clubs/${mapped.id}/location`, { ...loc, lat: null })).statusCode).toBe(400);
+    expect((await request('PATCH', `/api/clubs/${mapped.id}/location`, { ...loc, lng: 181 })).statusCode).toBe(400);
+    expect((await request('PATCH', `/api/clubs/${mapped.id}/location`, loc)).statusCode).toBe(200);
+    expect((await request('PATCH', `/api/clubs/${mapped.id}/location`, loc)).statusCode).toBe(409);
+    expect((await request('PATCH', `/api/clubs/${missing.id}/location`, { ...loc, version: missing.version, lat: null, lng: null })).statusCode).toBe(200);
+    await db.club.create({ data: { name: 'Örnek Eski Hatalı Koordinat', searchName: 'ornek eski', countryId: country.id, regionId: region.id, lat: 92, lng: 10 } });
+    await db.club.create({ data: { name: 'Örnek Silinmiş Kulüp', searchName: 'ornek silinmis', countryId: country.id, regionId: region.id, lat: 15, lng: 15, deletedAt: new Date() } });
+    const tree = (await request('GET', '/api/clubs/geography')).json();
+    expect(tree).toMatchObject({ total: 4, unassigned: 1, continents: [{ id: continent.id, count: 3 }], regions: [{ id: region.id, count: 3 }] });
+    expect(tree.countries).toEqual(expect.arrayContaining([expect.objectContaining({ id: country.id, count: 3 }), expect.objectContaining({ id: other.id, count: 0 })]));
+    const filter = `countryId=${country.id}&regionId=${region.id}`;
+    const list = (await request('GET', `/api/clubs?${filter}`)).json();
+    expect(list.total).toBe(3);
+    expect((await request('GET', `/api/clubs/markers?${filter}`)).json().items).toEqual([{ id: mapped.id, name: mapped.name, lat: 0, lng: 0 }]);
+    expect((await request('GET', '/api/clubs?countryCode=xa')).json().total).toBe(3);
+    expect((await request('GET', '/api/clubs?countryCode=xb')).json().total).toBe(0);
+    expect((await request('GET', '/api/clubs?unassigned=true')).json().items.map((row: { id: string }) => row.id)).toEqual([unassigned.id]);
+    const events = await db.timelineEvent.findMany({ where: { entityId: mapped.id, action: 'update' } });
+    expect(events).toHaveLength(1);
+    expect(events[0].diffs).toMatchObject({ new: { relationStatus: 'ACTIVE', countryId: country.id, regionId: region.id } });
+  });
+
+  it('shows scoped club links and tenure history without exposing contacts or fetching sources', async () => {
+    await seedExamples(db);
+    const id = exampleId('club-0');
+    const path = `/api/clubs/${id}/sections`;
+    const staff = await request('GET', `${path}/staff`);
+    expect(staff.statusCode).toBe(200);
+    expect(staff.json().items).toEqual(expect.arrayContaining([expect.objectContaining({ href: `/record/Person/${exampleId('person-0-0')}`, label: 'HEAD_COACH', endDate: null })]));
+    expect(staff.body).not.toContain('email');
+    expect((await request('GET', `${path}/meetings`)).json().items).toHaveLength(2);
+    expect((await request('GET', `${path}/requests`)).json().items).toHaveLength(1);
+    expect((await request('GET', `${path}/players?players=suggested`)).json().items.length).toBeGreaterThan(0);
+    const contact = await db.relation.create({ data: { fromType: 'Person', fromId: exampleId('person-0-0'), toType: 'Club', toId: id, relation: 'contactOf', isExample: true } });
+    const activity = await request('GET', `${path}/relationship`);
+    expect(activity.statusCode).toBe(200);
+    expect(activity.json().items).toEqual(expect.arrayContaining([
+      expect.objectContaining({ id: contact.id, label: 'clubFirstContact' }),
+      expect.objectContaining({ label: 'clubMeetings' }), expect.objectContaining({ label: 'clubPresentation' }),
+      expect.objectContaining({ nameEn: expect.stringContaining('Suggested to') }),
+    ]));
+    await db.source.create({ data: { name: 'Örnek Kaynak', url: 'https://example.com/club-source', type: 'OFFICIAL', trustLevel: 'OFFICIAL', linkedClubIds: [id], isExample: true } });
+    await db.source.create({ data: { name: 'Örnek Güvensiz Bağlantı', url: 'javascript:example()', type: 'OFFICIAL', trustLevel: 'OFFICIAL', linkedClubIds: [id], isExample: true } });
+    const sources = (await request('GET', `${path}/sources`)).json().items;
+    expect(sources).toEqual(expect.arrayContaining([expect.objectContaining({ href: 'https://example.com/club-source', external: true })]));
+    expect(JSON.stringify(sources)).not.toContain('javascript:');
+    const note = await request('POST', `/api/clubs/${id}/notes`, { text: 'Örnek Ofis Notu' });
+    expect(note.statusCode).toBe(201);
+    expect((await request('GET', `${path}/notes`)).json().items[0].name).toBe('Örnek Ofis Notu');
+    expect((await app.inject({ url: `${path}/staff` })).statusCode).toBe(401);
+    await db.club.update({ where: { id }, data: { deletedAt: new Date() } });
+    expect((await request('GET', `${path}/staff`)).statusCode).toBe(404);
+  });
+});
+
 describe('security baseline', () => {
   it('exports a versioned English profile with provenance and excludes sensitive data', async () => {
     const source = { sourceUrl: 'https://example.com/profile-source', sourceType: 'OFFICIAL', retrievedAt: '2026-11-02T00:00:00Z', verificationStatus: 'VERIFIED' };

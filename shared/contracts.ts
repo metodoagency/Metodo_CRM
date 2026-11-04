@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { fileVersion, processingApprovalInput, processingPreviewInput } from './files.js';
 import { documentInput, documentMime } from './documents.js';
+import { areaInput, clubFilters, clubLocationInput, clubMapQuery, clubNoteInput, clubSectionParams, clubSectionQuery } from './club-network.js';
 import { acknowledgePrivacy, incidentContactInput } from './privacy.js';
 import { retentionPeriods, retentionPreviewInput, retentionPurgeInput } from './retention.js';
 import { clubInput, entityTypes, isoDate, personInput, playerInput, relationInput, requestInput, suggestionInput } from './domain.js';
@@ -8,6 +9,7 @@ import { clubInput, entityTypes, isoDate, personInput, playerInput, relationInpu
 export const idParams = z.object({ id: z.uuid() }).strict();
 export const entityParams = z.object({ type: z.enum(entityTypes), id: z.uuid() }).strict();
 export const listQuery = z.object({ page: z.coerce.number().int().min(1).default(1), q: z.string().max(100).default(''), status: z.enum(['OWN', 'TARGET', 'INTERMEDIARY', 'MANDATED']).optional() }).strict();
+export const clubListQuery = listQuery.extend(clubFilters.shape);
 export const versionInput = z.object({ version: z.number().int().positive() }).strict();
 export const trashWrite = versionInput.extend({ recordVersion: z.number().int().positive() });
 export const previewConfirmation = z.object({ previewToken: z.string().regex(/^[a-f0-9]{64}$/) }).strict();
@@ -17,6 +19,12 @@ export const revealInput = z.object({ field: z.enum(['birthDate', 'phone', 'emai
 export const patchInput = versionInput.extend({ changes: z.record(z.string(), z.unknown()) });
 export type ApiContract = { method: 'get' | 'post' | 'patch' | 'delete'; path: string; query?: z.ZodType; params?: z.ZodType; body?: z.ZodType; success?: number; public?: boolean; testOnly?: boolean; csv?: boolean; multipart?: boolean; download?: readonly string[] };
 export const apiContracts: ApiContract[] = [
+  { method: 'get', path: '/api/clubs/geography' },
+  { method: 'post', path: '/api/clubs/geography', body: areaInput, success: 201 },
+  { method: 'get', path: '/api/clubs/markers', query: clubMapQuery },
+  { method: 'patch', path: '/api/clubs/:id/location', params: idParams, body: clubLocationInput },
+  { method: 'get', path: '/api/clubs/:id/sections/:section', params: clubSectionParams, query: clubSectionQuery },
+  { method: 'post', path: '/api/clubs/:id/notes', params: idParams, body: clubNoteInput, success: 201 },
   { method: 'post', path: '/api/documents/profile/:id', params: idParams, body: documentInput, download: Object.values(documentMime) },
   { method: 'get', path: '/api/records/:type/:id/files', params: entityParams },
   { method: 'post', path: '/api/records/:type/:id/files', params: entityParams, multipart: true, success: 201 },
@@ -45,7 +53,7 @@ export const apiContracts: ApiContract[] = [
   { method: 'get', path: '/api/admin/access-log', query: listQuery },
   { method: 'get', path: '/api/overview' }, { method: 'get', path: '/api/docs' },
   ...([['clubs', clubInput], ['players', playerInput], ['people', personInput], ['requests', requestInput]] as const).flatMap(([path, schema]): ApiContract[] => [
-    { method: 'get', path: `/api/${path}`, query: listQuery }, { method: 'post', path: `/api/${path}`, body: schema, success: 201 },
+    { method: 'get', path: `/api/${path}`, query: path === 'clubs' ? clubListQuery : listQuery }, { method: 'post', path: `/api/${path}`, body: schema, success: 201 },
   ]),
   { method: 'post', path: '/api/suggestions', body: suggestionInput, success: 201 },
   { method: 'post', path: '/api/relations', body: relationInput, success: 201 },

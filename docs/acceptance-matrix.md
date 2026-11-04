@@ -6,7 +6,7 @@ Live commercial/provider implementation is explicitly deferred by SPEC update1. 
 
 | Requirement | Capability | Sessions | Status | Existing evidence / pending verification |
 |---|---|---|---|---|
-| M1 | Kulüp ağı ve harita | 07 | PARTIAL | Foundation API tests; full baseline subsection remains pending |
+| M1 | Kulüp ağı ve harita | 07 | PARTIAL | Implemented and passed locally. [PostgreSQL geography and club sections](../tests/api.test.ts), [browser filters, map and notes](../tests/e2e/club-network.ts), [TR/EN accessibility](../tests/e2e/a11y.spec.ts). Exact commit PostgreSQL 16/17 CI pending. Commercial RSS acquisition is superseded by SPEC update 1. |
 | M2 | Ajanda ve fikstür | 15,16 | NOT_DONE | — |
 | M3 | Kulüp güncellemeleri ve kaynaklar | 08 | PARTIAL | — |
 | M4 | TFF personel | 08 | PARTIAL | — |

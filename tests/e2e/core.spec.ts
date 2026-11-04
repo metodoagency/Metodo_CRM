@@ -1,6 +1,7 @@
 import { test, expect } from '@playwright/test';
 import { PDFParse } from 'pdf-parse';
 import { signIn } from './login';
+import { exerciseClubMap } from './club-network';
 import pg from 'pg';
 
 for (const language of ['tr', 'en']) test(`privacy notice is shown on first login and acknowledged (${language})`, async ({ page }) => {
@@ -115,7 +116,7 @@ test('owner creates club and player, suggests a player and reads the shared time
   await page.getByRole('link', { name: new RegExp(playerName) }).click();
   await expect(page.getByText(/Örnek SK A kulübüne önerildi/)).toBeVisible();
 });
-test('owner uploads a private file and downloads it after a logged access action', async ({ page }) => {
+test('owner manages club geography and downloads a private file with logged access', async ({ page }) => {
   await signIn(page); const me = await (await page.request.get('/api/me')).json();
   const response = await page.request.post('/api/clubs', { headers: { origin: 'http://localhost:5173', 'x-csrf-token': me.csrfToken }, data: { name: `Örnek Dosya Kulübü ${Date.now()}` } });
   expect(response.status()).toBe(201); const club = await response.json(); await page.goto(`/record/Club/${club.id}`);
@@ -131,6 +132,7 @@ test('owner uploads a private file and downloads it after a logged access action
   await page.getByRole('button', { name: 'Kapat', exact: true }).click();
   await page.getByRole('link', { name: 'Ayarlar', exact: true }).click();
   await expect(page.getByText('Dosya içeriği', { exact: true }).first()).toBeVisible();
+  await exerciseClubMap(page, club, { origin: 'http://localhost:5173', 'x-csrf-token': me.csrfToken });
 });
 
 test('iframe shows top-level login fallback', async ({ page }) => {
