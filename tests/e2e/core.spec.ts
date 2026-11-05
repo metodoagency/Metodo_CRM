@@ -135,7 +135,7 @@ test('owner manages club geography and downloads a private file with logged acce
   await exerciseClubMap(page, club, { origin: 'http://localhost:5173', 'x-csrf-token': me.csrfToken });
 });
 
-test('staff proposal stays pending through preview and applies after explicit approval', async ({ page }) => {
+test('club sources and updates use explicit review, including CSV proposals', async ({ page }) => {
   await signIn(page);
   const me = await (await page.request.get('/api/me')).json();
   const headers = { origin: 'http://localhost:5173', 'x-csrf-token': me.csrfToken };
@@ -167,6 +167,50 @@ test('staff proposal stays pending through preview and applies after explicit ap
   await dialog.getByRole('button', { name: 'Onayla ve uygula' }).click();
   await expect(dialog).toHaveCount(0);
   expect((await staff()).items).toMatchObject([{ name, label: 'HEAD_COACH' }]);
+
+  await page.goto(`/record/Club/${club.id}`);
+  await page.getByRole('button', { name: 'Kaynakları takip et', exact: true }).click();
+  await page.getByRole('link', { name: 'Kaynak sicili', exact: true }).last().click();
+  await page.getByRole('button', { name: 'Kaynak ekle' }).click();
+  const sourceName = `Örnek Kaynak ${Date.now()}`;
+  await dialog.getByLabel('Ad', { exact: true }).fill(sourceName);
+  await dialog.getByLabel('Kaynak adresi').fill('https://example.com/club');
+  await dialog.getByRole('button', { name: 'Kaydet', exact: true }).click();
+  await expect(page.getByRole('link', { name: sourceName })).toHaveAttribute('target', '_blank');
+  await page.getByRole('button', { name: 'Kaynağı düzenle' }).click();
+  await dialog.getByLabel('Kaynak adresi').fill('https://example.com/club-updated');
+  await dialog.getByRole('button', { name: 'Kaydet', exact: true }).click();
+  await expect(page.getByRole('link', { name: sourceName })).toHaveAttribute('href', 'https://example.com/club-updated');
+
+  await page.goto(`/record/Club/${club.id}`);
+  await page.getByRole('button', { name: 'Güncellemeler', exact: true }).click();
+  await page.getByRole('button', { name: 'Kulüp güncellemesi öner' }).click();
+  const announcement = `Örnek Stadyum Duyurusu ${Date.now()}`;
+  await dialog.getByLabel('Güncelleme türü').selectOption('stadium');
+  await dialog.getByLabel('Ad', { exact: true }).fill(announcement);
+  await dialog.getByLabel('Değişiklik özeti').fill('Örnek stadyum duyurusu');
+  await dialog.getByLabel('Yeni stadyum').fill('Örnek Stadyum');
+  await dialog.getByLabel('Kaynak URL (isteğe bağlı)').fill('https://example.com/stadium');
+  await dialog.getByRole('button', { name: 'Kaydet', exact: true }).click();
+  await expect(dialog).toHaveCount(0);
+  await page.goto('/');
+  await page.getByRole('link', { name: announcement, exact: true }).click();
+  await dialog.getByLabel('Yeni stadyum').fill('Örnek Onaylanan Stadyum');
+  await dialog.getByRole('button', { name: 'Değişikliği önizle' }).click();
+  await expect(dialog.getByText('Stadyum · — → Örnek Onaylanan Stadyum')).toBeVisible();
+  await dialog.getByRole('button', { name: 'Onayla ve uygula' }).click();
+  await expect(dialog).toHaveCount(0);
+  expect(await (await page.request.get(`/api/records/Club/${club.id}`)).json()).toMatchObject({ stadium: 'Örnek Onaylanan Stadyum' });
+
+  await page.goto(`/record/Club/${club.id}`);
+  await page.getByRole('button', { name: 'Personel', exact: true }).click();
+  await page.getByRole('button', { name: 'Personel CSV içe aktar' }).click();
+  await dialog.getByLabel('CSV içeriği').fill('action,person,role,effectiveDate,sourceUrl\ncoach_appointment,Örnek CSV Adayı,ASSISTANT,2026-01-12,https://www.tff.org/example');
+  await dialog.getByRole('button', { name: 'Değişikliği önizle' }).click();
+  await expect(dialog.getByText('Örnek CSV Adayı', { exact: true })).toBeVisible();
+  await dialog.getByRole('button', { name: 'Bekleyen önerileri oluştur' }).click();
+  await expect(page.getByText('1 personel önerisi oluşturuldu.', { exact: true })).toBeVisible();
+  expect((await staff()).items).toHaveLength(1);
 });
 
 test('iframe shows top-level login fallback', async ({ page }) => {

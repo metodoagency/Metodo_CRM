@@ -4,4 +4,4 @@ export type RecordRow = { id: string; name: string; city?: string; status?: stri
 export type List = { items: RecordRow[]; total: number; page: number };
 export type ClubRecord = RecordRow & { countryId: string | null; regionId: string | null; lat: number | null; lng: number | null; stadium: string | null; isTracked: boolean; notes: string };
 export type Timeline = { id: string; summaryTr: string; summaryEn: string; createdAt: string; entityType: string; entityId: string };
-export type Overview = { clubs: number; players: number; requests: number; proposals: number; notifications: number; tasks: { id: string; name: string; dueDate: string; priority: string }[]; meetings: { id: string; name: string; date: string; time: string; locationOrUrl: string }[]; recent: Timeline[] };
+export type Overview = { clubs: number; players: number; requests: number; proposals: number; pendingUpdates: { id: string; name: string; type: string }[]; notifications: number; tasks: { id: string; name: string; dueDate: string; priority: string }[]; meetings: { id: string; name: string; date: string; time: string; locationOrUrl: string }[]; recent: Timeline[] };

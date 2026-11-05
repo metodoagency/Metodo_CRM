@@ -2,6 +2,9 @@ import { z } from 'zod';
 import { fileVersion, processingApprovalInput, processingPreviewInput } from './files.js';
 import { documentInput, documentMime } from './documents.js';
 import { areaInput, clubFilters, clubLocationInput, clubMapQuery, clubNoteInput, clubSectionParams, clubSectionQuery } from './club-network.js';
+import { clubSourceInput, clubSourceList, clubSourceUpdate, manualSourceUrl } from './club-sources.js';
+import { clubUpdateInput, clubUpdateReview } from './club-updates.js';
+import { staffImportApply, staffImportInput, staffRoles } from './staff-import.js';
 import { acknowledgePrivacy, incidentContactInput } from './privacy.js';
 import { retentionPeriods, retentionPreviewInput, retentionPurgeInput } from './retention.js';
 import { clubInput, entityTypes, isoDate, personInput, playerInput, relationInput, requestInput, suggestionInput } from './domain.js';
@@ -14,10 +17,10 @@ export const versionInput = z.object({ version: z.number().int().positive() }).s
 export const trashWrite = versionInput.extend({ recordVersion: z.number().int().positive() });
 export const previewConfirmation = z.object({ previewToken: z.string().regex(/^[a-f0-9]{64}$/) }).strict();
 export const settingsInput = versionInput.extend({ language: z.enum(['tr', 'en']).optional(), theme: z.enum(['dark', 'light']).optional(), retentionDays: retentionPeriods.optional() });
-export const staffRoles = ['HEAD_COACH', 'ASSISTANT', 'GOALKEEPER_COACH', 'YOUTH_COORDINATOR', 'OTHER'] as const;
+export { staffRoles } from './staff-import.js';
 const recordVersion = z.number().int().positive();
 const tenureDigest = z.string().regex(/^[a-f0-9]{64}$/);
-const proposalSourceUrl = z.url({ protocol: /^https?$/ }).max(2048);
+const proposalSourceUrl = manualSourceUrl;
 export const staffProposalInput = z.object({
   type: z.enum(['coach_departure', 'coach_appointment']),
   name: z.string().trim().min(1).max(160), summary: z.string().trim().min(1).max(4000),
@@ -31,11 +34,16 @@ export const reviewInput = versionInput.extend({
   clubVersion: recordVersion.optional(), personVersion: recordVersion.optional(), tenureToken: tenureDigest.optional(),
   staffRole: z.enum(staffRoles).optional(),
   predecessor: z.object({ personId: z.uuid(), version: recordVersion, tenureToken: tenureDigest }).strict().optional(),
+  update: clubUpdateReview.optional(),
 });
 export const revealInput = z.object({ field: z.enum(['birthDate', 'phone', 'email', 'healthNotes', 'injuryNotes']) }).strict();
 export const patchInput = versionInput.extend({ changes: z.record(z.string(), z.unknown()) });
 export type ApiContract = { method: 'get' | 'post' | 'patch' | 'delete'; path: string; query?: z.ZodType; params?: z.ZodType; body?: z.ZodType; success?: number; public?: boolean; testOnly?: boolean; csv?: boolean; multipart?: boolean; download?: readonly string[] };
 export const apiContracts: ApiContract[] = [
+  { method: 'get', path: '/api/sources', query: clubSourceList },
+  { method: 'post', path: '/api/sources', body: clubSourceInput, success: 201 },
+  { method: 'patch', path: '/api/sources/:id', params: idParams, body: clubSourceUpdate },
+  { method: 'delete', path: '/api/sources/:id', params: idParams, body: versionInput },
   { method: 'get', path: '/api/clubs/geography' },
   { method: 'post', path: '/api/clubs/geography', body: areaInput, success: 201 },
   { method: 'get', path: '/api/clubs/markers', query: clubMapQuery },
@@ -90,6 +98,9 @@ export const apiContracts: ApiContract[] = [
   { method: 'get', path: '/api/export/:type', params: z.object({ type: z.enum(entityTypes) }).strict(), csv: true },
   { method: 'get', path: '/api/proposals', query: listQuery },
   { method: 'post', path: '/api/clubs/:id/staff-proposals', params: idParams, body: staffProposalInput, success: 201 },
+  { method: 'post', path: '/api/clubs/:id/update-proposals', params: idParams, body: clubUpdateInput, success: 201 },
+  { method: 'post', path: '/api/clubs/:id/staff-import/preview', params: idParams, body: staffImportInput },
+  { method: 'post', path: '/api/clubs/:id/staff-import/apply', params: idParams, body: staffImportApply, success: 201 },
   { method: 'get', path: '/api/proposals/:id/context', params: idParams },
   { method: 'post', path: '/api/proposals/:id/review', params: idParams, body: reviewInput },
 ];

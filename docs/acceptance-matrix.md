@@ -8,8 +8,8 @@ Live commercial/provider implementation is explicitly deferred by SPEC update1. 
 |---|---|---|---|---|
 | M1 | Kulüp ağı ve harita | 07 | DONE | [PostgreSQL geography and club sections](../tests/api.test.ts), [browser filters, map and notes](../tests/e2e/club-network.ts), [TR/EN accessibility](../tests/e2e/a11y.spec.ts). [PostgreSQL 16/17 CI passed for 4840769](https://github.com/metodoagency/Metodo_CRM/actions/runs/41849766409). Commercial RSS acquisition is superseded by SPEC update 1. |
 | M2 | Ajanda ve fikstür | 15,16 | NOT_DONE | — |
-| M3 | Kulüp güncellemeleri ve kaynaklar | 08 | PARTIAL | [Browser test](../tests/e2e/core.spec.ts) covers staff proposal entry, preview and approval. [API tests](../tests/api.test.ts) cover approval and rejection. Manual source registry and remaining update types pending. |
-| M4 | TFF personel | 08 | PARTIAL | Versioned staff tenures with evidence through R1 and R2. Owner-triggered, robots-gated TFF and CSV fallback pending. |
+| M3 | Kulüp güncellemeleri ve kaynaklar | 08 | PARTIAL | [API](../tests/api.test.ts) and [browser](../tests/e2e/core.spec.ts) coverage for the source registry, dashboard queue and previewed updates. Injury notices contain metadata only. Exact-head CI pending. |
+| M4 | TFF personel | 08 | PARTIAL | [CSV](../tests/api.test.ts) preview creates pending proposals with official source evidence. Tenures display sources and verification. Live owner-triggered, robots-gated TFF check awaits representative anonymized markup. |
 | M5 | Oyuncu veritabanı | 09 | PARTIAL | Foundation API tests; full baseline subsection remains pending |
 | M6 | Oyuncu kartı/profil | 06,10 | PARTIAL | Basic versioned profile PDF/DOCX, tests/documents.test.ts and player export browser flow. Scoring, league fit, history and the full card remain in10. |
 | M7 | Sözleşmeler | 14 | NOT_DONE | — |

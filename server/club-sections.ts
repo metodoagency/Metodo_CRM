@@ -2,6 +2,7 @@ import { Prisma, type PrismaClient } from '@prisma/client';
 import type { FastifyInstance } from 'fastify';
 import { clubNoteInput, clubSectionParams, clubSectionQuery, type ClubSectionRow } from '../shared/club-network.js';
 import { idParams } from '../shared/contracts.js';
+import { manualSourceUrl } from '../shared/club-sources.js';
 import { live, logEvent, requireEntity } from './core.js';
 
 function httpUrl(value: string) {
@@ -26,15 +27,16 @@ export async function registerClubSections(app: FastifyInstance, db: PrismaClien
     let rows: ClubSectionRow[];
     switch (section) {
       case 'staff': {
-        const tenures = await db.$queryRaw<{ id: string; personId: string; name: string; role: string; startDate: Date | null; endDate: Date | null }[]>(
-          Prisma.sql`SELECT r.id, p.id AS "personId", p.name, COALESCE(r.role, p.role::text) AS role, r."startDate", r."endDate"
+        const tenures = await db.$queryRaw<{ id: string; personId: string; name: string; role: string; startDate: Date | null; endDate: Date | null; sourceUrl: string | null; verificationStatus: string }[]>(
+          Prisma.sql`SELECT r.id, p.id AS "personId", p.name, COALESCE(r.role, p.role::text) AS role, r."startDate", r."endDate", r."sourceUrl", r."verificationStatus"::text
             FROM "Relation" r JOIN "Person" p ON p.id::text = r."fromId"
             WHERE r."ownerId" = 'owner' AND p."ownerId" = 'owner' AND r."deletedAt" IS NULL AND p."deletedAt" IS NULL
               AND r."fromType" = 'Person' AND r."toType" = 'Club' AND r."toId" = ${id} AND r.relation = 'memberOf'
             ORDER BY r."endDate" DESC NULLS FIRST, r."startDate" DESC NULLS LAST, r.id
             LIMIT ${paging.take} OFFSET ${paging.skip}`,
         );
-        rows = tenures.map(item => ({ id: item.id, name: item.name, label: item.role, date: dateText(item.startDate), endDate: dateText(item.endDate), href: `/record/Person/${item.personId}` }));
+        rows = tenures.map(item => ({ id: item.id, name: item.name, label: item.role, date: dateText(item.startDate), endDate: dateText(item.endDate), href: `/record/Person/${item.personId}`,
+          sourceUrl: item.sourceUrl && manualSourceUrl.safeParse(item.sourceUrl).success ? item.sourceUrl : undefined, verificationStatus: item.verificationStatus }));
         break;
       }
       case 'ageTeams':
@@ -57,8 +59,10 @@ export async function registerClubSections(app: FastifyInstance, db: PrismaClien
           .map(row => ({ ...row, label: row.status, href: `/record/Request/${row.id}` }));
         break;
       case 'updates':
-        rows = (await db.updateProposal.findMany({ ...paging, where: { ...live, targetType: 'Club', targetId: id }, orderBy: [...newest], select: { ...named, approvalStatus: true, date: true } }))
-          .map(row => ({ ...row, label: row.approvalStatus, date: dateText(row.date), href: row.approvalStatus === 'PENDING' ? '/proposals' : undefined }));
+        rows = (await db.updateProposal.findMany({ ...paging, where: { ...live, targetType: 'Club', targetId: id }, orderBy: [...newest], select: { ...named, approvalStatus: true, date: true, summary: true, type: true, sourceUrl: true, verificationStatus: true } }))
+          .map(row => ({ id: row.id, name: row.name, label: row.approvalStatus, date: dateText(row.date),
+            details: row.type !== 'injury' ? row.summary : undefined, href: row.approvalStatus === 'PENDING' ? '/proposals' : undefined,
+            sourceUrl: row.sourceUrl && manualSourceUrl.safeParse(row.sourceUrl).success ? row.sourceUrl : undefined, verificationStatus: row.verificationStatus }));
         break;
       case 'relationship': {
         const participants = JSON.stringify([{ type: 'Club', id }]);
@@ -95,7 +99,7 @@ export async function registerClubSections(app: FastifyInstance, db: PrismaClien
         break;
       case 'sources':
         rows = (await db.source.findMany({ ...paging, where: { ...live, linkedClubIds: { has: id } }, orderBy: [{ name: 'asc' }, { id: 'asc' }], select: { ...named, url: true, type: true } }))
-          .map(row => ({ id: row.id, name: row.name, href: httpUrl(row.url), external: true, label: row.type }));
+          .map(row => ({ id: row.id, name: row.name, href: manualSourceUrl.safeParse(row.url).success ? row.url : undefined, external: true, label: `sourceType_${row.type}` }));
         break;
       case 'stakeholders':
         rows = (await db.clubStakeholder.findMany({ ...paging, where: { ...club, person: { is: live } }, orderBy: [...newest], select: { ...named, personId: true, stakeholderRole: true } }))

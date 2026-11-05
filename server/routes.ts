@@ -9,13 +9,16 @@ import { sessionCookie } from './auth.js';
 import { tr, en } from '../shared/locales.js';
 import { provenanceFor } from '../shared/provenance.js';
 import { cleanupExamples, deletionPreview, examplePreview, listTrash, purgeTrash, restoreTrash } from './lifecycle.js';
-import { createStaffProposal, proposalContext, reviewProposal } from './proposals.js';
+import { createClubUpdate, createStaffProposal, proposalContext, reviewProposal } from './proposals.js';
+import { clubUpdateInput } from '../shared/club-updates.js';
 import { clubListQuery, reviewInput, settingsInput, staffProposalInput } from '../shared/contracts.js';
 import { registerPrivacy } from './privacy.js';
 import { registerRetention } from './retention.js';
 import { validateRetentionPeriods } from './lifecycle.js';
 import { clubWhere, registerClubNetwork } from './club-network.js';
 import { registerClubSections } from './club-sections.js';
+import { registerClubSources } from './club-sources.js';
+import { registerStaffImport } from './staff-import.js';
 
 const idParams = z.object({ id: z.string().uuid() });
 const entityParams = z.object({ type: z.enum(entityTypes), id: z.string().uuid() });
@@ -28,6 +31,8 @@ export async function registerRoutes(app: FastifyInstance, db: PrismaClient) {
   await registerRetention(app, db);
   await registerClubNetwork(app, db);
   await registerClubSections(app, db);
+  await registerClubSources(app, db);
+  await registerStaffImport(app, db);
   app.get('/api/me', async req => ({ id: 'owner', csrfToken: csrfToken(req.cookies[sessionCookie]!) }));
   app.get('/api/settings', async () => masked(await db.userSettings.upsert({ where: { ownerId: 'owner' }, create: { ownerId: 'owner' }, update: {} })));
   app.patch('/api/settings', async req => {
@@ -42,14 +47,15 @@ export async function registerRoutes(app: FastifyInstance, db: PrismaClient) {
     });
   });
   app.get('/api/overview', async () => {
-    const [clubs, players, requests, proposals, tasks, meetings, recent, notifications] = await Promise.all([
+    const [clubs, players, requests, proposals, pendingUpdates, tasks, meetings, recent, notifications] = await Promise.all([
       db.club.count({ where: live }), db.player.count({ where: live }), db.request.count({ where: { ...live, status: { not: 'CLOSED' } } }),
       db.updateProposal.count({ where: { ...live, approvalStatus: 'PENDING' } }),
+      db.updateProposal.findMany({ where: { ...live, approvalStatus: 'PENDING' }, take: 5, orderBy: [{ createdAt: 'desc' }, { id: 'asc' }], select: { id: true, name: true, type: true } }),
       db.task.findMany({ where: { ...live, status: 'OPEN' }, orderBy: { dueDate: 'asc' }, take: 5 }),
       db.meeting.findMany({ where: { ...live, date: { gte: new Date(new Date().toISOString().slice(0, 10)) } }, orderBy: { date: 'asc' }, take: 4 }),
       db.timelineEvent.findMany({ where: live, orderBy: { createdAt: 'desc' }, take: 6 }), db.notification.count({ where: { ...live, status: 'NEW' } }),
     ]);
-    return { clubs, players, requests, proposals, tasks, meetings, recent, notifications };
+    return { clubs, players, requests, proposals, pendingUpdates, tasks, meetings, recent, notifications };
   });
   app.get('/api/clubs', async req => {
     const { page, q, ...filters } = clubListQuery.parse(req.query);
@@ -232,6 +238,10 @@ export async function registerRoutes(app: FastifyInstance, db: PrismaClient) {
   });
   app.post('/api/clubs/:id/staff-proposals', async (req, reply) => {
     const proposal = await createStaffProposal(db, idParams.parse(req.params).id, staffProposalInput.parse(req.body));
+    return reply.code(201).send(proposal);
+  });
+  app.post('/api/clubs/:id/update-proposals', async (req, reply) => {
+    const proposal = await createClubUpdate(db, idParams.parse(req.params).id, clubUpdateInput.parse(req.body));
     return reply.code(201).send(proposal);
   });
   app.get('/api/proposals/:id/context', async req => proposalContext(db, idParams.parse(req.params).id));

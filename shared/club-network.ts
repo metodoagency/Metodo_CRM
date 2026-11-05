@@ -49,6 +49,7 @@ export type ClubSection = typeof clubSections[number];
 export type ClubSectionRow = {
   id: string; name: string; label?: string; details?: string; href?: string;
   external?: boolean; date?: string | null; endDate?: string | null; nameEn?: string;
+  sourceUrl?: string; verificationStatus?: string;
 };
 
 export function hasCoordinates(row: { lat?: number | null; lng?: number | null }): row is { lat: number; lng: number } {

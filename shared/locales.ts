@@ -5,6 +5,7 @@ import { retentionTr, retentionEn } from './retention-locales.js';
 import { fileTr, fileEn } from './file-locales.js';
 import { documentTr, documentEn } from './document-locales.js';
 import { clubNetworkTr, clubNetworkEn } from './club-network-locales.js';
+import { clubSourceTr, clubSourceEn } from './club-source-locales.js';
 export const tr = {
   ...adminTr,
   ...clubTr,
@@ -13,6 +14,7 @@ export const tr = {
   ...fileTr,
   ...documentTr,
   ...clubNetworkTr,
+  ...clubSourceTr,
   "brand": "Metodo",
   "crm": "CRM",
   "tagline": "Futbolun ilişkilerini yönetin.",
@@ -229,6 +231,7 @@ export const en: Record<keyof typeof tr, string> = {
   ...fileEn,
   ...documentEn,
   ...clubNetworkEn,
+  ...clubSourceEn,
   "brand": "Metodo",
   "crm": "CRM",
   "tagline": "Manage the relationships behind football.",

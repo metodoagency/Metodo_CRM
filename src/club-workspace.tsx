@@ -5,7 +5,8 @@ import { Link } from 'react-router-dom';
 import { api, ApiError, body } from './api';
 import { Badge, Empty, ErrorMessage, Modal } from './components';
 import { geographyKey } from './club-explorer';
-import { StaffProposalForm } from './proposals';
+import { ClubUpdateForm, StaffProposalForm } from './proposals';
+import { StaffImport } from './staff-import';
 import { clubLocationInput, hasCoordinates, type ClubGeography, type ClubSection, type ClubSectionRow } from '../shared/club-network';
 import type { ClubRecord } from './types';
 
@@ -104,6 +105,7 @@ function ClubSectionPanel({ club, section }: { club: ClubRecord; section: ClubSe
   const [scope, setScope] = useState<keyof typeof playerScopes>('squad');
   const [addingNote, setAddingNote] = useState(false);
   const [addingProposal, setAddingProposal] = useState(false);
+  const [addingUpdate, setAddingUpdate] = useState(false);
   const queryKey = ['club-section', club.id, section];
   const query = useQuery({ queryKey: [...queryKey, page, scope], queryFn: () => api<{ items: ClubSectionRow[]; more: boolean }>(`/api/clubs/${club.id}/sections/${section}?page=${page}&players=${scope}`) });
   const note = useMutation({
@@ -113,14 +115,20 @@ function ClubSectionPanel({ club, section }: { club: ClubRecord; section: ClubSe
   const date = (value: string) => new Intl.DateTimeFormat(i18n.language === 'tr' ? 'tr-TR' : 'en-GB', { timeZone: 'Europe/Istanbul', day: '2-digit', month: i18n.language === 'tr' ? '2-digit' : 'short', year: 'numeric' }).format(new Date(value));
   return <section className="panel panel-body mt-5">
     <h2>{t(sections[section])}</h2>
+    {section === 'sources' && <Link className="secondary mt-3 inline-flex" to={`/sources?clubId=${club.id}`}>{t('sourceRegistry')}</Link>}
+    {section === 'staff' && <StaffImport clubId={club.id} />}
     {section === 'players' && <label className="field max-w-sm mt-4">{t('players')}
       <select aria-label={t('players')} value={scope} onChange={event => { setScope(event.target.value as typeof scope); setPage(1); }}>
         {(Object.keys(playerScopes) as (keyof typeof playerScopes)[]).map(key => <option key={key} value={key}>{t(playerScopes[key])}</option>)}
       </select></label>}
     {section === 'notes' && <><button className="secondary mt-3" onClick={() => { note.reset(); setAddingNote(true); }}>{t('clubAddNote')}</button>
       {club.notes && <p className="notice mt-3 whitespace-pre-wrap break-words">{club.notes}</p>}</>}
-    {section === 'updates' && <button className="secondary mt-3" onClick={() => setAddingProposal(true)}>{t('staffProposalNew')}</button>}
+    {section === 'updates' && <div className="flex gap-2 flex-wrap mt-3">
+      <button className="secondary" onClick={() => setAddingProposal(true)}>{t('staffProposalNew')}</button>
+      <button className="secondary" onClick={() => setAddingUpdate(true)}>{t('clubUpdateAdd')}</button>
+    </div>}
     {addingProposal && <StaffProposalForm clubId={club.id} onClose={() => { setAddingProposal(false); setPage(1); }} />}
+    {addingUpdate && <ClubUpdateForm clubId={club.id} onClose={() => { setAddingUpdate(false); setPage(1); }} />}
     {query.isError && <ErrorMessage />}
     {query.isPending && <p role="status">{t('loading')}</p>}
     {query.data && (!query.data.items.length ? <Empty /> : <ul className="divide-y mt-3">{query.data.items.map(row => <li key={row.id} className="py-3 break-words">
@@ -130,6 +138,10 @@ function ClubSectionPanel({ club, section }: { club: ClubRecord; section: ClubSe
       {row.label && <span className="ml-2"><Badge value={row.label} /></span>}
       {(row.date || row.details || section === 'staff') && <p className="muted text-xs mt-1">
         {row.date ? date(row.date) : null}{section === 'staff' ? ` · ${row.endDate ? date(row.endDate) : t('clubTenureOngoing')}` : null}{row.details ? ` · ${row.details}` : null}
+      </p>}
+      {(section === 'staff' || section === 'updates') && <p className="muted text-xs mt-1">
+        {t(row.verificationStatus === 'VERIFIED' ? 'sourceVerified' : row.verificationStatus === 'PARTIAL' ? 'sourcePartial' : 'sourceUnverified')}
+        {row.sourceUrl && <> · <a className="text-accent" href={row.sourceUrl} target="_blank" rel="noopener noreferrer">{t('source')}</a></>}
       </p>}
     </li>)}</ul>)}
     {(page > 1 || query.data?.more) && <div className="pagination">

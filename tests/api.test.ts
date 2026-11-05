@@ -222,7 +222,89 @@ describe('club network', () => {
   });
 });
 
+describe('club source and update registry', () => {
+  it('manages manual sources with multiple live club links, versions and trash restore', async () => {
+    const first = await club('Örnek Kaynak A'); const second = await club('Örnek Kaynak B');
+    const input = { name: 'Örnek Kulüp Kaynağı', type: 'OFFICIAL', url: 'https://example.com/news', trustLevel: 'OFFICIAL', linkedClubIds: [first.id, second.id] };
+    expect((await request('POST', '/api/sources', { ...input, scanMethod: 'RSS' })).statusCode).toBe(400);
+    expect((await request('POST', '/api/sources', { ...input, url: 'javascript:alert(1)' })).statusCode).toBe(400);
+    expect((await request('POST', '/api/sources', { ...input, url: 'https://user:secret@example.com/news' })).statusCode).toBe(400);
+    const created = await request('POST', '/api/sources', input);
+    expect(created.statusCode, created.body).toBe(201);
+    const source = created.json();
+    expect(source).toMatchObject({ scanMethod: 'MANUAL', linkedClubIds: [first.id, second.id], version: 1 });
+    const filtered = await request('GET', `/api/sources?clubId=${first.id}`);
+    expect(filtered.json().items).toMatchObject([{ id: source.id, clubs: [{ id: first.id, name: first.name }, { id: second.id, name: second.name }] }]);
+    const updated = await request('PATCH', `/api/sources/${source.id}`, { ...input, version: 1, linkedClubIds: [second.id] });
+    expect(updated.statusCode, updated.body).toBe(200);
+    expect((await request('PATCH', `/api/sources/${source.id}`, { ...input, version: 1 })).statusCode).toBe(409);
+    expect((await request('GET', `/api/clubs/${first.id}/sections/sources`)).json().items).toEqual([]);
+    expect((await request('GET', `/api/clubs/${second.id}/sections/sources`)).json().items).toMatchObject([{ href: input.url, external: true }]);
+    expect((await request('DELETE', `/api/sources/${source.id}`, { version: 2 })).statusCode).toBe(200);
+    expect((await request('GET', '/api/sources')).json().items).toEqual([]);
+    const item = await db.trashEntry.findFirstOrThrow({ where: { entityId: source.id } });
+    expect((await request('POST', `/api/trash/${item.id}/restore`, { version: item.version, recordVersion: 3 })).statusCode).toBe(200);
+    expect((await request('GET', '/api/sources')).json().items).toMatchObject([{ id: source.id, version: 4 }]);
+  });
+
+  it('applies a verified stadium update only after approval and keeps injury notices metadata-only', async () => {
+    const target = await club(); const url = `/api/clubs/${target.id}/update-proposals`;
+    const evidence = { date: '2026-01-12', sourceUrl: 'https://example.com/statement' };
+    const draft = { ...evidence, type: 'stadium', name: 'Örnek Duyuru', summary: 'Örnek stadyum değişikliği', stadium: 'Örnek Stadyum' };
+    const created = await request('POST', url, draft);
+    expect(created.statusCode, created.body).toBe(201);
+    const proposal = created.json();
+    expect((await db.club.findUniqueOrThrow({ where: { id: target.id } })).stadium).toBeNull();
+    expect((await request('GET', '/api/overview')).json().pendingUpdates).toMatchObject([{ id: proposal.id }]);
+    const route = `/api/proposals/${proposal.id}`;
+    const preview = await request('GET', `${route}/context`);
+    expect(preview.json()).toMatchObject({ kind: 'news', club: { stadium: null, version: target.version }, update: { stadium: draft.stadium } });
+    const input = { action: 'approve', sourceUrl: evidence.sourceUrl, version: proposal.version, clubVersion: target.version,
+      update: { name: draft.name, summary: draft.summary, date: evidence.date, stadium: 'Örnek Düzeltilen Stadyum' } };
+    expect((await request('POST', `${route}/review`, { ...input, clubVersion: target.version + 1 })).statusCode).toBe(409);
+    expect((await request('POST', `${route}/review`, { ...input, sourceUrl: undefined })).statusCode).toBe(400);
+    const applied = await request('POST', `${route}/review`, input);
+    expect(applied.statusCode, applied.body).toBe(200);
+    expect(await db.club.findUniqueOrThrow({ where: { id: target.id } })).toMatchObject({ stadium: input.update.stadium, fieldProvenance: { stadium: { sourceUrl: evidence.sourceUrl, verificationStatus: 'VERIFIED' } } });
+    expect((await request('POST', `${route}/review`, input)).statusCode).toBe(404);
+    expect((await request('POST', url, { ...evidence, type: 'injury', summary: 'Örnek sağlık ayrıntısı' })).statusCode).toBe(400);
+    const injury = await request('POST', url, { ...evidence, type: 'injury' });
+    expect(injury.statusCode, injury.body).toBe(201);
+    expect(injury.json()).toMatchObject({ type: 'injury', summary: '', payload: {} });
+    expect((await request('POST', `/api/proposals/${injury.json().id}/review`, { ...input, version: 1, clubVersion: target.version + 1, update: { date: evidence.date, summary: 'Örnek sağlık ayrıntısı' } })).statusCode).toBe(400);
+  });
+});
+
 describe('club staff approval', () => {
+  it('imports validated TFF CSV as pending proposals, binding the preview and deduplicating after review', async () => {
+    const team = await club();
+    const person = (await request('POST', '/api/people', { name: 'Örnek, CSV Adayı', role: 'HEAD_COACH' })).json();
+    const endpoint = `/api/clubs/${team.id}/staff-import`;
+    const header = '\uFEFFaction;person;role;effectiveDate;sourceUrl\r\n';
+    const row = 'coach_appointment;"Örnek, CSV Adayı";HEAD_COACH;2026-01-12;https://www.tff.org/example';
+    const csv = `${header}${row}\r\n${row}`;
+    const invalid = (await request('POST', `${endpoint}/preview`, { csv: `${header}${row.replace('www.tff.org', 'www.tff.org.example.com')}` })).json();
+    expect(invalid).toMatchObject({ issues: [{ line: 2, code: 'ROW' }], previewToken: null });
+    const preview = (await request('POST', `${endpoint}/preview`, { csv })).json();
+    expect(preview.rows).toMatchObject([{ line: 2, person: 'Örnek, CSV Adayı', duplicate: false }, { line: 3, duplicate: true }]);
+    expect(await db.updateProposal.count()).toBe(0);
+    expect((await request('POST', `${endpoint}/apply`, { csv: csv.replace('2026-01-12', '2026-01-13'), previewToken: preview.previewToken })).statusCode).toBe(409);
+    const applied = await request('POST', `${endpoint}/apply`, { csv, previewToken: preview.previewToken });
+    expect(applied.statusCode, applied.body).toBe(201);
+    expect(applied.json().ids).toHaveLength(1);
+    const proposal = await db.updateProposal.findFirstOrThrow();
+    expect(proposal).toMatchObject({ approvalStatus: 'PENDING', sourceType: 'TFF', verificationStatus: 'UNVERIFIED' });
+    expect(await db.relation.count()).toBe(0);
+    const context = (await request('GET', `/api/proposals/${proposal.id}/context`)).json();
+    expect(context.candidate).toMatchObject({ person: 'Örnek, CSV Adayı', role: 'HEAD_COACH', effectiveDate: '2026-01-12' });
+    const approval = await request('POST', `/api/proposals/${proposal.id}/review`, { action: 'approve', personId: person.id, version: proposal.version,
+      personVersion: person.version, clubVersion: team.version, effectiveDate: '2026-01-12', staffRole: 'HEAD_COACH', sourceUrl: proposal.sourceUrl });
+    expect(approval.statusCode, approval.body).toBe(200);
+    expect(await db.relation.findFirstOrThrow()).toMatchObject({ sourceType: 'TFF', verificationStatus: 'VERIFIED' });
+    expect((await request('POST', `${endpoint}/preview`, { csv })).json()).toMatchObject({ previewToken: null, rows: [{ duplicate: true }, { duplicate: true }] });
+    expect((await request('POST', `${endpoint}/apply`, { csv, previewToken: preview.previewToken })).statusCode).toBe(409);
+  });
+
   async function setup(type: 'coach_departure' | 'coach_appointment') {
     const team = await club();
     const person = async (name: string, role: 'HEAD_COACH' | 'ASSISTANT') => {
