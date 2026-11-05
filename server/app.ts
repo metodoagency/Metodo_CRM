@@ -2,6 +2,12 @@ import Fastify from 'fastify';
 import cookie from '@fastify/cookie';
 import helmet from '@fastify/helmet';
 import rateLimit from '@fastify/rate-limit';
+import multipart from '@fastify/multipart';
+import { registerFiles } from './files.js';
+import { createStorage, drainStorageDeletions, type FileStorage } from './storage.js';
+import type { MalwareScanner } from './file-validation.js';
+import { registerProcessing, type DocumentProcessor } from './processing.js';
+import { registerProfileDocument } from './profile-document.js';
 import staticFiles from '@fastify/static';
 import type { PrismaClient } from '@prisma/client';
 import { Prisma } from '@prisma/client';
@@ -18,12 +24,14 @@ import { loggerOptions } from './logging.js';
 import { openapiDocument } from './openapi.js';
 import { apiContracts, emptyObject } from '../shared/contracts.js';
 
-export async function buildApp(options: { db?: PrismaClient; config?: Config } = {}) {
+export async function buildApp(options: { db?: PrismaClient; config?: Config; storage?: FileStorage; scanner?: MalwareScanner; processors?: readonly DocumentProcessor[] } = {}) {
   const db = options.db ?? defaultDb; const config = options.config ?? readConfig();
+  const storage = options.storage ?? createStorage(config);
   keyring();
   const trustedProxies = config.TRUSTED_PROXY_CIDRS.split(',').map(value => value.trim()).filter(Boolean);
   const app = Fastify({ bodyLimit: 1024 * 1024, logger: loggerOptions, trustProxy: trustedProxies.length ? trustedProxies : false });
   await app.register(cookie);
+  await app.register(multipart, { limits: { files: 1, fields: 0, parts: 1, fileSize: 10 * 1024 * 1024 } });
   await app.register(helmet, {
     contentSecurityPolicy: { directives: {
       defaultSrc: ["'self'"], scriptSrc: ["'self'"], styleSrc: ["'self'", "'unsafe-inline'"], imgSrc: ["'self'", 'data:', 'blob:', 'https://*.tile.openstreetmap.org'],
@@ -84,7 +92,17 @@ export async function buildApp(options: { db?: PrismaClient; config?: Config } =
     try { await db.$queryRaw`SELECT 1`; return { status: 'ok' }; } catch { return reply.code(503).send({ status: 'unavailable' }); }
   });
   await registerAuth(app, db, config);
+  app.addHook('onResponse', async (req, reply) => {
+    if (!storage || reply.statusCode < 200 || reply.statusCode >= 300) return;
+    if (!['POST', 'DELETE'].includes(req.method) || !['/api/admin/retention/purge', '/api/admin/examples/cleanup', '/api/trash/:id'].includes(req.routeOptions.url ?? '')) return;
+    // Only already committed purge jobs can be consumed. Storage failures leave
+    // the durable queue for owner retry or daily maintenance.
+    await drainStorageDeletions(db, storage).catch(() => app.log.warn('File cleanup deferred'));
+  });
   await registerRoutes(app, db);
+  await registerFiles(app, db, config, storage, options.scanner);
+  await registerProcessing(app, db, config, options.processors);
+  await registerProfileDocument(app, db, config);
   app.get('/api/docs', async () => openapiDocument());
   if (config.NODE_ENV === 'production' && existsSync(resolve('dist/web/index.html'))) {
     await app.register(staticFiles, { root: resolve('dist/web') });

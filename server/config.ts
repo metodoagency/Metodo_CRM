@@ -30,6 +30,7 @@ const configuration = z.object({
   S3_ENDPOINT: emptyOptional(httpUrl), S3_BUCKET: z.string().default(''), S3_REGION: z.string().default(''),
   S3_ACCESS_KEY_ID: z.string().default(''), S3_SECRET_ACCESS_KEY: z.string().default(''),
   AI_ENABLED: flag, AI_PROVIDER: z.enum(['', 'gemini', 'openai']).default(''),
+  EXTERNAL_PROCESSING_ENABLED: flag,
   GEMINI_API_KEY: z.string().default(''), OPENAI_API_KEY: z.string().default(''), GOOGLE_SHEETS_ENABLED: flag,
   SMTP_ENABLED: flag, SMTP_HOST: z.string().default(''), SMTP_PORT: z.coerce.number().int().min(1).max(65535).default(587),
   SMTP_USER: z.string().default(''), SMTP_PASSWORD: z.string().default(''), SMTP_FROM: emptyOptional(z.email()),
@@ -50,6 +51,7 @@ const configuration = z.object({
     if (config.GOOGLE_REDIRECT_URI !== `${config.APP_ORIGIN}/auth/google/callback`) ctx.addIssue({ code: 'custom', path: ['GOOGLE_REDIRECT_URI'], message: 'Must match the application callback URL' });
   }
   if (config.STORAGE_DRIVER === 's3') requireFields(['S3_ENDPOINT', 'S3_BUCKET', 'S3_REGION', 'S3_ACCESS_KEY_ID', 'S3_SECRET_ACCESS_KEY']);
+  if (config.NODE_ENV === 'production' && config.STORAGE_DRIVER === 's3' && !config.S3_ENDPOINT?.startsWith('https://')) ctx.addIssue({ code: 'custom', path: ['S3_ENDPOINT'], message: 'HTTPS required in production' });
   if (config.AI_ENABLED === 'true') requireFields(config.AI_PROVIDER === 'openai' ? ['AI_PROVIDER', 'OPENAI_API_KEY'] : ['AI_PROVIDER', 'GEMINI_API_KEY']);
   if (config.SMTP_ENABLED === 'true') requireFields(['SMTP_HOST', 'SMTP_USER', 'SMTP_PASSWORD', 'SMTP_FROM']);
   if (config.IMAP_ENABLED === 'true') requireFields(['IMAP_HOST', 'IMAP_USER', 'IMAP_PASSWORD']);

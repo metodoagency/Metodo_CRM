@@ -9,3 +9,10 @@
 @media(max-width:767px){.sidebar{transform:translateX(-100%)}.sidebar.open{transform:translateX(0)}.main{margin-left:0}.mobile-menu{display:flex}.mobile-scrim{display:block;position:fixed;inset:0;background:#0008;z-index:29}.content{padding:24px 18px}h1{font-size:25px}.topbar{padding:0 18px;height:70px}.shortcut{display:none}.search-box input{width:135px}.metric-grid{gap:10px}.metric{padding:17px}.metric-value{font-size:30px}.table-wrap table,.table-wrap tbody{display:block}.table-wrap thead{display:none}.table-wrap tr{display:grid;grid-template-columns:1fr 1fr;padding:10px;border-top:1px solid var(--border)}.table-wrap td{padding:10px;border:0}.table-wrap td:first-child{grid-column:1/-1}.detail-grid{gap:16px}.hide-mobile{display:none}}
 
 .text-accent{color:var(--accent)}
+.club-explorer { display: grid; grid-template-columns: minmax(14rem, 18rem) minmax(0, 1fr); gap: 1rem; align-items: start; }
+.club-map { height: clamp(18rem, 45vh, 30rem); background: #102b3b; isolation: isolate; z-index: 0; }
+.area-button { display: flex; width: 100%; align-items: center; justify-content: space-between; gap: .75rem; padding: .45rem .55rem; text-align: left; border-radius: .4rem; }
+.area-button:hover, .area-button[aria-pressed="true"] { background: #147b7326; }
+.club-tabs { display: flex; flex-wrap: wrap; gap: .5rem; margin-bottom: 1rem; }
+.club-tabs [aria-pressed="true"] { border-color: #147b73; box-shadow: inset 0 -2px #147b73; }
+@media (max-width: 780px) { .club-explorer { grid-template-columns: minmax(0, 1fr); } }

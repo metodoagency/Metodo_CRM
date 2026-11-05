@@ -9,6 +9,16 @@ import { sessionCookie } from './auth.js';
 import { tr, en } from '../shared/locales.js';
 import { provenanceFor } from '../shared/provenance.js';
 import { cleanupExamples, deletionPreview, examplePreview, listTrash, purgeTrash, restoreTrash } from './lifecycle.js';
+import { createClubUpdate, createStaffProposal, proposalContext, reviewProposal } from './proposals.js';
+import { clubUpdateInput } from '../shared/club-updates.js';
+import { clubListQuery, reviewInput, settingsInput, staffProposalInput } from '../shared/contracts.js';
+import { registerPrivacy } from './privacy.js';
+import { registerRetention } from './retention.js';
+import { validateRetentionPeriods } from './lifecycle.js';
+import { clubWhere, registerClubNetwork } from './club-network.js';
+import { registerClubSections } from './club-sections.js';
+import { registerClubSources } from './club-sources.js';
+import { registerStaffImport } from './staff-import.js';
 
 const idParams = z.object({ id: z.string().uuid() });
 const entityParams = z.object({ type: z.enum(entityTypes), id: z.string().uuid() });
@@ -17,32 +27,40 @@ const masked = (row: unknown) => maskSensitive(row);
 const trashWrite = z.object({ version: z.number().int().positive(), recordVersion: z.number().int().positive() }).strict();
 
 export async function registerRoutes(app: FastifyInstance, db: PrismaClient) {
+  await registerPrivacy(app, db);
+  await registerRetention(app, db);
+  await registerClubNetwork(app, db);
+  await registerClubSections(app, db);
+  await registerClubSources(app, db);
+  await registerStaffImport(app, db);
   app.get('/api/me', async req => ({ id: 'owner', csrfToken: csrfToken(req.cookies[sessionCookie]!) }));
-  app.get('/api/settings', async () => db.userSettings.upsert({ where: { ownerId: 'owner' }, create: { ownerId: 'owner' }, update: {} }));
+  app.get('/api/settings', async () => masked(await db.userSettings.upsert({ where: { ownerId: 'owner' }, create: { ownerId: 'owner' }, update: {} })));
   app.patch('/api/settings', async req => {
-    const { version, ...data } = z.object({ version: z.number().int().positive(), language: z.enum(['tr', 'en']).optional(), theme: z.enum(['dark', 'light']).optional(), retentionDays: z.partialRecord(z.enum(entityTypes), z.number().int().min(1).max(3650)).optional() }).strict().parse(req.body);
+    const { version, ...data } = settingsInput.parse(req.body);
+    if (data.retentionDays) validateRetentionPeriods(data.retentionDays);
     return db.$transaction(async tx => {
       const before = await tx.userSettings.findUnique({ where: { ownerId: 'owner' } });
       if (!before || before.version !== version) throw new AppError('STALE_VERSION', 409);
       const after = await tx.userSettings.update({ where: { ownerId: 'owner', version }, data: { ...data, version: { increment: 1 } } });
       await logEvent(tx, { entityType: 'UserSettings', entityId: after.id, action: 'update', name: tr.settings, summaries: { tr: tr.timeline_update.replace('{name}', tr.settings), en: en.timeline_update.replace('{name}', en.settings) }, diffs: { old: before, new: data } });
-      return after;
+      return masked(after);
     });
   });
   app.get('/api/overview', async () => {
-    const [clubs, players, requests, proposals, tasks, meetings, recent, notifications] = await Promise.all([
+    const [clubs, players, requests, proposals, pendingUpdates, tasks, meetings, recent, notifications] = await Promise.all([
       db.club.count({ where: live }), db.player.count({ where: live }), db.request.count({ where: { ...live, status: { not: 'CLOSED' } } }),
       db.updateProposal.count({ where: { ...live, approvalStatus: 'PENDING' } }),
+      db.updateProposal.findMany({ where: { ...live, approvalStatus: 'PENDING' }, take: 5, orderBy: [{ createdAt: 'desc' }, { id: 'asc' }], select: { id: true, name: true, type: true } }),
       db.task.findMany({ where: { ...live, status: 'OPEN' }, orderBy: { dueDate: 'asc' }, take: 5 }),
       db.meeting.findMany({ where: { ...live, date: { gte: new Date(new Date().toISOString().slice(0, 10)) } }, orderBy: { date: 'asc' }, take: 4 }),
       db.timelineEvent.findMany({ where: live, orderBy: { createdAt: 'desc' }, take: 6 }), db.notification.count({ where: { ...live, status: 'NEW' } }),
     ]);
-    return { clubs, players, requests, proposals, tasks, meetings, recent, notifications };
+    return { clubs, players, requests, proposals, pendingUpdates, tasks, meetings, recent, notifications };
   });
   app.get('/api/clubs', async req => {
-    const { page, q } = listQuery.parse(req.query);
-    const where = { ...live, searchName: { contains: normalizeSearch(q) } };
-    const [items, total] = await db.$transaction([db.club.findMany({ where, orderBy: { name: 'asc' }, skip: (page - 1) * 50, take: 50 }), db.club.count({ where })]);
+    const { page, q, ...filters } = clubListQuery.parse(req.query);
+    const where = clubWhere(filters, q);
+    const [items, total] = await db.$transaction([db.club.findMany({ where, orderBy: [{ name: 'asc' }, { id: 'asc' }], skip: (page - 1) * 50, take: 50 }), db.club.count({ where })], { isolationLevel: 'RepeatableRead' });
     return { items, total, page };
   });
   app.post('/api/clubs', async (req, reply) => {
@@ -213,23 +231,22 @@ export async function registerRoutes(app: FastifyInstance, db: PrismaClient) {
   });
   app.get('/api/proposals', async req => {
     const { page } = listQuery.parse(req.query);
-    return db.updateProposal.findMany({ where: { ...live, approvalStatus: 'PENDING' }, orderBy: { createdAt: 'desc' }, skip: (page - 1) * 50, take: 50 });
+    return db.updateProposal.findMany({
+      where: { ...live, approvalStatus: 'PENDING' }, orderBy: [{ createdAt: 'desc' }, { id: 'asc' }], skip: (page - 1) * 50, take: 50,
+      select: { id: true, version: true, name: true, summary: true, type: true },
+    });
   });
+  app.post('/api/clubs/:id/staff-proposals', async (req, reply) => {
+    const proposal = await createStaffProposal(db, idParams.parse(req.params).id, staffProposalInput.parse(req.body));
+    return reply.code(201).send(proposal);
+  });
+  app.post('/api/clubs/:id/update-proposals', async (req, reply) => {
+    const proposal = await createClubUpdate(db, idParams.parse(req.params).id, clubUpdateInput.parse(req.body));
+    return reply.code(201).send(proposal);
+  });
+  app.get('/api/proposals/:id/context', async req => proposalContext(db, idParams.parse(req.params).id));
   app.post('/api/proposals/:id/review', async req => {
     const { id } = idParams.parse(req.params);
-    const data = z.object({ version: z.number().int().positive(), action: z.enum(['approve', 'reject']), sourceUrl: z.string().url().optional(), reason: z.string().min(3).optional() }).strict().parse(req.body);
-    return db.$transaction(async tx => {
-      const proposal = await tx.updateProposal.findFirst({ where: { ...live, id, approvalStatus: 'PENDING' } }); if (!proposal) throw new AppError('NOT_FOUND', 404);
-      if (proposal.version !== data.version) throw new AppError('STALE_VERSION', 409);
-      if (data.action === 'approve') {
-        if (!data.sourceUrl) throw new AppError('SOURCE_REQUIRED');
-        // Canonical changes are blocked until their domain-specific validators
-        // are implemented in B. Never report approval without applying a change.
-        throw new AppError('PROPOSAL_TYPE_PENDING', 409);
-      }
-      if (!data.reason) throw new AppError('REASON_REQUIRED');
-      const row = await tx.updateProposal.update({ where: { ...live, id, version: data.version, approvalStatus: 'PENDING' }, data: { approvalStatus: 'REJECTED', rejectionReason: data.reason, reviewedAt: new Date(), version: { increment: 1 } } });
-      await logEvent(tx, { entityType: proposal.targetType, entityId: proposal.targetId, name: proposal.name, action: 'reject', isExample: proposal.isExample }); return row;
-    });
+    return reviewProposal(db, id, reviewInput.parse(req.body));
   });
 }
