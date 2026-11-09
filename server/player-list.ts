@@ -3,6 +3,7 @@ import type { FastifyInstance } from 'fastify';
 import { Prisma, type PrismaClient } from '@prisma/client';
 import { idParams, versionInput } from '../shared/contracts.js';
 import { playerFilters, playerListQuery, playerTagBatch, playerViewInput, type PlayerFilters, type PlayerListRow } from '../shared/player-list.js';
+import { activePhotoId } from '../shared/player-photo.js';
 import { normalizeSearch } from '../shared/domain.js';
 import { provenanceFor } from '../shared/provenance.js';
 import { retentionPeriods } from '../shared/retention.js';
@@ -10,7 +11,7 @@ import { AppError, live, logEvent } from './core.js';
 
 const listFields = {
   id: true, name: true, version: true, isExample: true, status: true, primaryPosition: true, tags: true, birthDate: true,
-  availability: true, levelScore: true, marketValue: true, marketValueCurrency: true, contractEndDate: true,
+  availability: true, levelScore: true, marketValue: true, marketValueCurrency: true, contractEndDate: true, photo: true, photoSourceUrl: true, photoRightsNote: true,
   currentClub: { select: { id: true, name: true, ownerId: true, deletedAt: true } },
   currentLeague: { select: { id: true, name: true, ownerId: true, deletedAt: true } },
 } as const;
@@ -33,7 +34,7 @@ export function playerWhere(filters: PlayerFilters): Prisma.PlayerWhereInput {
 function listed(row: Listed): PlayerListRow {
   const active = (value: Listed['currentClub']) => value && value.ownerId === live.ownerId && !value.deletedAt ? { id: value.id, name: value.name } : null;
   return {
-    id: row.id, name: row.name, version: row.version, isExample: row.isExample, status: row.status, primaryPosition: row.primaryPosition,
+    id: row.id, name: row.name, version: row.version, isExample: row.isExample, status: row.status, primaryPosition: row.primaryPosition, photo: !!activePhotoId(row),
     tags: row.tags, birthDate: row.birthDate ? '***' : null, availability: row.availability,
     levelScore: row.levelScore?.toFixed(1) ?? null, marketValue: row.marketValue?.toFixed(2) ?? null, marketValueCurrency: row.marketValueCurrency,
     contractEndDate: row.contractEndDate?.toISOString().slice(0, 10) ?? null, currentClub: active(row.currentClub), currentLeague: active(row.currentLeague),

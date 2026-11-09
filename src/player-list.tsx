@@ -2,8 +2,10 @@ import { useEffect, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
-import { UserRound } from 'lucide-react';
+import { PlayerAvatar } from './player-photo';
+import { PlayerFit } from './player-suitability';
 import { ageOn, positions, statuses } from '../shared/domain';
+import { formatMarketAmount } from '../shared/player-market';
 import { playerColumns, playerFilters, playerParams, playerSorts, playerTagBatch, playerViewInput, type PlayerColumn, type PlayerFilters, type PlayerListRow, type PlayerView } from '../shared/player-list';
 import { api, apiBlob, ApiError, body } from './api';
 import { Empty, ErrorMessage, Modal } from './components';
@@ -18,7 +20,7 @@ type View = PlayerView | { id: string; version: number; name: string; unavailabl
 const defaults = () => playerFilters.parse({});
 
 export function PlayerDatabase({ onCreate }: { onCreate: () => void }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const client = useQueryClient();
   const [filters, setFilters] = useState<PlayerFilters>(defaults);
   const [columns, setColumns] = useState<PlayerColumn[]>([...playerColumns]);
@@ -51,8 +53,8 @@ export function PlayerDatabase({ onCreate }: { onCreate: () => void }) {
       case 'club': return row.currentClub ? <Link className="text-accent" to={`/record/Club/${row.currentClub.id}`}>{row.currentClub.name}</Link> : '—';
       case 'league': return row.currentLeague?.name ?? '—';
       case 'score': return row.levelScore ?? '—';
-      case 'fit': return <span className="muted">{t('playerFitUnassessed')}</span>;
-      case 'marketValue': return row.marketValue ? `${row.marketValue} ${row.marketValueCurrency ?? ''}` : '—';
+      case 'fit': return row.levelScore && row.birthDate ? <PlayerFit key={`${row.id}:${row.version}`} id={row.id} name={row.name} /> : <span className="muted">{t('playerFitUnassessed')}</span>;
+      case 'marketValue': return row.marketValue && row.marketValueCurrency ? formatMarketAmount(row.marketValue, row.marketValueCurrency, i18n.language) : row.marketValue ?? '—';
       case 'contractEnd': return row.contractEndDate ? date(row.contractEndDate) : '—';
       case 'availability': return t(row.availability, { defaultValue: row.availability });
       case 'tags': return row.tags.join(' · ') || '—';
@@ -89,7 +91,7 @@ export function PlayerDatabase({ onCreate }: { onCreate: () => void }) {
         <th>{t('name')}</th>{columns.map(column => <th key={column}>{t(columnLabels[column])}</th>)}
       </tr></thead><tbody>{list.data.items.map(row => <tr key={row.id}>
         <td><input type="checkbox" aria-label={t('playerSelect', { name: row.name })} checked={selected.some(item => item.id === row.id)} onChange={event => toggle(row, event.target.checked)} /></td>
-        <td><Link className="row-name" to={`/record/Player/${row.id}`}><span className="avatar"><UserRound size={17} /></span><span>{row.name}{row.isExample && <small className="block muted">{t('example')}</small>}</span></Link></td>
+        <td><Link className="row-name" to={`/record/Player/${row.id}`}><PlayerAvatar id={row.id} version={row.version} available={row.photo} /><span>{row.name}{row.isExample && <small className="block muted">{t('example')}</small>}</span></Link></td>
         {columns.map(column => <td key={column}>{cell(column, row)}</td>)}
       </tr>)}</tbody></table></div>}
       <div className="pagination"><span>{t('page', { page, total: list.data.total })}</span><div className="flex gap-2">

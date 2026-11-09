@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { isoDate, positions, statuses } from './domain.js';
+import type { MarketCurrency } from './player-market.js';
 
 export const playerSorts = ['name', 'primaryPosition', 'status', 'levelScore', 'marketValue', 'contractEndDate', 'availability'] as const;
 export const playerTag = z.string().trim().min(1).max(40).refine(value => !value.includes('\0'));
@@ -29,8 +30,9 @@ export type PlayerColumn = typeof playerColumns[number];
 export type PlayerView = { id: string; version: number } & z.infer<typeof playerViewInput>;
 export type PlayerListRow = {
   id: string; name: string; version: number; isExample: boolean; status: typeof statuses[number]; primaryPosition: typeof positions[number];
+  photo: boolean;
   tags: string[]; birthDate: string | null; availability: string; contractEndDate: string | null;
-  levelScore: string | null; marketValue: string | null; marketValueCurrency: string | null;
+  levelScore: string | null; marketValue: string | null; marketValueCurrency: MarketCurrency | null;
   currentClub: { id: string; name: string } | null; currentLeague: { id: string; name: string } | null;
 };
 

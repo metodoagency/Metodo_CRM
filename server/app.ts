@@ -8,6 +8,7 @@ import { createStorage, drainStorageDeletions, type FileStorage } from './storag
 import type { MalwareScanner } from './file-validation.js';
 import { registerProcessing, type DocumentProcessor } from './processing.js';
 import { registerProfileDocument } from './profile-document.js';
+import { registerPlayerPhotos } from './player-photo.js';
 import staticFiles from '@fastify/static';
 import type { PrismaClient } from '@prisma/client';
 import { Prisma } from '@prisma/client';
@@ -101,6 +102,7 @@ export async function buildApp(options: { db?: PrismaClient; config?: Config; st
   });
   await registerRoutes(app, db);
   await registerFiles(app, db, config, storage, options.scanner);
+  await registerPlayerPhotos(app, db, storage);
   await registerProcessing(app, db, config, options.processors);
   await registerProfileDocument(app, db, config);
   app.get('/api/docs', async () => openapiDocument());

@@ -21,6 +21,8 @@ import { registerClubSources } from './club-sources.js';
 import { registerStaffImport } from './staff-import.js';
 import { exportPlayers, listPlayers, registerPlayerLists } from './player-list.js';
 import { registerPlayerScoring } from './player-scoring.js';
+import { registerPlayerMarket } from './player-market.js';
+import { registerPlayerSuitability } from './player-suitability.js';
 import { playerFilters } from '../shared/player-list.js';
 
 const idParams = z.object({ id: z.string().uuid() });
@@ -38,6 +40,8 @@ export async function registerRoutes(app: FastifyInstance, db: PrismaClient) {
   await registerStaffImport(app, db);
   await registerPlayerLists(app, db);
   await registerPlayerScoring(app, db);
+  await registerPlayerMarket(app, db);
+  await registerPlayerSuitability(app, db);
   app.get('/api/me', async req => ({ id: 'owner', csrfToken: csrfToken(req.cookies[sessionCookie]!) }));
   app.get('/api/settings', async () => masked(await db.userSettings.upsert({ where: { ownerId: 'owner' }, create: { ownerId: 'owner' }, update: {} })));
   app.patch('/api/settings', async req => {

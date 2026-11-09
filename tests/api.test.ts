@@ -20,6 +20,8 @@ import type { ProcessingPreview } from '../shared/files.js';
 import { readFile } from 'node:fs/promises';
 import { purgeTrash } from '../server/lifecycle.js';
 import JSZip from 'jszip';
+import sharp from 'sharp';
+import { ageOn } from '../shared/domain.js';
 
 const fileStorage = new LocalFileStorage('.local/tmp/api-files');
 const processingCalls: ProcessingPreview['payload'][] = [];
@@ -50,11 +52,101 @@ afterEach(async () => {
 afterAll(async () => { await app.close(); await db.$disconnect(); });
 
 const pdfFile = Buffer.from('%PDF-1.7\n%%EOF');
-function uploadFile(id: string, data = pdfFile, mime = 'application/pdf', extra = '') {
+function uploadFile(id: string, data = pdfFile, mime = 'application/pdf', extra = '', type: 'Club' | 'Player' = 'Club') {
   const boundary = 'example-boundary';
   const payload = Buffer.concat([Buffer.from(`--${boundary}\r\nContent-Disposition: form-data; name="file"; filename="Örnek belge.pdf"\r\nContent-Type: ${mime}\r\n\r\n`), data, Buffer.from(`\r\n${extra}--${boundary}--\r\n`)]);
-  return app.inject({ method: 'POST', url: `/api/records/Club/${id}/files`, payload, headers: { cookie, origin, 'x-csrf-token': csrf, 'content-type': `multipart/form-data; boundary=${boundary}` } });
+  return app.inject({ method: 'POST', url: `/api/records/${type}/${id}/files`, payload, headers: { cookie, origin, 'x-csrf-token': csrf, 'content-type': `multipart/form-data; boundary=${boundary}` } });
 }
+describe('sensitive paths: player card evidence', () => {
+  async function createPlayer(name: string, birthDate?: string) {
+    const result = await request('POST', '/api/players', { name, primaryPosition: 'CM', birthDate });
+    expect(result.statusCode, result.body).toBe(201);
+    return result.json();
+  }
+
+  it('evaluates versioned owner tiers on demand without disclosing age or birth date', async () => {
+    const birthDate = '2000-02-01';
+    const age = ageOn(birthDate);
+    const player = await createPlayer('Örnek lig uygunluğu', birthDate);
+    const url = `/api/players/${player.id}/suitability`;
+    expect((await app.inject({ method: 'POST', url, headers: { origin } })).statusCode).toBe(401);
+    expect((await request('POST', url)).json()).toMatchObject({ example: true, missing: ['score'], results: [] });
+    await db.player.update({ where: { id: player.id }, data: { levelScore: '7.5' } });
+    const settings = (await request('GET', '/api/settings')).json();
+    const tiers = [
+      { tier: 1, minScore: 8, referenceAge: age + 3, maxAgeDiff: 2 },
+      { tier: 2, minScore: 7.5, referenceAge: age - 2, maxAgeDiff: 2 },
+      { tier: 3, minScore: 8.5, referenceAge: age, maxAgeDiff: 0 },
+    ];
+    expect((await request('PATCH', '/api/settings', { version: settings.version, leagueTiers: [...tiers, tiers[0]] })).statusCode).toBe(400);
+    expect((await request('PATCH', '/api/settings', { version: settings.version, leagueTiers: tiers })).statusCode).toBe(200);
+    expect((await request('PATCH', '/api/settings', { version: settings.version, leagueTiers: tiers })).statusCode).toBe(409);
+    const evaluated = await request('POST', url);
+    expect(evaluated.statusCode, evaluated.body).toBe(200);
+    expect(evaluated.json()).toMatchObject({ example: false, missing: [], expiresIn: 60,
+      results: [{ tier: 1, status: 'CLOSE', scoreMeets: false, ageMeets: false }, { tier: 2, status: 'SUITABLE', scoreMeets: true, ageMeets: true },
+        { tier: 3, status: 'UNSUITABLE', scoreMeets: false, ageMeets: true }] });
+    expect(evaluated.body).not.toContain(birthDate);
+    expect(evaluated.json()).not.toHaveProperty('age');
+    const events = await db.auditLog.findMany({ where: { entityId: player.id, action: 'reveal' } });
+    expect(events.map(event => event.diffs)).toEqual([{ field: 'birthDate' }]);
+  });
+
+  it('keeps exact market values, rejects stale and invalid evidence, and preserves current value on a backdated entry', async () => {
+    const player = await createPlayer('Örnek değer geçmişi');
+    const url = `/api/players/${player.id}/market`;
+    const value = { version: player.version, amount: '9999999999999999.99', currency: 'EUR', date: '2026-01-12', sourceUrl: 'https://example.com/value', method: 'Örnek manuel değer' };
+    expect((await app.inject({ url })).statusCode).toBe(401);
+    expect((await request('PATCH', url, { ...value, method: '' })).statusCode).toBe(400);
+    expect((await request('PATCH', url, { ...value, date: '2099-01-12' })).statusCode).toBe(400);
+    expect((await request('PATCH', url, { ...value, sourceUrl: 'https://owner:password@example.com' })).statusCode).toBe(400);
+    expect((await request('PATCH', url, { ...value, profileUrl: 'javascript:alert(1)' })).statusCode).toBe(400);
+    const current = await request('PATCH', url, { ...value, profileUrl: 'https://example.com/profile' });
+    expect(current.statusCode, current.body).toBe(200);
+    expect((await request('PATCH', url, value)).statusCode).toBe(409);
+    const historic = { ...value, version: current.json().version, date: '2025-12-15', currency: 'USD', amount: '14500.5', method: 'Örnek önceki değer' };
+    const earlier = await request('PATCH', url, historic);
+    expect(earlier.statusCode, earlier.body).toBe(200);
+    const history = (await request('GET', url)).json();
+    expect(history).toMatchObject({ version: earlier.json().version, profileUrl: 'https://example.com/profile', more: false,
+      current: { amount: value.amount, currency: value.currency, date: value.date, sourceUrl: value.sourceUrl },
+      items: [{ amount: '14500.50', date: historic.date, currency: historic.currency, method: historic.method }, { amount: value.amount, date: value.date, method: value.method }],
+    });
+    expect(await db.timelineEvent.count({ where: { entityId: player.id, action: 'market_value' } })).toBe(2);
+    expect((await request('GET', '/api/export/Player')).body).not.toContain(value.method);
+  });
+
+  it('serves only the owner player’s live normalized photo with rights evidence and logs a value-free view', async () => {
+    const player = await createPlayer('Örnek fotoğraf');
+    const other = await createPlayer('Örnek diğer oyuncu');
+    const image = await sharp({ create: { width: 12, height: 16, channels: 3, background: '#bade90' } }).png().toBuffer();
+    const uploaded = await uploadFile(player.id, image, 'image/png', '', 'Player');
+    expect(uploaded.statusCode, uploaded.body).toBe(201);
+    const photo = uploaded.json();
+    const pdf = (await uploadFile(player.id, pdfFile, 'application/pdf', '', 'Player')).json();
+    const url = `/api/players/${player.id}/photo`;
+    const input = { action: 'set', version: player.version, attachmentId: photo.id, attachmentVersion: photo.version, sourceUrl: 'https://example.com/photo', rightsNote: 'Örnek kullanım izni' };
+    expect((await request('GET', url)).statusCode).toBe(404);
+    expect((await request('PATCH', url, { ...input, rightsNote: '' })).statusCode).toBe(400);
+    expect((await request('PATCH', url, { ...input, attachmentVersion: photo.version + 1 })).statusCode).toBe(409);
+    expect((await request('PATCH', url, { ...input, attachmentId: pdf.id, attachmentVersion: pdf.version })).statusCode).toBe(409);
+    expect((await request('PATCH', `/api/players/${other.id}/photo`, { ...input, version: other.version })).statusCode).toBe(409);
+    const selected = await request('PATCH', url, input);
+    expect(selected.statusCode, selected.body).toBe(200);
+    expect((await app.inject({ url })).statusCode).toBe(401);
+    expect((await request('GET', '/api/players')).json().items).toEqual(expect.arrayContaining([expect.objectContaining({ id: player.id, photo: true })]));
+    const imageResponse = await request('GET', url);
+    expect(imageResponse.statusCode, imageResponse.body).toBe(200);
+    expect(imageResponse.headers).toMatchObject({ 'content-type': 'image/webp', 'cache-control': 'no-store', 'content-disposition': 'inline' });
+    expect((await sharp(imageResponse.rawPayload).metadata()).format).toBe('webp');
+    const events = await db.auditLog.findMany({ where: { entityId: photo.id, action: 'reveal' } });
+    expect(events.map(event => event.diffs)).toEqual([{ field: 'document' }]);
+    expect((await request('PATCH', url, { action: 'remove', version: player.version })).statusCode).toBe(409);
+    expect((await request('PATCH', url, { action: 'remove', version: selected.json().version })).statusCode).toBe(200);
+    expect((await request('GET', url)).statusCode).toBe(404);
+    expect(await db.attachment.count({ where: { id: photo.id, deletedAt: null } })).toBe(1);
+  });
+});
 async function processingPreview() {
   const entity = await club(); const file = (await uploadFile(entity.id)).json();
   const res = await request('POST', '/api/processing/preview', { attachmentId: file.id, attachmentVersion: file.version, adapterId: processor.id, text: 'Örnek özel sözleşme alıntısı' });

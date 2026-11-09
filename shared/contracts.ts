@@ -7,6 +7,9 @@ import { clubUpdateInput, clubUpdateReview } from './club-updates.js';
 import { staffImportApply, staffImportInput, staffRoles } from './staff-import.js';
 import { playerFilters, playerListQuery, playerTagBatch, playerViewInput } from './player-list.js';
 import { playerScoringInput, positionWeights } from './player-scoring.js';
+import { marketPage, marketWrite } from './player-market.js';
+import { photoSelection, playerImageMimes } from './player-photo.js';
+import { leagueTiers } from './player-suitability.js';
 import { acknowledgePrivacy, incidentContactInput } from './privacy.js';
 import { retentionPeriods, retentionPreviewInput, retentionPurgeInput } from './retention.js';
 import { clubInput, entityTypes, isoDate, personInput, playerInput, relationInput, requestInput, suggestionInput } from './domain.js';
@@ -18,7 +21,7 @@ export const clubListQuery = listQuery.extend(clubFilters.shape);
 export const versionInput = z.object({ version: z.number().int().positive() }).strict();
 export const trashWrite = versionInput.extend({ recordVersion: z.number().int().positive() });
 export const previewConfirmation = z.object({ previewToken: z.string().regex(/^[a-f0-9]{64}$/) }).strict();
-export const settingsInput = versionInput.extend({ language: z.enum(['tr', 'en']).optional(), theme: z.enum(['dark', 'light']).optional(), retentionDays: retentionPeriods.optional(), levelWeights: positionWeights.optional() });
+export const settingsInput = versionInput.extend({ language: z.enum(['tr', 'en']).optional(), theme: z.enum(['dark', 'light']).optional(), retentionDays: retentionPeriods.optional(), levelWeights: positionWeights.optional(), leagueTiers: leagueTiers.optional() });
 export { staffRoles } from './staff-import.js';
 const recordVersion = z.number().int().positive();
 const tenureDigest = z.string().regex(/^[a-f0-9]{64}$/);
@@ -42,6 +45,11 @@ export const revealInput = z.object({ field: z.enum(['birthDate', 'phone', 'emai
 export const patchInput = versionInput.extend({ changes: z.record(z.string(), z.unknown()) });
 export type ApiContract = { method: 'get' | 'post' | 'patch' | 'delete'; path: string; query?: z.ZodType; params?: z.ZodType; body?: z.ZodType; success?: number; public?: boolean; testOnly?: boolean; csv?: boolean; multipart?: boolean; download?: readonly string[] };
 export const apiContracts: ApiContract[] = [
+  { method: 'post', path: '/api/players/:id/suitability', params: idParams },
+  { method: 'get', path: '/api/players/:id/photo', params: idParams, download: playerImageMimes },
+  { method: 'patch', path: '/api/players/:id/photo', params: idParams, body: photoSelection },
+  { method: 'get', path: '/api/players/:id/market', params: idParams, query: marketPage },
+  { method: 'patch', path: '/api/players/:id/market', params: idParams, body: marketWrite },
   { method: 'get', path: '/api/players/:id/scoring', params: idParams },
   { method: 'patch', path: '/api/players/:id/scoring', params: idParams, body: playerScoringInput },
   { method: 'get', path: '/api/players/options' },

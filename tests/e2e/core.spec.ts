@@ -3,6 +3,7 @@ import { PDFParse } from 'pdf-parse';
 import { signIn } from './login';
 import { exerciseClubMap } from './club-network';
 import { exercisePlayerList } from './player-list';
+import { exercisePlayerEvidence } from './player-evidence';
 import pg from 'pg';
 
 for (const language of ['tr', 'en']) test(`privacy notice is shown on first login and acknowledged (${language})`, async ({ page }) => {
@@ -107,12 +108,18 @@ test('owner creates club and player, suggests a player and reads the shared time
   await expect(scoring).toHaveCount(0);
   await page.getByText('Puan geçmişi', { exact: true }).click();
   await expect(page.getByText('Örnek puanlama', { exact: true })).toBeVisible();
+  await exercisePlayerEvidence(page);
   await expect(page.getByRole('button', { name: '60 saniye göster' })).toBeVisible();
   await expect(page.getByText('2000-02-01', { exact: true })).toHaveCount(0);
   await page.clock.install();
   await page.getByRole('button', { name: '60 saniye göster' }).click();
   await expect(page.getByText('01.02.2000', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: /Uygunluğu hesapla/ }).click();
+  const suitability = page.getByRole('dialog', { name: 'Lig uygunluğu' });
+  await expect(suitability.getByRole('heading', { name: 'Kademe 1 · Uygun' })).toBeVisible();
+  await expect(suitability.getByText(/Örnek kademeler gösteriliyor/)).toBeVisible();
   await page.clock.fastForward(60001);
+  await expect(suitability).toHaveCount(0);
   await expect(page.getByText('01.02.2000', { exact: true })).toHaveCount(0);
   await page.clock.resume();
   await page.getByRole('link', { name: 'Transfer talepleri', exact: true }).click();
