@@ -2,6 +2,7 @@ import { test, expect } from '@playwright/test';
 import { PDFParse } from 'pdf-parse';
 import { signIn } from './login';
 import { exerciseClubMap } from './club-network';
+import { exercisePlayerList } from './player-list';
 import pg from 'pg';
 
 for (const language of ['tr', 'en']) test(`privacy notice is shown on first login and acknowledged (${language})`, async ({ page }) => {
@@ -78,8 +79,8 @@ test('owner creates club and player, suggests a player and reads the shared time
   await page.getByRole('button', { name: 'Yeni kayıt' }).click();
   const playerName = `Örnek E2E Oyuncu ${Date.now()}`;
   await page.getByRole('textbox', { name: 'Ad', exact: true }).fill(playerName);
-  await page.getByLabel('Pozisyon', { exact: true }).selectOption('CM');
-  await page.getByLabel('Doğum tarihi', { exact: true }).fill('2000-02-01');
+  await page.getByRole('dialog').getByLabel('Pozisyon', { exact: true }).selectOption('CM');
+  await page.getByRole('dialog').getByLabel('Doğum tarihi', { exact: true }).fill('2000-02-01');
   await page.getByRole('button', { name: 'Oluştur', exact: true }).click();
   await expect(page.getByRole('heading', { name: playerName })).toBeVisible();
   const profileDownload = page.waitForEvent('download');
@@ -115,6 +116,7 @@ test('owner creates club and player, suggests a player and reads the shared time
   await page.getByPlaceholder('Kayıtlarda ara…').fill(playerName);
   await page.getByRole('link', { name: new RegExp(playerName) }).click();
   await expect(page.getByText(/Örnek SK A kulübüne önerildi/)).toBeVisible();
+  await exercisePlayerList(page, playerName);
 });
 test('owner manages club geography and downloads a private file with logged access', async ({ page }) => {
   await signIn(page); const me = await (await page.request.get('/api/me')).json();

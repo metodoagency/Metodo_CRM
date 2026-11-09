@@ -18,6 +18,7 @@ import { ClubExplorer, clubSearchParams } from './club-explorer';
 import { ClubWorkspace } from './club-workspace';
 import { Proposals } from './proposals';
 import { ClubSourceRegistry } from './club-sources';
+import { PlayerDatabase } from './player-list';
 import { hasCoordinates, type ClubFilters } from '../shared/club-network';
 import type { PrivacyState } from '../shared/privacy';
 import type { ClubRecord, List, RecordRow, RecordType, Overview, Timeline } from './types';
@@ -79,7 +80,7 @@ export function App() {
     </header><main className="content"><Routes>
       <Route path="/" element={<Dashboard onCreate={() => setCreate('Club')} />} />
       <Route path="/clubs" element={<Records type="Club" onCreate={() => setCreate('Club')} />} />
-      <Route path="/players" element={<Records type="Player" onCreate={() => setCreate('Player')} />} />
+      <Route path="/players" element={<PlayerDatabase onCreate={() => setCreate('Player')} />} />
       <Route path="/people" element={<Records type="Person" onCreate={() => setCreate('Person')} />} />
       <Route path="/requests" element={<Records type="Request" onCreate={() => setCreate('Request')} />} />
       <Route path="/record/:type/:id" element={<Detail />} />

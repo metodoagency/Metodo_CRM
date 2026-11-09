@@ -1,6 +1,6 @@
 # Requirement acceptance matrix
 
-Updated 2026-11-04. Each M row incorporates **every bullet** of its matching baseline subsection; each R/G row incorporates its entire rule in SPEC.md/baseline. A row becomes DONE only after all its clauses pass, with exact tests/commit/CI. PARTIAL evidence is not completion. 54-package ledger: [SESSION_PLAN.md](../SESSION_PLAN.md). Overall accepted progress remains10% (A gate only).
+Updated 2026-11-05. Each M row incorporates **every bullet** of its matching baseline subsection; each R/G row incorporates its entire rule in SPEC.md/baseline. A row becomes DONE only after all its clauses pass, with exact tests/commit/CI. PARTIAL evidence is not completion. 54-package ledger: [SESSION_PLAN.md](../SESSION_PLAN.md). Overall accepted progress remains10% (A gate only).
 
 Live commercial/provider implementation is explicitly deferred by SPEC update1. M35 covers licensed owner-supplied files and interfaces only. Optional features remain disabled until configured and verified. No real minor/medical production data until H.
 
@@ -8,9 +8,9 @@ Live commercial/provider implementation is explicitly deferred by SPEC update1. 
 |---|---|---|---|---|
 | M1 | Kulüp ağı ve harita | 07 | DONE | [PostgreSQL geography and club sections](../tests/api.test.ts), [browser filters, map and notes](../tests/e2e/club-network.ts), [TR/EN accessibility](../tests/e2e/a11y.spec.ts). [PostgreSQL 16/17 CI passed for 4840769](https://github.com/metodoagency/Metodo_CRM/actions/runs/41849766409). Commercial RSS acquisition is superseded by SPEC update 1. |
 | M2 | Ajanda ve fikstür | 15,16 | NOT_DONE | — |
-| M3 | Kulüp güncellemeleri ve kaynaklar | 08 | PARTIAL | [API](../tests/api.test.ts) and [browser](../tests/e2e/core.spec.ts) coverage for the source registry, dashboard queue and previewed updates. Injury notices contain metadata only. Exact-head CI pending. |
+| M3 | Kulüp güncellemeleri ve kaynaklar | 08 | DONE | [API](../tests/api.test.ts) and [browser](../tests/e2e/core.spec.ts) coverage for the source registry, dashboard queue and previewed updates. Injury notices contain metadata only. [PostgreSQL16/17 CI passed for f3f00c5](https://github.com/metodoagency/Metodo_CRM/actions/runs/42044968007). |
 | M4 | TFF personel | 08 | PARTIAL | [CSV](../tests/api.test.ts) preview creates pending proposals with official source evidence. Tenures display sources and verification. Live owner-triggered, robots-gated TFF check awaits representative anonymized markup. |
-| M5 | Oyuncu veritabanı | 09 | PARTIAL | Foundation API tests; full baseline subsection remains pending |
+| M5 | Oyuncu veritabanı | 09,10 | PARTIAL | Four panels, validated filters/sort, per-currency value sorting, saved filters/columns, atomic bulk tags and allowlisted CSV implemented. [API regressions](../tests/api.test.ts) and [browser flow](../tests/e2e/player-list.ts) being verified. Primary photos, computed league suitability and complete player-card integration remain in10. |
 | M6 | Oyuncu kartı/profil | 06,10 | PARTIAL | Basic versioned profile PDF/DOCX, tests/documents.test.ts and player export browser flow. Scoring, league fit, history and the full card remain in10. |
 | M7 | Sözleşmeler | 14 | NOT_DONE | — |
 | M8 | Performans/GPS/CV | 17,18 | NOT_DONE | — |
@@ -51,8 +51,8 @@ Live commercial/provider implementation is explicitly deferred by SPEC update1. 
 | M43 | Kulüp finans profili | 44 | NOT_DONE | — |
 | M44 | Veri operasyon/audit | 04,25,40 | PARTIAL | Foundation API tests; full baseline subsection remains pending |
 | M45 | KPI | 50 | NOT_DONE | — |
-| R1 | Coach departure | 08 | PARTIAL | [PostgreSQL regression](../tests/api.test.ts) covers explicit person, unrelated staff, follow-up and batched timeline. Exact-head CI pending. |
-| R2 | Coach appointment | 08 | PARTIAL | [PostgreSQL regression](../tests/api.test.ts) covers no predecessor, stale predecessor and selected-role-only closure. [Browser test](../tests/e2e/core.spec.ts) verifies pending through preview and write on approval. Exact-head CI pending. |
+| R1 | Coach departure | 08 | DONE | [PostgreSQL regression](../tests/api.test.ts) covers explicit person, unrelated staff, follow-up and batched timeline. [PostgreSQL16/17 CI passed for f3f00c5](https://github.com/metodoagency/Metodo_CRM/actions/runs/42044968007). |
+| R2 | Coach appointment | 08 | DONE | [PostgreSQL regression](../tests/api.test.ts) covers no predecessor, stale predecessor and selected-role-only closure. [Browser test](../tests/e2e/core.spec.ts) verifies pending through preview and write on approval. [PostgreSQL16/17 CI passed for f3f00c5](https://github.com/metodoagency/Metodo_CRM/actions/runs/42044968007). |
 | R3 | Suggestion transaction | 13 | PARTIAL | tests/api.test.ts, tests/domain.test.ts, tests/acquisition-policy.test.ts; full milestone behavior still requires acceptance |
 | R4 | Notification dedupe | 11,15,44 | NOT_DONE | — |
 | R5 | Verification source | 08,10 | PARTIAL | tests/api.test.ts, tests/domain.test.ts, tests/acquisition-policy.test.ts; full milestone behavior still requires acceptance |

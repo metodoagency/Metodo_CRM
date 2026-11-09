@@ -604,6 +604,8 @@ model Player {
  heightCm Int?
  weightKg Decimal? @db.Decimal(6,2)
  primaryPosition Position
+ tags String[] @default([])
+ @@index([tags], type: Gin)
  secondaryPositions Position[]
  preferredFoot Foot?
  currentClubId String? @db.Uuid

@@ -14,5 +14,6 @@
 .area-button { display: flex; width: 100%; align-items: center; justify-content: space-between; gap: .75rem; padding: .45rem .55rem; text-align: left; border-radius: .4rem; }
 .area-button:hover, .area-button[aria-pressed="true"] { background: #147b7326; }
 .club-tabs { display: flex; flex-wrap: wrap; gap: .5rem; margin-bottom: 1rem; }
+.player-status-select { color: var(--text); background: var(--field); border: 1px solid var(--border); border-radius: .4rem; padding: .45rem; }
 .club-tabs [aria-pressed="true"] { border-color: #147b73; box-shadow: inset 0 -2px #147b73; }
 @media (max-width: 780px) { .club-explorer { grid-template-columns: minmax(0, 1fr); } }

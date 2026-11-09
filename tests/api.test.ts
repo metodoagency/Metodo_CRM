@@ -222,6 +222,53 @@ describe('club network', () => {
   });
 });
 
+describe('player database', () => {
+  it('filters and sorts existing players with a safe currency boundary and allowlisted CSV', async () => {
+    const target = await club();
+    const created = await request('POST', '/api/players', { name: 'Örnek Şahin', primaryPosition: 'CM', status: 'OWN', currentClubId: target.id, birthDate: '2000-02-01' });
+    expect(created.statusCode, created.body).toBe(201); const player = created.json();
+    await db.player.update({ where: { id: player.id }, data: { tags: ['Örnek izlenecek'], levelScore: '7.0', marketValue: '123456.78', marketValueCurrency: 'EUR', notes: 'Örnek özel not', bio: 'Örnek özel metin', contractEndDate: new Date('2027-01-31') } });
+    await request('POST', '/api/players', { name: 'Örnek Diğer', primaryPosition: 'CF', status: 'TARGET' });
+    const query = `q=sahin&status=OWN&position=CM&clubId=${target.id}&tag=${encodeURIComponent('Örnek izlenecek')}&scoreMin=6.5&contractBefore=2027-02-01`;
+    const result = await request('GET', `/api/players?${query}`);
+    expect(result.statusCode, result.body).toBe(200);
+    expect(result.json()).toMatchObject({ total: 1, items: [{ id: player.id, tags: ['Örnek izlenecek'], birthDate: '***', levelScore: '7.0', marketValue: '123456.78' }] });
+    expect(result.body).not.toContain('Örnek özel'); expect(result.body).not.toContain('2000-02-01'); expect(result.body).not.toContain('birthDateIndex');
+    expect((await request('GET', '/api/players?sort=marketValue')).statusCode).toBe(400);
+    expect((await request('GET', '/api/players?scoreMin=8&scoreMax=5')).statusCode).toBe(400);
+    expect((await request('GET', '/api/players?sort=marketValue&currency=EUR')).json().total).toBe(1);
+    await request('DELETE', `/api/records/Club/${target.id}`, { version: target.version });
+    expect((await request('GET', '/api/players?q=sahin')).json().items[0].currentClub).toBeNull();
+    const csv = await request('GET', '/api/players/export?q=sahin');
+    expect(csv.statusCode, csv.body).toBe(200); expect(csv.body).toContain('123456.78'); expect(csv.body).toContain('Örnek Şahin');
+    for (const secret of ['birthDate', 'phone', 'email', 'healthNotes', 'injuryNotes', 'fieldProvenance', 'Örnek özel']) expect(csv.body).not.toContain(secret);
+    expect((await request('GET', '/api/export/Player')).body).not.toContain('Örnek özel');
+    expect(await db.timelineEvent.count({ where: { action: 'export', entityType: 'Owner' } })).toBe(2);
+  });
+
+  it('applies bulk tags atomically against versions and restores saved views through Trash', async () => {
+    const first = (await request('POST', '/api/players', { name: 'Örnek Etiket A', primaryPosition: 'CM' })).json();
+    const second = (await request('POST', '/api/players', { name: 'Örnek Etiket B', primaryPosition: 'CM' })).json();
+    const records = [first, second].map(row => ({ id: row.id, version: row.version }));
+    expect((await request('POST', '/api/players/tags', { records: [{ ...records[0], version: 99 }, records[1]], mode: 'add', tag: 'Örnek hedef' })).statusCode).toBe(409);
+    expect((await db.player.findUniqueOrThrow({ where: { id: second.id } })).tags).toEqual([]);
+    expect((await request('POST', '/api/players/tags', { records, mode: 'add', tag: 'Örnek hedef' })).statusCode).toBe(200);
+    expect((await request('GET', `/api/players?tag=${encodeURIComponent('Örnek hedef')}`)).json().total).toBe(2);
+    const updates = await db.timelineEvent.findMany({ where: { entityType: 'Player', action: 'update' } });
+    expect(updates).toHaveLength(2); expect(updates[0].batchId).toBe(updates[1].batchId);
+    const viewInput = { name: 'Örnek İzleme', filters: { q: 'Etiket', status: 'TARGET', tag: 'Örnek hedef', sort: 'name', direction: 'desc' }, columns: ['position', 'tags', 'status'] };
+    const created = await request('POST', '/api/players/views', viewInput);
+    expect(created.statusCode, created.body).toBe(201); const view = created.json();
+    expect((await request('GET', '/api/players/views')).json()).toMatchObject([{ id: view.id, ...viewInput }]);
+    await db.savedView.create({ data: { name: 'Örnek Eski Görünüm', tableName: 'Player', filters: { legacy: true }, columns: [], sort: {} } });
+    expect((await request('GET', '/api/players/views')).json()).toEqual(expect.arrayContaining([expect.objectContaining({ name: 'Örnek Eski Görünüm', unavailable: true })]));
+    expect((await request('DELETE', `/api/players/views/${view.id}`, { version: view.version })).statusCode).toBe(200);
+    const trash = await db.trashEntry.findFirstOrThrow({ where: { entityId: view.id } });
+    expect((await request('POST', `/api/trash/${trash.id}/restore`, { version: trash.version, recordVersion: view.version + 1 })).statusCode).toBe(200);
+    expect((await request('GET', '/api/players/views')).json()).toEqual(expect.arrayContaining([expect.objectContaining({ id: view.id, version: view.version + 2 })]));
+  });
+});
+
 describe('club source and update registry', () => {
   it('manages manual sources with multiple live club links, versions and trash restore', async () => {
     const first = await club('Örnek Kaynak A'); const second = await club('Örnek Kaynak B');

@@ -19,6 +19,8 @@ import { clubWhere, registerClubNetwork } from './club-network.js';
 import { registerClubSections } from './club-sections.js';
 import { registerClubSources } from './club-sources.js';
 import { registerStaffImport } from './staff-import.js';
+import { exportPlayers, listPlayers, registerPlayerLists } from './player-list.js';
+import { playerFilters } from '../shared/player-list.js';
 
 const idParams = z.object({ id: z.string().uuid() });
 const entityParams = z.object({ type: z.enum(entityTypes), id: z.string().uuid() });
@@ -33,6 +35,7 @@ export async function registerRoutes(app: FastifyInstance, db: PrismaClient) {
   await registerClubSections(app, db);
   await registerClubSources(app, db);
   await registerStaffImport(app, db);
+  await registerPlayerLists(app, db);
   app.get('/api/me', async req => ({ id: 'owner', csrfToken: csrfToken(req.cookies[sessionCookie]!) }));
   app.get('/api/settings', async () => masked(await db.userSettings.upsert({ where: { ownerId: 'owner' }, create: { ownerId: 'owner' }, update: {} })));
   app.patch('/api/settings', async req => {
@@ -72,12 +75,7 @@ export async function registerRoutes(app: FastifyInstance, db: PrismaClient) {
     });
     return reply.code(201).send(row);
   });
-  app.get('/api/players', async req => {
-    const { page, q, status } = listQuery.parse(req.query);
-    const where = { ...live, searchName: { contains: normalizeSearch(q) }, ...(status ? { status } : {}) };
-    const [items, total] = await db.$transaction([db.player.findMany({ where, include: { currentClub: true }, orderBy: { name: 'asc' }, skip: (page - 1) * 50, take: 50 }), db.player.count({ where })]);
-    return { items: items.map(masked), total, page };
-  });
+  app.get('/api/players', async req => listPlayers(db, req.query));
   app.post('/api/players', async (req, reply) => {
     const input = playerInput.parse(req.body);
     const row = await db.$transaction(async tx => {
@@ -223,7 +221,8 @@ export async function registerRoutes(app: FastifyInstance, db: PrismaClient) {
   });
   app.get('/api/export/:type', async (req, reply) => {
     const { type } = z.object({ type: z.enum(entityTypes) }).parse(req.params);
-    const rows = type === 'Club' ? await db.club.findMany({ where: live }) : type === 'Player' ? await db.player.findMany({ where: live }) : type === 'Person' ? await db.person.findMany({ where: live }) : await db.request.findMany({ where: live });
+    if (type === 'Player') return reply.header('content-type', 'text/csv; charset=utf-8').header('content-disposition', 'attachment; filename="Player.csv"').send(await exportPlayers(db, playerFilters.parse({})));
+    const rows = type === 'Club' ? await db.club.findMany({ where: live }) : type === 'Person' ? await db.person.findMany({ where: live }) : await db.request.findMany({ where: live });
     const keys = Object.keys(rows[0] ?? { id: '', name: '' }).filter(key => !sensitiveKeys.has(key));
     const cell = (v: unknown) => '"' + String(v ?? '').replace(/^[=+@\-\t\r]/, "'$&").replaceAll('"', '""') + '"';
     const csv = [keys.join(','), ...rows.map(row => keys.map(k => cell((row as unknown as Record<string, unknown>)[k])).join(','))].join('\r\n');

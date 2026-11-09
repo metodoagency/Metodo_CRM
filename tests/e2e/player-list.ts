@@ -1,0 +1,39 @@
+import { expect, type Page } from '@playwright/test';
+
+export async function exercisePlayerList(page: Page, name: string) {
+  await page.goto('/players');
+  await page.getByPlaceholder('Kayıtlarda ara…').fill(name);
+  await expect(page.getByRole('link', { name, exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Yaşı 60 saniye göster' }).click();
+  await expect(page.getByRole('button', { name: 'Gizle', exact: true })).toBeVisible();
+  await page.clock.fastForward(60001);
+  await expect(page.getByRole('button', { name: 'Yaşı 60 saniye göster' })).toBeVisible();
+  await page.clock.resume();
+  await page.getByLabel(`Durum · ${name}`, { exact: true }).selectOption('OWN');
+  await page.getByRole('button', { name: 'Temsil edilen', exact: true }).click();
+  await expect(page.getByRole('link', { name, exact: true })).toBeVisible();
+  await page.getByLabel(`${name} oyuncusunu seç`, { exact: true }).check();
+  await page.getByRole('button', { name: 'Seçili oyuncuları etiketle' }).click();
+  const dialog = page.getByRole('dialog');
+  await dialog.getByLabel('Etiket', { exact: true }).fill('Örnek öncelik');
+  await dialog.getByRole('button', { name: 'Kaydet', exact: true }).click();
+  await expect(dialog).toHaveCount(0);
+  await page.getByLabel('Etiket', { exact: true }).fill('Örnek öncelik');
+  await expect(page.getByRole('link', { name, exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Görünümü kaydet', exact: true }).click();
+  const viewName = `Örnek Görünüm ${Date.now()}`;
+  await dialog.getByLabel('Ad', { exact: true }).fill(viewName);
+  await dialog.getByRole('button', { name: 'Kaydet', exact: true }).click();
+  await expect(dialog).toHaveCount(0);
+  await page.getByRole('button', { name: 'Filtreleri sıfırla', exact: true }).click();
+  await page.getByLabel('Kayıtlı görünüm', { exact: true }).selectOption({ label: viewName });
+  await expect(page.getByPlaceholder('Kayıtlarda ara…')).toHaveValue(name);
+  await expect(page.getByLabel('Etiket', { exact: true })).toHaveValue('Örnek öncelik');
+  const downloading = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'Filtrelenmiş CSV indir', exact: true }).click();
+  const stream = await (await downloading).createReadStream();
+  const chunks = []; for await (const chunk of stream) chunks.push(Buffer.from(chunk));
+  const csv = Buffer.concat(chunks).toString('utf8');
+  expect(csv).toContain(name); expect(csv).toContain('Örnek öncelik');
+  expect(csv).not.toContain('birthDate'); expect(csv).not.toContain('2000-02-01');
+}

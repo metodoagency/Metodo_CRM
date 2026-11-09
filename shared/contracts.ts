@@ -5,6 +5,7 @@ import { areaInput, clubFilters, clubLocationInput, clubMapQuery, clubNoteInput,
 import { clubSourceInput, clubSourceList, clubSourceUpdate, manualSourceUrl } from './club-sources.js';
 import { clubUpdateInput, clubUpdateReview } from './club-updates.js';
 import { staffImportApply, staffImportInput, staffRoles } from './staff-import.js';
+import { playerFilters, playerListQuery, playerTagBatch, playerViewInput } from './player-list.js';
 import { acknowledgePrivacy, incidentContactInput } from './privacy.js';
 import { retentionPeriods, retentionPreviewInput, retentionPurgeInput } from './retention.js';
 import { clubInput, entityTypes, isoDate, personInput, playerInput, relationInput, requestInput, suggestionInput } from './domain.js';
@@ -40,6 +41,12 @@ export const revealInput = z.object({ field: z.enum(['birthDate', 'phone', 'emai
 export const patchInput = versionInput.extend({ changes: z.record(z.string(), z.unknown()) });
 export type ApiContract = { method: 'get' | 'post' | 'patch' | 'delete'; path: string; query?: z.ZodType; params?: z.ZodType; body?: z.ZodType; success?: number; public?: boolean; testOnly?: boolean; csv?: boolean; multipart?: boolean; download?: readonly string[] };
 export const apiContracts: ApiContract[] = [
+  { method: 'get', path: '/api/players/options' },
+  { method: 'get', path: '/api/players/export', query: playerFilters, csv: true },
+  { method: 'post', path: '/api/players/tags', body: playerTagBatch },
+  { method: 'get', path: '/api/players/views' },
+  { method: 'post', path: '/api/players/views', body: playerViewInput, success: 201 },
+  { method: 'delete', path: '/api/players/views/:id', params: idParams, body: versionInput },
   { method: 'get', path: '/api/sources', query: clubSourceList },
   { method: 'post', path: '/api/sources', body: clubSourceInput, success: 201 },
   { method: 'patch', path: '/api/sources/:id', params: idParams, body: clubSourceUpdate },
@@ -78,7 +85,7 @@ export const apiContracts: ApiContract[] = [
   { method: 'get', path: '/api/admin/access-log', query: listQuery },
   { method: 'get', path: '/api/overview' }, { method: 'get', path: '/api/docs' },
   ...([['clubs', clubInput], ['players', playerInput], ['people', personInput], ['requests', requestInput]] as const).flatMap(([path, schema]): ApiContract[] => [
-    { method: 'get', path: `/api/${path}`, query: path === 'clubs' ? clubListQuery : listQuery }, { method: 'post', path: `/api/${path}`, body: schema, success: 201 },
+    { method: 'get', path: `/api/${path}`, query: path === 'clubs' ? clubListQuery : path === 'players' ? playerListQuery : listQuery }, { method: 'post', path: `/api/${path}`, body: schema, success: 201 },
   ]),
   { method: 'post', path: '/api/suggestions', body: suggestionInput, success: 201 },
   { method: 'post', path: '/api/relations', body: relationInput, success: 201 },
