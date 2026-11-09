@@ -96,6 +96,17 @@ test('owner creates club and player, suggests a player and reads the shared time
     const profile = (await profileParser.getText()).text;
     expect(profile).toContain(playerName); expect(profile).toContain('Şablon profile-1'); expect(profile).not.toContain('01.02.2000');
   } finally { await profileParser.destroy(); }
+  await page.getByRole('button', { name: 'Puan gir', exact: true }).click();
+  const scoring = page.getByRole('dialog', { name: 'Puan gir', exact: true });
+  await scoring.getByLabel('Pas', { exact: true }).fill('7');
+  await scoring.getByLabel('Çalışma temposu', { exact: true }).fill('8');
+  await scoring.getByLabel('Oyun görüşü', { exact: true }).fill('9');
+  await scoring.getByLabel('Puanlama notu', { exact: true }).fill('Örnek puanlama');
+  await expect(scoring.getByRole('status')).toContainText('8,0');
+  await scoring.getByRole('button', { name: 'Kaydet', exact: true }).click();
+  await expect(scoring).toHaveCount(0);
+  await page.getByText('Puan geçmişi', { exact: true }).click();
+  await expect(page.getByText('Örnek puanlama', { exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: '60 saniye göster' })).toBeVisible();
   await expect(page.getByText('2000-02-01', { exact: true })).toHaveCount(0);
   await page.clock.install();

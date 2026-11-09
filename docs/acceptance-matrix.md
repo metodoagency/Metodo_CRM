@@ -1,6 +1,6 @@
 # Requirement acceptance matrix
 
-Updated 2026-11-05. Each M row incorporates **every bullet** of its matching baseline subsection; each R/G row incorporates its entire rule in SPEC.md/baseline. A row becomes DONE only after all its clauses pass, with exact tests/commit/CI. PARTIAL evidence is not completion. 54-package ledger: [SESSION_PLAN.md](../SESSION_PLAN.md). Overall accepted progress remains10% (A gate only).
+Updated 2026-11-10. Each M row incorporates **every bullet** of its matching baseline subsection; each R/G row incorporates its entire rule in SPEC.md/baseline. A row becomes DONE only after all its clauses pass, with exact tests/commit/CI. PARTIAL evidence is not completion. 54-package ledger: [SESSION_PLAN.md](../SESSION_PLAN.md). Overall accepted progress remains10% (A gate only).
 
 Live commercial/provider implementation is explicitly deferred by SPEC update1. M35 covers licensed owner-supplied files and interfaces only. Optional features remain disabled until configured and verified. No real minor/medical production data until H.
 
@@ -10,8 +10,8 @@ Live commercial/provider implementation is explicitly deferred by SPEC update1. 
 | M2 | Ajanda ve fikstür | 15,16 | NOT_DONE | — |
 | M3 | Kulüp güncellemeleri ve kaynaklar | 08 | DONE | [API](../tests/api.test.ts) and [browser](../tests/e2e/core.spec.ts) coverage for the source registry, dashboard queue and previewed updates. Injury notices contain metadata only. [PostgreSQL16/17 CI passed for f3f00c5](https://github.com/metodoagency/Metodo_CRM/actions/runs/42044968007). |
 | M4 | TFF personel | 08 | PARTIAL | [CSV](../tests/api.test.ts) preview creates pending proposals with official source evidence. Tenures display sources and verification. Live owner-triggered, robots-gated TFF check awaits representative anonymized markup. |
-| M5 | Oyuncu veritabanı | 09,10 | PARTIAL | Four panels, validated filters/sort, per-currency value sorting, saved filters/columns, atomic bulk tags and allowlisted CSV implemented. [API regressions](../tests/api.test.ts) and [browser flow](../tests/e2e/player-list.ts) being verified. Primary photos, computed league suitability and complete player-card integration remain in10. |
-| M6 | Oyuncu kartı/profil | 06,10 | PARTIAL | Basic versioned profile PDF/DOCX, tests/documents.test.ts and player export browser flow. Scoring, league fit, history and the full card remain in10. |
+| M5 | Oyuncu veritabanı | 09,10 | PARTIAL | Four panels, validated filters/sort, per-currency value sorting, saved filters/columns, atomic bulk tags and allowlisted CSV. [PostgreSQL 16/17 CI passed for efbdb6a](https://github.com/metodoagency/Metodo_CRM/actions/runs/42698591887). Primary photos, computed league suitability and complete player-card integration remain in10. |
+| M6 | Oyuncu kartı/profil | 06,10 | PARTIAL | Versioned profile PDF/DOCX and player score form, position weights, timeline and assessment history. [API](../tests/api.test.ts) and [browser](../tests/e2e/core.spec.ts) verification for the scoring checkpoint. League suitability, manual market value history, primary photo, sanitized biography and full card remain open. |
 | M7 | Sözleşmeler | 14 | NOT_DONE | — |
 | M8 | Performans/GPS/CV | 17,18 | NOT_DONE | — |
 | M9 | Talepler | 12 | PARTIAL | Foundation API tests; full baseline subsection remains pending |

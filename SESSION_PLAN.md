@@ -30,7 +30,7 @@ Owner-approved 2026-11-03. An oturum is a verified work package, not a message c
 | 07 | Kulüp ağı | M1: ülke/bölge ağacı, sayılar, gerçek koordinatlar, tüm bağlı detay panelleri. | DONE |
 | 08 | Personel ve güncellemeler | M3/M4 R1/R2: kaynaklı öneri onayı, doğru kişi/görev, sürüm/digest, sahip tetiklemeli robots izinli TFF. | IN_PROGRESS |
 | 09 | Oyuncu veritabanı | M5: dört panel, arama/sıralama/filtre, kayıtlı görünüm, toplu etiket, güvenli CSV. | IN_PROGRESS |
-| 10 | Oyuncu kartı | M6: puan/alt kriter/ağırlık/geçmiş, lig uygunluğu, manuel değer/kaynak/tarih/yöntem, temiz rich text ve profil çıktısı. | NOT_STARTED |
+| 10 | Oyuncu kartı | M6: puan/alt kriter/ağırlık/geçmiş, lig uygunluğu, manuel değer/kaynak/tarih/yöntem, temiz rich text ve profil çıktısı. | IN_PROGRESS |
 | 11 | Kişiler ve doğum günleri | M14/M15 R8: görev çakışması, önemli tarihler, İstanbul saati; B kabul/CI/güvenlik. | NOT_STARTED |
 | 12 | Talepler ve eşleştirme | M9/M10 R7: Kanban, eksik veri normalizasyonu, kapsam ve açıklamalar. | NOT_STARTED |
 | 13 | Öneri ve sunumlar | M10–M12 R3: atomik öneri, sunum matrisi, yetkili satış listesi, temel kulüp yetkisi ve öneri dosyası. | NOT_STARTED |

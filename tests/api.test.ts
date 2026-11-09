@@ -223,6 +223,33 @@ describe('club network', () => {
 });
 
 describe('player database', () => {
+  it('scores half-point criteria with versioned weights and keeps prior assessments when policy or position changes', async () => {
+    const row = (await request('POST', '/api/players', { name: 'Örnek Puan Oyuncusu', primaryPosition: 'CM' })).json();
+    const url = `/api/players/${row.id}/scoring`;
+    const settings = (await request('GET', '/api/settings')).json();
+    const initial = (await request('GET', url)).json();
+    expect(initial).toMatchObject({ score: null, settingsVersion: settings.version, weights: [1, 1, 1] });
+    expect((await request('PATCH', '/api/settings', { version: settings.version, levelWeights: { CM: [0, 0, 0] } })).statusCode).toBe(400);
+    const policy = await request('PATCH', '/api/settings', { version: settings.version, levelWeights: { CM: [3, 1, 0] } });
+    expect(policy.statusCode, policy.body).toBe(200);
+    const entry = { version: row.version, settingsVersion: policy.json().version, scores: [7, 8, 1], note: 'Örnek değerlendirme' };
+    expect((await request('PATCH', url, { ...entry, settingsVersion: settings.version })).statusCode).toBe(409);
+    expect((await request('PATCH', url, { ...entry, scores: [7.1, 8, 1] })).statusCode).toBe(400);
+    const first = await request('PATCH', url, entry);
+    expect(first.statusCode, first.body).toBe(200); expect(first.json().score).toBe('7.5');
+    expect((await request('GET', `/api/records/Player/${row.id}`)).json().levelScore).toBe('7.5');
+    expect((await request('PATCH', url, entry)).statusCode).toBe(409);
+    const snapshot = (await request('GET', url)).json();
+    expect(snapshot.history).toMatchObject([{ score: 7.5, position: 'CM', weights: [3, 1, 0], note: entry.note }]);
+    expect(await db.player.findUniqueOrThrow({ where: { id: row.id }, select: { levelSubscores: true } })).toEqual({ levelSubscores: { passing: 7, workRate: 8, vision: 1 } });
+    await request('PATCH', '/api/settings', { version: snapshot.settingsVersion, levelWeights: { CM: [1, 3, 1] } });
+    const unchanged = (await request('GET', url)).json();
+    expect(unchanged).toMatchObject({ score: '7.5', weights: [1, 3, 1], history: [{ weights: [3, 1, 0] }] });
+    expect((await request('PATCH', `/api/records/Player/${row.id}`, { version: snapshot.version, changes: { primaryPosition: 'CF' } })).statusCode).toBe(200);
+    expect((await request('GET', url)).json()).toMatchObject({ position: 'CF', score: null, scores: null, history: [{ position: 'CM', score: 7.5 }] });
+    expect(await db.timelineEvent.count({ where: { entityId: row.id, action: 'level_score' } })).toBe(1);
+  });
+
   it('filters and sorts existing players with a safe currency boundary and allowlisted CSV', async () => {
     const target = await club();
     const created = await request('POST', '/api/players', { name: 'Örnek Şahin', primaryPosition: 'CM', status: 'OWN', currentClubId: target.id, birthDate: '2000-02-01' });

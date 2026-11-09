@@ -22,6 +22,9 @@ export function ageOn(birthDate: string, today = istanbulToday()): number {
 export function maskSensitive(value: unknown): unknown {
   if (Array.isArray(value)) return value.map(maskSensitive);
   if (value && typeof value === 'object' && !(value instanceof Date)) {
+    // Hydrated Decimal values serialize as strings. Traversing their internal
+    // properties would copy a constructor function into JSON audit fields.
+    if ('toJSON' in value && typeof value.toJSON === 'function') return maskSensitive(value.toJSON());
     return Object.fromEntries(Object.entries(value).map(([key, v]) => {
       if (key === 'fieldProvenance' && v && typeof v === 'object') {
         // Evidence carries metadata only. Re-validate instead of treating field

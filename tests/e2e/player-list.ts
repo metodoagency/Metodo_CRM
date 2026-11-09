@@ -9,7 +9,9 @@ export async function exercisePlayerList(page: Page, name: string) {
   await page.clock.fastForward(60001);
   await expect(page.getByRole('button', { name: 'Yaşı 60 saniye göster' })).toBeVisible();
   await page.clock.resume();
+  const moved = page.waitForResponse(response => response.url().includes('/api/records/Player/') && response.request().method() === 'PATCH');
   await page.getByLabel(`Durum · ${name}`, { exact: true }).selectOption('OWN');
+  expect((await moved).ok()).toBe(true);
   await page.getByRole('button', { name: 'Temsil edilen', exact: true }).click();
   await expect(page.getByRole('link', { name, exact: true })).toBeVisible();
   await page.getByLabel(`${name} oyuncusunu seç`, { exact: true }).check();

@@ -20,6 +20,7 @@ import { registerClubSections } from './club-sections.js';
 import { registerClubSources } from './club-sources.js';
 import { registerStaffImport } from './staff-import.js';
 import { exportPlayers, listPlayers, registerPlayerLists } from './player-list.js';
+import { registerPlayerScoring } from './player-scoring.js';
 import { playerFilters } from '../shared/player-list.js';
 
 const idParams = z.object({ id: z.string().uuid() });
@@ -36,6 +37,7 @@ export async function registerRoutes(app: FastifyInstance, db: PrismaClient) {
   await registerClubSources(app, db);
   await registerStaffImport(app, db);
   await registerPlayerLists(app, db);
+  await registerPlayerScoring(app, db);
   app.get('/api/me', async req => ({ id: 'owner', csrfToken: csrfToken(req.cookies[sessionCookie]!) }));
   app.get('/api/settings', async () => masked(await db.userSettings.upsert({ where: { ownerId: 'owner' }, create: { ownerId: 'owner' }, update: {} })));
   app.patch('/api/settings', async req => {
@@ -130,7 +132,9 @@ export async function registerRoutes(app: FastifyInstance, db: PrismaClient) {
       if (before.version !== version) throw new AppError('STALE_VERSION', 409);
       // Relationship changes use domain flows; this generic editor supports only
       // safe identity and status fields, with explicit schema validation.
-      const data: Record<string, unknown> = { ...input, fieldProvenance: provenanceFor(input, before.fieldProvenance), version: { increment: 1 } };
+      const changedPosition = 'primaryPosition' in before && 'primaryPosition' in input && input.primaryPosition && input.primaryPosition !== before.primaryPosition;
+      const changesToSave = changedPosition ? { ...input, levelScore: null, levelSubscores: {} } : input;
+      const data: Record<string, unknown> = { ...changesToSave, fieldProvenance: provenanceFor(changesToSave, before.fieldProvenance), version: { increment: 1 } };
       if ('currentClubId' in input && input.currentClubId) await requireEntity(tx, 'Club', input.currentClubId);
       if ('clubId' in input && input.clubId) await requireEntity(tx, 'Club', input.clubId);
       if ('requesterId' in input && input.requesterId) await requireEntity(tx, 'Person', input.requesterId);
@@ -144,7 +148,7 @@ export async function registerRoutes(app: FastifyInstance, db: PrismaClient) {
       if ('deadline' in input && input.deadline) data.deadline = new Date(input.deadline);
       const where = { ...live, id, version };
       const after = type === 'Club' ? await tx.club.update({ where, data }) : type === 'Player' ? await tx.player.update({ where, data }) : type === 'Person' ? await tx.person.update({ where, data }) : await tx.request.update({ where, data });
-      await logEvent(tx, { entityType: type, entityId: id, name: before.name, action: 'update', diffs: { old: before, new: input }, isExample: before.isExample });
+      await logEvent(tx, { entityType: type, entityId: id, name: before.name, action: 'update', diffs: { old: before, new: changesToSave }, isExample: before.isExample });
       return masked(after);
     });
   });
