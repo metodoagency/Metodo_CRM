@@ -3,7 +3,8 @@ import { fieldSource, withProvenance } from './provenance.js';
 
 export const positions = ['GK', 'CB', 'FB', 'DM', 'CM', 'AM', 'WF', 'CF'] as const;
 export const statuses = ['OWN', 'TARGET', 'INTERMEDIARY', 'MANDATED'] as const;
-export const sensitiveKeys = new Set(['birthDate', 'phone', 'email', 'healthNotes', 'injuryNotes', 'guardian', 'medicalRecords', 'salaryAmount', 'salary', 'bonuses', 'commissionTerms', 'birthDateIndex', 'phoneIndex', 'emailIndex']);
+export const sensitiveKeys = new Set(['birthDate', 'phone', 'email', 'healthNotes', 'injuryNotes', 'guardian', 'medicalRecords', 'salaryAmount', 'salary', 'bonuses', 'commissionTerms', 'birthDateIndex', 'phoneIndex', 'emailIndex', 'breachContact']);
+for (const field of ['document', 'processingPayload', 'processingResult']) sensitiveKeys.add(field);
 export function normalizeSearch(value: string): string {
   return value.toLocaleLowerCase('tr').replace(/ı/g, 'i').normalize('NFD').replace(/\p{Diacritic}/gu, '');
 }
@@ -21,6 +22,9 @@ export function ageOn(birthDate: string, today = istanbulToday()): number {
 export function maskSensitive(value: unknown): unknown {
   if (Array.isArray(value)) return value.map(maskSensitive);
   if (value && typeof value === 'object' && !(value instanceof Date)) {
+    // Hydrated Decimal values serialize as strings. Traversing their internal
+    // properties would copy a constructor function into JSON audit fields.
+    if ('toJSON' in value && typeof value.toJSON === 'function') return maskSensitive(value.toJSON());
     return Object.fromEntries(Object.entries(value).map(([key, v]) => {
       if (key === 'fieldProvenance' && v && typeof v === 'object') {
         // Evidence carries metadata only. Re-validate instead of treating field

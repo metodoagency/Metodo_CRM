@@ -2,10 +2,14 @@ import { it, expect } from 'vitest';
 import { Prisma } from '@prisma/client';
 import { readFileSync } from 'node:fs';
 it('keeps audit/version columns and provenance on all business models', () => {
-  for (const model of Prisma.dmmf.datamodel.models.filter(m => !['Owner', 'Session', 'OAuthAttempt'].includes(m.name))) {
+  for (const model of Prisma.dmmf.datamodel.models.filter(m => !['Owner', 'Session', 'OAuthAttempt', 'StorageDeletion'].includes(m.name))) {
     const fields = new Map(model.fields.map(f => [f.name, f]));
     for (const name of ['ownerId', 'createdAt', 'updatedAt', 'deletedAt', 'createdBy', 'updatedBy', 'version', 'isExample', 'fieldProvenance', 'sourceUrl', 'sourceType', 'retrievedAt', 'verificationStatus']) expect(fields.has(name), `${model.name}.${name}`).toBe(true);
   }
+});
+it('keeps the storage deletion outbox limited to infrastructure metadata', () => {
+  const queue = Prisma.dmmf.datamodel.models.find(model => model.name === 'StorageDeletion')!;
+  expect(queue.fields.filter(field => field.kind !== 'object').map(field => field.name).sort()).toEqual(['attempts', 'createdAt', 'driver', 'id', 'notBefore', 'ownerId', 'storageKey'].sort());
 });
 it('has no identity/banking identifiers and stores sensitive values as ciphertext-capable text', () => {
   const names = Prisma.dmmf.datamodel.models.flatMap(m => m.fields.map(f => f.name));

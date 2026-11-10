@@ -11,6 +11,10 @@ export class MigrationPg extends PrismaPg {
     const connection = await super.connect();
     const query = connection.queryRaw.bind(connection);
     connection.queryRaw = input => query({ ...input, sql: catalogText(input.sql) });
+    // adapter-pg 6.19 splits scripts at every semicolon, including DO bodies.
+    // Let PostgreSQL parse the trusted migration as one simple-query batch;
+    // quoted semicolons survive and a failed batch rolls back atomically.
+    connection.executeScript = async script => { await connection.executeRaw({ sql: script, args: [], argTypes: [] }); };
     return connection;
   }
 }

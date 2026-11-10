@@ -1,6 +1,71 @@
 import { test, expect } from '@playwright/test';
+import { PDFParse } from 'pdf-parse';
 import { signIn } from './login';
+import { exerciseClubMap } from './club-network';
+import { exercisePlayerList } from './player-list';
+import { exercisePlayerCardEditor, exercisePlayerEvidence, exercisePrintCard } from './player-evidence';
+import pg from 'pg';
+
+for (const language of ['tr', 'en']) test(`privacy notice is shown on first login and acknowledged (${language})`, async ({ page }) => {
+  const url = new URL(process.env.DATABASE_URL!);
+  if (!['127.0.0.1', 'localhost'].includes(url.hostname) || url.pathname !== '/metodo_e2e') throw new Error('Unsafe E2E database');
+  const client = new pg.Client({ connectionString: url.toString() });
+  await client.connect();
+  try { await client.query('UPDATE "UserSettings" SET "privacyNoticeVersion" = NULL, "privacyAcknowledgedAt" = NULL, "language" = $1, "version" = "version" + 1 WHERE "ownerId" = $2', ['tr', 'owner']); }
+  finally { await client.end(); }
+  await page.goto('/'); await page.getByRole('button', { name: 'Test sahibiyle giriş yap' }).click();
+  await expect(page.getByRole('heading', { name: 'Gizlilik bildirimi' })).toBeVisible();
+  await page.getByRole('button', { name: language === 'en' ? 'English' : 'Türkçe', exact: true }).click();
+  await expect(page.getByRole('heading', { name: language === 'en' ? 'Privacy notice' : 'Gizlilik bildirimi' })).toBeVisible();
+  const proceed = page.getByRole('button', { name: language === 'en' ? 'Record as read and continue' : 'Okundu olarak kaydet ve devam et' });
+  await expect(proceed).toBeDisabled();
+  await expect(page.getByRole('link', { name: 'Kulüp ağı', exact: true })).toHaveCount(0);
+  await page.getByRole('checkbox').check(); await proceed.click();
+  await expect(page.locator('aside')).toBeVisible(); await page.reload();
+  await expect(page.locator('aside')).toBeVisible(); await expect(proceed).toHaveCount(0);
+});
+
+test('incident contact is masked until explicit timed reveal', async ({ page }) => {
+  await signIn(page); await page.getByRole('link', { name: 'Veri ihlali kontrol listesi', exact: true }).click();
+  await page.getByLabel('Olay iletişim bilgisi', { exact: true }).fill('incident@example.com');
+  await page.getByRole('button', { name: 'Kaydet', exact: true }).click();
+  await expect(page.getByText('İletişim bilgisi güncellendi.')).toBeVisible();
+  await expect(page.getByText('incident@example.com', { exact: true })).toHaveCount(0);
+  await page.clock.install(); await page.getByRole('button', { name: '60 saniye göster' }).click();
+  await expect(page.getByText('incident@example.com', { exact: true })).toBeVisible();
+  await page.clock.fastForward(60001);
+  await expect(page.getByText('incident@example.com', { exact: true })).toHaveCount(0);
+  await page.clock.resume();
+  await page.getByRole('link', { name: 'Ayarlar', exact: true }).click();
+  const accessLog = page.locator('section').filter({ has: page.getByRole('heading', { name: 'Hassas alan görüntüleme günlüğü' }) });
+  await expect(accessLog.getByRole('cell', { name: 'Olay iletişim bilgisi', exact: true }).first()).toBeVisible();
+  await expect(accessLog.getByText('incident@example.com', { exact: true })).toHaveCount(0);
+});
+
+test('table retention defaults to indefinite and purges only the confirmed record list', async ({ page }) => {
+  await signIn(page); await page.goto('/clubs'); await page.getByRole('button', { name: 'Yeni kayıt' }).click();
+  await page.getByRole('textbox', { name: 'Ad', exact: true }).fill(`Örnek E2E Saklama ${Date.now()}`);
+  await page.getByRole('button', { name: 'Oluştur', exact: true }).click(); await expect(page).toHaveURL(/\/record\/Club\//);
+  const id = new URL(page.url()).pathname.split('/').at(-1)!;
+  const url = new URL(process.env.DATABASE_URL!);
+  if (!['127.0.0.1', 'localhost'].includes(url.hostname) || url.pathname !== '/metodo_e2e') throw new Error('Unsafe E2E database');
+  const client = new pg.Client({ connectionString: url.toString() }); await client.connect();
+  try { await client.query('UPDATE "Club" SET "deletedAt" = $1, "version" = "version" + 1 WHERE "id" = $2', [new Date('2020-01-01'), id]); } finally { await client.end(); }
+  await page.goto('/settings');
+  await expect(page.getByLabel('Tablo', { exact: true })).toBeVisible();
+  await expect(page.getByLabel('Tablo', { exact: true }).locator('option')).toHaveCount(61);
+  await page.getByLabel('Tablo', { exact: true }).selectOption('WorkLog');
+  await expect(page.getByLabel('Gün', { exact: true })).toHaveValue('');
+  await page.getByLabel('Tablo', { exact: true }).selectOption('Club'); await page.getByLabel('Gün', { exact: true }).fill('1');
+  await page.getByRole('button', { name: 'Kaydet', exact: true }).click(); await expect(page.getByText('Saklama ayarı kaydedildi.')).toBeVisible();
+  await page.getByRole('button', { name: 'Saklama temizliğini önizle', exact: true }).click();
+  const dialog = page.getByRole('dialog'); await expect(dialog.getByText(id, { exact: true })).toBeVisible();
+  const purge = dialog.getByRole('button', { name: 'Listelenen kayıtları kalıcı sil' }); await expect(purge).toBeDisabled();
+  await dialog.getByRole('checkbox').check(); await purge.click(); await expect(dialog).toHaveCount(0);
+  await expect(page.getByText('Önizlemedeki kayıtlar kaldırıldı.')).toBeVisible();
+});
 test('owner creates club and player, suggests a player and reads the shared timeline', async ({ page }) => {
+  test.setTimeout(75_000);
   await signIn(page);
   await expect(page.getByRole('heading', { name: 'Ofisiniz, bir bakışta.' })).toBeVisible();
   await page.screenshot({ path: '.local/dashboard.png', fullPage: true });
@@ -16,19 +81,52 @@ test('owner creates club and player, suggests a player and reads the shared time
   await page.getByRole('button', { name: 'Yeni kayıt' }).click();
   const playerName = `Örnek E2E Oyuncu ${Date.now()}`;
   await page.getByRole('textbox', { name: 'Ad', exact: true }).fill(playerName);
-  await page.getByLabel('Pozisyon', { exact: true }).selectOption('CM');
-  await page.getByLabel('Doğum tarihi', { exact: true }).fill('2000-02-01');
+  await page.getByRole('dialog').getByLabel('Pozisyon', { exact: true }).selectOption('CM');
+  await page.getByRole('dialog').getByLabel('Doğum tarihi', { exact: true }).fill('2000-02-01');
   await page.getByRole('button', { name: 'Oluştur', exact: true }).click();
-  await expect(page.getByRole('heading', { name: playerName })).toBeVisible();
+  await expect(page.getByRole('heading', { name: playerName, level: 1, exact: true })).toBeVisible();
+  const profileDownload = page.waitForEvent('download');
+  const profileResponse = page.waitForResponse(response => response.url().includes('/api/documents/profile/') && response.request().method() === 'POST');
+  await page.getByRole('button', { name: 'Profil PDF indir', exact: true }).click();
+  const [profileFile, profileHttp] = await Promise.all([profileDownload, profileResponse]);
+  expect(profileHttp.headers()['x-metodo-document-engine']).toBe('chromium');
+  expect(profileFile.suggestedFilename()).toBe('metodo-profile-tr.pdf');
+  const profileStream = await profileFile.createReadStream();
+  const profileChunks = []; for await (const chunk of profileStream) profileChunks.push(Buffer.from(chunk));
+  const profileParser = new PDFParse({ data: new Uint8Array(Buffer.concat(profileChunks)) });
+  try {
+    const profile = (await profileParser.getText()).text;
+    expect(profile).toContain(playerName); expect(profile).toContain('Şablon profile-1'); expect(profile).not.toContain('01.02.2000');
+  } finally { await profileParser.destroy(); }
+  await page.getByRole('button', { name: 'Puan gir', exact: true }).click();
+  const scoring = page.getByRole('dialog', { name: 'Puan gir', exact: true });
+  await scoring.getByLabel('Pas', { exact: true }).fill('7');
+  await scoring.getByLabel('Çalışma temposu', { exact: true }).fill('8');
+  await scoring.getByLabel('Oyun görüşü', { exact: true }).fill('9');
+  await scoring.getByLabel('Puanlama notu', { exact: true }).fill('Örnek puanlama');
+  await expect(scoring.getByRole('status')).toContainText('8,0');
+  await scoring.getByRole('button', { name: 'Kaydet', exact: true }).click();
+  await expect(scoring).toHaveCount(0);
+  await page.getByText('Puan geçmişi', { exact: true }).click();
+  await expect(page.getByText('Örnek puanlama', { exact: true })).toBeVisible();
+  await exercisePlayerEvidence(page);
+  await exercisePlayerCardEditor(page);
   await expect(page.getByRole('button', { name: '60 saniye göster' })).toBeVisible();
   await expect(page.getByText('2000-02-01', { exact: true })).toHaveCount(0);
   await page.clock.install();
   await page.getByRole('button', { name: '60 saniye göster' }).click();
   await expect(page.getByText('01.02.2000', { exact: true })).toBeVisible();
+  await exercisePrintCard(page);
+  await page.getByRole('button', { name: /Uygunluğu hesapla/ }).click();
+  const suitability = page.getByRole('dialog', { name: 'Lig uygunluğu' });
+  await expect(suitability.getByRole('heading', { name: 'Kademe 1 · Uygun' })).toBeVisible();
+  await expect(suitability.getByText(/Örnek kademeler gösteriliyor/)).toBeVisible();
   await page.clock.fastForward(60001);
+  await expect(suitability).toHaveCount(0);
   await expect(page.getByText('01.02.2000', { exact: true })).toHaveCount(0);
   await page.clock.resume();
   await page.getByRole('link', { name: 'Transfer talepleri', exact: true }).click();
+  await expect(page.locator('html')).not.toHaveClass(/\bplayer-card-page\b/);
   await page.getByRole('link', { name: /Örnek Orta Saha Talebi/ }).click();
   await page.getByRole('button', { name: 'Oyuncu öner', exact: true }).click();
   await page.getByLabel('Oyuncu', { exact: true }).selectOption({ label: playerName });
@@ -40,7 +138,105 @@ test('owner creates club and player, suggests a player and reads the shared time
   await page.getByPlaceholder('Kayıtlarda ara…').fill(playerName);
   await page.getByRole('link', { name: new RegExp(playerName) }).click();
   await expect(page.getByText(/Örnek SK A kulübüne önerildi/)).toBeVisible();
+  await exercisePlayerList(page, playerName);
 });
+test('owner manages club geography and downloads a private file with logged access', async ({ page }) => {
+  await signIn(page); const me = await (await page.request.get('/api/me')).json();
+  const response = await page.request.post('/api/clubs', { headers: { origin: 'http://localhost:5173', 'x-csrf-token': me.csrfToken }, data: { name: `Örnek Dosya Kulübü ${Date.now()}` } });
+  expect(response.status()).toBe(201); const club = await response.json(); await page.goto(`/record/Club/${club.id}`);
+  const pdf = Buffer.from('%PDF-1.7\n%%EOF');
+  await page.getByLabel('Dosya seç', { exact: true }).setInputFiles({ name: 'Örnek dosya.pdf', mimeType: 'application/pdf', buffer: pdf });
+  await page.getByRole('button', { name: 'Dosyayı yükle', exact: true }).click();
+  await expect(page.getByText('Örnek dosya.pdf', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'İndirme bağlantısı oluştur', exact: true }).click();
+  const downloading = page.waitForEvent('download'); await page.getByRole('link', { name: 'Dosyayı indir', exact: true }).click();
+  const download = await downloading; const stream = await download.createReadStream(); const chunks = []; for await (const chunk of stream) chunks.push(Buffer.from(chunk)); expect(Buffer.concat(chunks)).toEqual(pdf);
+  await page.getByRole('button', { name: 'Belge işleme', exact: true }).click();
+  await expect(page.getByRole('dialog').getByText(/Henüz bir belge işleme adaptörü/)).toBeVisible();
+  await page.getByRole('button', { name: 'Kapat', exact: true }).click();
+  await page.getByRole('link', { name: 'Ayarlar', exact: true }).click();
+  await expect(page.getByText('Dosya içeriği', { exact: true }).first()).toBeVisible();
+  await exerciseClubMap(page, club, { origin: 'http://localhost:5173', 'x-csrf-token': me.csrfToken });
+});
+
+test('club sources and updates use explicit review, including CSV proposals', async ({ page }) => {
+  await signIn(page);
+  const me = await (await page.request.get('/api/me')).json();
+  const headers = { origin: 'http://localhost:5173', 'x-csrf-token': me.csrfToken };
+  const name = `Örnek Atama ${Date.now()}`;
+  const clubResponse = await page.request.post('/api/clubs', { headers, data: { name } });
+  const personResponse = await page.request.post('/api/people', { headers, data: { name, role: 'HEAD_COACH' } });
+  expect(clubResponse.status()).toBe(201); expect(personResponse.status()).toBe(201);
+  const club = await clubResponse.json();
+  const staff = () => page.request.get(`/api/clubs/${club.id}/sections/staff`).then(response => response.json());
+  await page.goto(`/record/Club/${club.id}`);
+  await page.getByRole('button', { name: 'Güncellemeler', exact: true }).click();
+  await page.getByRole('button', { name: 'Personel önerisi ekle' }).click();
+  const dialog = page.getByRole('dialog');
+  await dialog.getByLabel('Güncelleme türü').selectOption('coach_appointment');
+  await dialog.getByLabel('Ad', { exact: true }).fill(name);
+  await dialog.getByLabel('Değişiklik özeti').fill('Örnek atama önerisi');
+  await dialog.getByLabel('Kaynak URL (isteğe bağlı)').fill('https://example.com/appointment');
+  await dialog.getByRole('button', { name: 'Kaydet', exact: true }).click();
+  await expect(dialog).toHaveCount(0);
+  await expect(page.getByRole('link', { name, exact: true })).toBeVisible();
+  await page.getByRole('link', { name, exact: true }).click();
+  await page.locator('.list-line').filter({ hasText: name }).getByRole('button', { name: 'Güncellemeyi incele' }).click();
+  await dialog.getByLabel('Kişi adına göre ara').fill(name);
+  await dialog.getByLabel('Atanacak kişiyi seçin').selectOption({ label: name });
+  await dialog.getByLabel('Başlangıç tarihi').fill('2025-01-15');
+  await dialog.getByRole('button', { name: 'Değişikliği önizle' }).click();
+  await expect(dialog.getByText(`${name} · Teknik direktör · 15.01.2025 tarihinde başlayacak`)).toBeVisible();
+  expect((await staff()).items).toEqual([]);
+  await dialog.getByRole('button', { name: 'Onayla ve uygula' }).click();
+  await expect(dialog).toHaveCount(0);
+  expect((await staff()).items).toMatchObject([{ name, label: 'HEAD_COACH' }]);
+
+  await page.goto(`/record/Club/${club.id}`);
+  await page.getByRole('button', { name: 'Kaynakları takip et', exact: true }).click();
+  await page.getByRole('link', { name: 'Kaynak sicili', exact: true }).last().click();
+  await page.getByRole('button', { name: 'Kaynak ekle' }).click();
+  const sourceName = `Örnek Kaynak ${Date.now()}`;
+  await dialog.getByLabel('Ad', { exact: true }).fill(sourceName);
+  await dialog.getByLabel('Kaynak adresi').fill('https://example.com/club');
+  await dialog.getByRole('button', { name: 'Kaydet', exact: true }).click();
+  await expect(page.getByRole('link', { name: sourceName })).toHaveAttribute('target', '_blank');
+  await page.getByRole('button', { name: 'Kaynağı düzenle' }).click();
+  await dialog.getByLabel('Kaynak adresi').fill('https://example.com/club-updated');
+  await dialog.getByRole('button', { name: 'Kaydet', exact: true }).click();
+  await expect(page.getByRole('link', { name: sourceName })).toHaveAttribute('href', 'https://example.com/club-updated');
+
+  await page.goto(`/record/Club/${club.id}`);
+  await page.getByRole('button', { name: 'Güncellemeler', exact: true }).click();
+  await page.getByRole('button', { name: 'Kulüp güncellemesi öner' }).click();
+  const announcement = `Örnek Stadyum Duyurusu ${Date.now()}`;
+  await dialog.getByLabel('Güncelleme türü').selectOption('stadium');
+  await dialog.getByLabel('Ad', { exact: true }).fill(announcement);
+  await dialog.getByLabel('Değişiklik özeti').fill('Örnek stadyum duyurusu');
+  await dialog.getByLabel('Yeni stadyum').fill('Örnek Stadyum');
+  await dialog.getByLabel('Kaynak URL (isteğe bağlı)').fill('https://example.com/stadium');
+  await dialog.getByRole('button', { name: 'Kaydet', exact: true }).click();
+  await expect(dialog).toHaveCount(0);
+  await page.goto('/');
+  await page.getByRole('link', { name: announcement, exact: true }).click();
+  await dialog.getByLabel('Yeni stadyum').fill('Örnek Onaylanan Stadyum');
+  await dialog.getByRole('button', { name: 'Değişikliği önizle' }).click();
+  await expect(dialog.getByText('Stadyum · — → Örnek Onaylanan Stadyum')).toBeVisible();
+  await dialog.getByRole('button', { name: 'Onayla ve uygula' }).click();
+  await expect(dialog).toHaveCount(0);
+  expect(await (await page.request.get(`/api/records/Club/${club.id}`)).json()).toMatchObject({ stadium: 'Örnek Onaylanan Stadyum' });
+
+  await page.goto(`/record/Club/${club.id}`);
+  await page.getByRole('button', { name: 'Personel', exact: true }).click();
+  await page.getByRole('button', { name: 'Personel CSV içe aktar' }).click();
+  await dialog.getByLabel('CSV içeriği').fill('action,person,role,effectiveDate,sourceUrl\ncoach_appointment,Örnek CSV Adayı,ASSISTANT,2026-01-12,https://www.tff.org/example');
+  await dialog.getByRole('button', { name: 'Değişikliği önizle' }).click();
+  await expect(dialog.getByText('Örnek CSV Adayı', { exact: true })).toBeVisible();
+  await dialog.getByRole('button', { name: 'Bekleyen önerileri oluştur' }).click();
+  await expect(page.getByText('1 personel önerisi oluşturuldu.', { exact: true })).toBeVisible();
+  expect((await staff()).items).toHaveLength(1);
+});
+
 test('iframe shows top-level login fallback', async ({ page }) => {
   await page.goto('/');
   await page.evaluate(() => { const iframe = document.createElement('iframe'); iframe.src = '/'; iframe.title = 'test-frame'; document.body.replaceChildren(iframe); });

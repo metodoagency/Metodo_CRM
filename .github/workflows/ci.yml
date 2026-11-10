@@ -7,10 +7,14 @@ permissions:
   contents: read
 jobs:
   validate:
+    strategy:
+      fail-fast: false
+      matrix:
+        postgres: ['16', '17']
     runs-on: ubuntu-latest
     services:
       postgres:
-        image: postgres:16-bookworm
+        image: postgres:${{ matrix.postgres }}-bookworm
         env:
           POSTGRES_USER: metodo
           POSTGRES_PASSWORD: metodo_local_only
@@ -43,5 +47,5 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: browser-report
+          name: browser-report-pg${{ matrix.postgres }}
           path: playwright-report/

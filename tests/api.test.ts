@@ -1,18 +1,31 @@
-import { beforeAll, afterAll, beforeEach, describe, it, expect } from 'vitest';
+import { beforeAll, afterAll, beforeEach, afterEach, describe, it, expect } from 'vitest';
 import type { FastifyInstance } from 'fastify';
 import { Prisma } from '@prisma/client';
 import { db } from '../server/db.js';
 import { buildApp } from '../server/app.js';
 import { readConfig } from '../server/config.js';
-import { decrypt } from '../server/crypto.js';
+import { decrypt, encrypt } from '../server/crypto.js';
 import { hash } from '../server/auth.js';
 import { seedExamples, exampleId } from '../prisma/seed.js';
 import { keyring } from '../server/crypto.js';
 import { randomBytes } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
-import { purgeExpired } from '../server/lifecycle.js';
+import { dailyJobs } from '../server/jobs.js';
 import { apiContracts } from '../shared/contracts.js';
 import { openapiDocument } from '../server/openapi.js';
+import { MigrationPg } from '../scripts/migration-adapter.js';
+import { LocalFileStorage, drainStorageDeletions } from '../server/storage.js';
+import { DocumentProcessing, type DocumentProcessor } from '../server/processing.js';
+import type { ProcessingPreview } from '../shared/files.js';
+import { readFile } from 'node:fs/promises';
+import { purgeTrash } from '../server/lifecycle.js';
+import JSZip from 'jszip';
+import sharp from 'sharp';
+import { ageOn } from '../shared/domain.js';
+
+const fileStorage = new LocalFileStorage('.local/tmp/api-files');
+const processingCalls: ProcessingPreview['payload'][] = [];
+const processor: DocumentProcessor = { id: 'example-processor', revision: '1', location: 'external', destination: 'https://example.com/process', process: async payload => { processingCalls.push(payload); return { candidates: [{ salary: '100', excerpt: payload.text }] }; } };
 
 const origin = 'http://localhost:5173';
 let app: FastifyInstance; let cookie = ''; let csrf = ''; let loginIp = 1;
@@ -24,16 +37,676 @@ async function login(email = 'owner@example.com') {
 }
 function request(method: 'GET' | 'POST' | 'PATCH' | 'DELETE', url: string, payload?: Record<string, unknown>) { return app.inject({ method, url, headers: { cookie, origin, 'x-csrf-token': csrf }, ...(payload === undefined ? {} : { payload }) }); }
 async function club(name = 'Örnek Test Kulübü') { return (await request('POST', '/api/clubs', { name })).json(); }
-beforeAll(async () => { app = await buildApp({ db, config: readConfig({ ...process.env, NODE_ENV: 'test', APP_ORIGIN: origin, ALLOWED_EMAILS: 'owner@example.com' }) }); });
+beforeAll(async () => { app = await buildApp({ db, storage: fileStorage, processors: [processor], config: readConfig({ ...process.env, NODE_ENV: 'test', APP_ORIGIN: origin, ALLOWED_EMAILS: 'owner@example.com', EXTERNAL_PROCESSING_ENABLED: 'true' }) }); });
 beforeEach(async () => {
+  processingCalls.length = 0; processor.destination = 'https://example.com/process';
   if (!process.env.DATABASE_URL?.includes('/metodo_test')) throw new Error('Unsafe test database');
   const tables = Prisma.dmmf.datamodel.models.map(m => `"${m.dbName || m.name}"`).join(',');
   await db.$executeRawUnsafe(`TRUNCATE ${tables} CASCADE`);
   expect((await login()).statusCode).toBe(200);
 });
+afterEach(async () => {
+  const files = await db.attachment.findMany({ select: { storageKey: true } }); const jobs = await db.storageDeletion.findMany({ select: { storageKey: true } });
+  for (const file of [...files, ...jobs]) if (/^[a-f0-9]{64}$/.test(file.storageKey)) await fileStorage.remove(file.storageKey);
+});
 afterAll(async () => { await app.close(); await db.$disconnect(); });
 
+const pdfFile = Buffer.from('%PDF-1.7\n%%EOF');
+function uploadFile(id: string, data = pdfFile, mime = 'application/pdf', extra = '', type: 'Club' | 'Player' = 'Club') {
+  const boundary = 'example-boundary';
+  const payload = Buffer.concat([Buffer.from(`--${boundary}\r\nContent-Disposition: form-data; name="file"; filename="Örnek belge.pdf"\r\nContent-Type: ${mime}\r\n\r\n`), data, Buffer.from(`\r\n${extra}--${boundary}--\r\n`)]);
+  return app.inject({ method: 'POST', url: `/api/records/${type}/${id}/files`, payload, headers: { cookie, origin, 'x-csrf-token': csrf, 'content-type': `multipart/form-data; boundary=${boundary}` } });
+}
+describe('sensitive paths: player card evidence', () => {
+  async function createPlayer(name: string, birthDate?: string) {
+    const result = await request('POST', '/api/players', { name, primaryPosition: 'CM', birthDate });
+    expect(result.statusCode, result.body).toBe(201);
+    return result.json();
+  }
+
+  it('sanitizes legacy and new biographies, preserves formatting, and excludes biography content from audit diffs', async () => {
+    const player = await createPlayer('Örnek biyografi');
+    const recordUrl = `/api/records/Player/${player.id}`;
+    const url = `/api/players/${player.id}/biography`;
+    const legacy = 'Örnek eski biyografi\nİkinci satır';
+    await db.player.update({ where: { id: player.id }, data: { bio: legacy } });
+    expect((await request('GET', recordUrl)).json().bio).toBe('<p>Örnek eski biyografi<br />İkinci satır</p>');
+    const unsafe = '<svg><script>exampleSvg()</script></svg><img src="https://example.com/blocked.png" onerror="exampleError()"><iframe srcdoc="<script>exampleFrame()</script>">hidden</iframe>'
+      + '<a href="jav&#9;ascript:exampleBad()">Bad scheme</a><a href="//example.com">Relative</a><a href="https://name:secret@example.com">Credentials</a>';
+    await db.player.update({ where: { id: player.id }, data: { bio: `<h2>Örnek eski başlık</h2>${unsafe}` } });
+    const safeLegacy = (await request('GET', recordUrl)).json().bio;
+    expect(safeLegacy).toContain('<h3>Örnek eski başlık</h3>');
+    expect(safeLegacy).not.toMatch(/<svg|<script|<img|<iframe|exampleBad|name:secret|href=/i);
+    const html = '<h3>Örnek başlık</h3><p><b>Örnek gizli biyografi metni</b> <i>Örnek vurgu</i></p><ul><li>Birinci</li></ul><ol><li>İkinci</li></ol>'
+      + '<a href="https://example.com/evidence" target="popup" onclick="exampleClick()">Kaynak</a>' + unsafe;
+    const payload = { version: player.version, html };
+    expect((await app.inject({ method: 'PATCH', url, headers: { origin }, payload })).statusCode).toBe(401);
+    expect((await app.inject({ method: 'PATCH', url, headers: { origin, cookie }, payload })).statusCode).toBe(403);
+    expect((await request('PATCH', url, { ...payload, html: 'a'.repeat(24_001) })).statusCode).toBe(400);
+    const saved = await request('PATCH', url, payload);
+    expect(saved.statusCode, saved.body).toBe(200);
+    const updated = saved.json();
+    expect(updated.bio).toContain('<strong>Örnek gizli biyografi metni</strong>');
+    expect(updated.bio).toContain('<em>Örnek vurgu</em>');
+    expect(updated.bio).toContain('<ul><li>Birinci</li></ul><ol><li>İkinci</li></ol>');
+    expect(updated.bio).toContain('href="https://example.com/evidence" rel="noopener noreferrer" target="_blank"');
+    expect(updated.bio).not.toMatch(/<svg|<script|<img|<iframe|exampleBad|name:secret|onclick/i);
+    expect((await request('GET', recordUrl)).json().bio).toBe(updated.bio);
+    expect((await request('PATCH', url, payload)).statusCode).toBe(409);
+    expect((await request('PATCH', recordUrl, { version: updated.version, changes: { status: 'OWN' } })).statusCode).toBe(200);
+    const logs = await db.auditLog.findMany({ where: { entityId: player.id }, select: { diffs: true } });
+    const history = await request('GET', `${recordUrl}/timeline`);
+    expect(JSON.stringify(logs) + history.body).not.toMatch(/gizli biyografi|exampleError|exampleSvg/);
+    expect((await request('GET', '/api/export/Player')).body).not.toContain('gizli biyografi');
+  });
+
+  it('updates card metadata with a version and projects only owner-scoped printable fields', async () => {
+    const player = await createPlayer('Örnek kart oyuncusu', '2000-02-01');
+    const linked = await club('Örnek kart kulübü');
+    const deleted = await club('Örnek silinen kulüp');
+    await db.club.update({ where: { id: deleted.id }, data: { deletedAt: new Date() } });
+    await db.player.update({ where: { id: player.id }, data: { bio: 'Örnek gizli biyografi', notes: 'Örnek özel not', contractEndDate: new Date('2027-02-01'), marketValue: '9999999999999999.99', marketValueCurrency: 'EUR' } });
+    const url = `/api/players/${player.id}/card`;
+    expect((await app.inject({ url })).statusCode).toBe(401);
+    expect((await request('PATCH', url, { version: player.version, changes: { currentClubId: deleted.id } })).statusCode).toBe(404);
+    expect((await request('PATCH', url, { version: player.version, changes: { secondaryPositions: ['CM'] } })).statusCode).toBe(400);
+    expect((await request('PATCH', url, { version: player.version, changes: { contractEndDate: '2027-12-31' } })).statusCode).toBe(400);
+    const changes = { nationalities: ['Örnek uyruk'], euPassport: false, heightCm: 183, weightKg: '73.45', secondaryPositions: ['DM'], preferredFoot: 'LEFT', currentClubId: linked.id };
+    const saved = await request('PATCH', url, { version: player.version, changes, sourceUrl: 'https://example.com/profile' });
+    expect(saved.statusCode, saved.body).toBe(200);
+    const card = (await request('GET', url)).json();
+    expect(card).toMatchObject({ name: player.name, nationalities: changes.nationalities, euPassport: false, heightCm: 183, weightKg: '73.45',
+      secondaryPositions: ['DM'], preferredFoot: 'LEFT', currentClub: { id: linked.id, name: linked.name }, contractEndDate: '2027-02-01',
+      marketValue: '9999999999999999.99', marketValueCurrency: 'EUR', hasBirthDate: true });
+    expect(JSON.stringify(card)).not.toMatch(/birthDateIndex|storageKey|gizli biyografi|özel not|2000-02-01|example\.com\/profile/);
+    expect((await request('GET', `/api/records/Player/${player.id}`)).json().fieldProvenance.heightCm.sourceUrl).toBe('https://example.com/profile');
+    expect((await request('PATCH', url, { version: player.version, changes })).statusCode).toBe(409);
+    const cleared = await request('PATCH', url, { version: saved.json().version, changes: { weightKg: null } });
+    expect(cleared.statusCode).toBe(200);
+    expect((await request('GET', url)).json().weightKg).toBeNull();
+    expect((await request('PATCH', `/api/records/Player/${player.id}`, { version: cleared.json().version, changes: { primaryPosition: 'DM' } })).statusCode).toBe(200);
+    expect((await request('GET', url)).json()).toMatchObject({ primaryPosition: 'DM', secondaryPositions: [] });
+  });
+
+  it('reveals only individually selected card fields with value-free logging and a version guard', async () => {
+    const birthDate = '2000-02-01';
+    const player = await createPlayer('Örnek süreli kart', birthDate);
+    await db.player.update({ where: { id: player.id }, data: { levelScore: '9.5' } });
+    const url = `/api/players/${player.id}/card/private`;
+    const ageOnly = { version: player.version, includeAge: true, includeFit: false };
+    expect((await app.inject({ method: 'POST', url, headers: { origin, cookie }, payload: ageOnly })).statusCode).toBe(403);
+    expect((await request('POST', url, { ...ageOnly, version: player.version + 1 })).statusCode).toBe(409);
+    expect((await request('POST', url, { ...ageOnly, includeAge: false })).statusCode).toBe(400);
+    const age = await request('POST', url, ageOnly);
+    expect(age.json()).toEqual({ age: ageOn(birthDate), expiresIn: 60 });
+    const fit = await request('POST', url, { ...ageOnly, includeAge: false, includeFit: true });
+    expect(fit.json()).toMatchObject({ fit: { status: 'SUITABLE', example: true }, expiresIn: 60 });
+    expect(fit.json()).not.toHaveProperty('age');
+    expect(fit.body).not.toMatch(/birthDate|referenceAge|scoreMeets|2000-02-01/);
+    const views = await db.auditLog.findMany({ where: { entityId: player.id, action: 'reveal' }, select: { diffs: true } });
+    expect(views.map(view => view.diffs)).toEqual([{ field: 'birthDate' }, { field: 'birthDate' }]);
+  });
+
+  it('evaluates versioned owner tiers on demand without disclosing age or birth date', async () => {
+    const birthDate = '2000-02-01';
+    const age = ageOn(birthDate);
+    const player = await createPlayer('Örnek lig uygunluğu', birthDate);
+    const url = `/api/players/${player.id}/suitability`;
+    expect((await app.inject({ method: 'POST', url, headers: { origin } })).statusCode).toBe(401);
+    expect((await request('POST', url)).json()).toMatchObject({ example: true, missing: ['score'], results: [] });
+    await db.player.update({ where: { id: player.id }, data: { levelScore: '7.5' } });
+    const settings = (await request('GET', '/api/settings')).json();
+    const tiers = [
+      { tier: 1, minScore: 8, referenceAge: age + 3, maxAgeDiff: 2 },
+      { tier: 2, minScore: 7.5, referenceAge: age - 2, maxAgeDiff: 2 },
+      { tier: 3, minScore: 8.5, referenceAge: age, maxAgeDiff: 0 },
+    ];
+    expect((await request('PATCH', '/api/settings', { version: settings.version, leagueTiers: [...tiers, tiers[0]] })).statusCode).toBe(400);
+    expect((await request('PATCH', '/api/settings', { version: settings.version, leagueTiers: tiers })).statusCode).toBe(200);
+    expect((await request('PATCH', '/api/settings', { version: settings.version, leagueTiers: tiers })).statusCode).toBe(409);
+    const evaluated = await request('POST', url);
+    expect(evaluated.statusCode, evaluated.body).toBe(200);
+    expect(evaluated.json()).toMatchObject({ example: false, missing: [], expiresIn: 60,
+      results: [{ tier: 1, status: 'CLOSE', scoreMeets: false, ageMeets: false }, { tier: 2, status: 'SUITABLE', scoreMeets: true, ageMeets: true },
+        { tier: 3, status: 'UNSUITABLE', scoreMeets: false, ageMeets: true }] });
+    expect(evaluated.body).not.toContain(birthDate);
+    expect(evaluated.json()).not.toHaveProperty('age');
+    const events = await db.auditLog.findMany({ where: { entityId: player.id, action: 'reveal' } });
+    expect(events.map(event => event.diffs)).toEqual([{ field: 'birthDate' }]);
+  });
+
+  it('keeps exact market values, rejects stale and invalid evidence, and preserves current value on a backdated entry', async () => {
+    const player = await createPlayer('Örnek değer geçmişi');
+    const url = `/api/players/${player.id}/market`;
+    const value = { version: player.version, amount: '9999999999999999.99', currency: 'EUR', date: '2026-01-12', sourceUrl: 'https://example.com/value', method: 'Örnek manuel değer' };
+    expect((await app.inject({ url })).statusCode).toBe(401);
+    expect((await request('PATCH', url, { ...value, method: '' })).statusCode).toBe(400);
+    expect((await request('PATCH', url, { ...value, date: '2099-01-12' })).statusCode).toBe(400);
+    expect((await request('PATCH', url, { ...value, sourceUrl: 'https://owner:password@example.com' })).statusCode).toBe(400);
+    expect((await request('PATCH', url, { ...value, profileUrl: 'javascript:alert(1)' })).statusCode).toBe(400);
+    const current = await request('PATCH', url, { ...value, profileUrl: 'https://example.com/profile' });
+    expect(current.statusCode, current.body).toBe(200);
+    expect((await request('PATCH', url, value)).statusCode).toBe(409);
+    const historic = { ...value, version: current.json().version, date: '2025-12-15', currency: 'USD', amount: '14500.5', method: 'Örnek önceki değer' };
+    const earlier = await request('PATCH', url, historic);
+    expect(earlier.statusCode, earlier.body).toBe(200);
+    const history = (await request('GET', url)).json();
+    expect(history).toMatchObject({ version: earlier.json().version, profileUrl: 'https://example.com/profile', more: false,
+      current: { amount: value.amount, currency: value.currency, date: value.date, sourceUrl: value.sourceUrl },
+      items: [{ amount: '14500.50', date: historic.date, currency: historic.currency, method: historic.method }, { amount: value.amount, date: value.date, method: value.method }],
+    });
+    expect(await db.timelineEvent.count({ where: { entityId: player.id, action: 'market_value' } })).toBe(2);
+    expect((await request('GET', '/api/export/Player')).body).not.toContain(value.method);
+  });
+
+  it('serves only the owner player’s live normalized photo with rights evidence and logs a value-free view', async () => {
+    const player = await createPlayer('Örnek fotoğraf');
+    const other = await createPlayer('Örnek diğer oyuncu');
+    const image = await sharp({ create: { width: 12, height: 16, channels: 3, background: '#bade90' } }).png().toBuffer();
+    const uploaded = await uploadFile(player.id, image, 'image/png', '', 'Player');
+    expect(uploaded.statusCode, uploaded.body).toBe(201);
+    const photo = uploaded.json();
+    const pdf = (await uploadFile(player.id, pdfFile, 'application/pdf', '', 'Player')).json();
+    const url = `/api/players/${player.id}/photo`;
+    const input = { action: 'set', version: player.version, attachmentId: photo.id, attachmentVersion: photo.version, sourceUrl: 'https://example.com/photo', rightsNote: 'Örnek kullanım izni' };
+    expect((await request('GET', url)).statusCode).toBe(404);
+    expect((await request('PATCH', url, { ...input, rightsNote: '' })).statusCode).toBe(400);
+    expect((await request('PATCH', url, { ...input, attachmentVersion: photo.version + 1 })).statusCode).toBe(409);
+    expect((await request('PATCH', url, { ...input, attachmentId: pdf.id, attachmentVersion: pdf.version })).statusCode).toBe(409);
+    expect((await request('PATCH', `/api/players/${other.id}/photo`, { ...input, version: other.version })).statusCode).toBe(409);
+    const selected = await request('PATCH', url, input);
+    expect(selected.statusCode, selected.body).toBe(200);
+    expect((await app.inject({ url })).statusCode).toBe(401);
+    expect((await request('GET', '/api/players')).json().items).toEqual(expect.arrayContaining([expect.objectContaining({ id: player.id, photo: true })]));
+    const imageResponse = await request('GET', url);
+    expect(imageResponse.statusCode, imageResponse.body).toBe(200);
+    expect(imageResponse.headers).toMatchObject({ 'content-type': 'image/webp', 'cache-control': 'no-store', 'content-disposition': 'inline' });
+    expect((await sharp(imageResponse.rawPayload).metadata()).format).toBe('webp');
+    const events = await db.auditLog.findMany({ where: { entityId: photo.id, action: 'reveal' } });
+    expect(events.map(event => event.diffs)).toEqual([{ field: 'document' }]);
+    expect((await request('PATCH', url, { action: 'remove', version: player.version })).statusCode).toBe(409);
+    expect((await request('PATCH', url, { action: 'remove', version: selected.json().version })).statusCode).toBe(200);
+    expect((await request('GET', url)).statusCode).toBe(404);
+    expect(await db.attachment.count({ where: { id: photo.id, deletedAt: null } })).toBe(1);
+  });
+});
+async function processingPreview() {
+  const entity = await club(); const file = (await uploadFile(entity.id)).json();
+  const res = await request('POST', '/api/processing/preview', { attachmentId: file.id, attachmentVersion: file.version, adapterId: processor.id, text: 'Örnek özel sözleşme alıntısı' });
+  expect(res.statusCode, res.body).toBe(201); return { preview: res.json() as ProcessingPreview, file, entity };
+}
+describe('sensitive paths: files and per-document processing', () => {
+  it('stores an owner upload privately, logs value-free access, and blocks access through a deleted parent', async () => {
+    const entity = await club(); const res = await uploadFile(entity.id); expect(res.statusCode, res.body).toBe(201);
+    const file = res.json(); expect(res.body).not.toContain('storageKey'); expect(res.body).not.toContain('contentHash');
+    const stored = await db.attachment.findUniqueOrThrow({ where: { id: file.id } });
+    expect(stored.storageKey).toMatch(/^[a-f0-9]{64}$/); expect(stored.storageKey).not.toContain('belge');
+    expect(await readFile(`.local/tmp/api-files/${stored.storageKey}`)).toEqual(pdfFile); expect(await db.storageDeletion.count()).toBe(0);
+    expect((await app.inject({ url: `/api/files/${file.id}/content` })).statusCode).toBe(401);
+    const signed = await request('POST', `/api/files/${file.id}/download`, { version: file.version }); expect(signed.json().expiresIn).toBe(300);
+    const content = await request('GET', signed.json().url); expect(content.rawPayload).toEqual(pdfFile); expect(content.headers['content-disposition']).toContain('attachment'); expect(content.headers['cache-control']).toBe('no-store');
+    const access = (await request('GET', '/api/admin/access-log')).json(); expect(access.items.some((item: { field: string }) => item.field === 'document')).toBe(true); expect(JSON.stringify(access)).not.toContain('PDF-1.7');
+    expect((await request('POST', `/api/files/${file.id}/download`, { version: 99 })).statusCode).toBe(409);
+    await request('DELETE', `/api/records/Club/${entity.id}`, { version: entity.version }); expect((await request('GET', signed.json().url)).statusCode).toBe(404);
+  });
+  it('rejects MIME spoofing, oversized and extra multipart parts before creating metadata', async () => {
+    const entity = await club(); expect((await uploadFile(entity.id, pdfFile, 'image/png')).statusCode).toBe(400);
+    expect((await uploadFile(entity.id, Buffer.alloc(10 * 1024 * 1024 + 1))).statusCode).toBe(413);
+    expect((await uploadFile(entity.id, pdfFile, 'application/pdf', '--example-boundary\r\nContent-Disposition: form-data; name="unexpected"\r\n\r\nvalue\r\n')).statusCode).toBe(413);
+    expect(await db.attachment.count()).toBe(0); expect(await db.storageDeletion.count()).toBe(0);
+    expect((await app.inject({ method: 'POST', url: `/api/records/Club/${entity.id}/files`, headers: { cookie, origin } })).statusCode).toBe(403);
+    expect((await uploadFile('00000000-0000-4000-8000-000000000000')).statusCode).toBe(404);
+  });
+  it('queues physical deletion atomically with the approved purge, retries failure, and protects referenced objects', async () => {
+    const entity = await club(); const file = (await uploadFile(entity.id)).json(); const stored = await db.attachment.findUniqueOrThrow({ where: { id: file.id } });
+    await db.storageDeletion.create({ data: { driver: 'local', storageKey: stored.storageKey, notBefore: new Date(0) } });
+    expect((await drainStorageDeletions(db, fileStorage)).removed).toBe(0); expect(await fileStorage.read(stored.storageKey)).toEqual(pdfFile);
+    await db.storageDeletion.deleteMany();
+    await request('DELETE', `/api/records/Club/${entity.id}`, { version: entity.version }); const trash = await db.trashEntry.findFirstOrThrow({ where: { entityId: entity.id } });
+    const plan = (await request('GET', `/api/trash/${trash.id}/preview`)).json();
+    await purgeTrash(db, trash.id, trash.version, entity.version + 1, plan.previewToken);
+    expect(await db.attachment.count()).toBe(0); expect(await db.storageDeletion.count()).toBe(1);
+    const now = new Date(); const failedStorage = { ...fileStorage, driver: 'local' as const, put: fileStorage.put.bind(fileStorage), read: fileStorage.read.bind(fileStorage), remove: async () => { throw Error('example failure'); } };
+    expect((await drainStorageDeletions(db, failedStorage, now)).removed).toBe(0); expect((await db.storageDeletion.findFirstOrThrow()).attempts).toBe(1);
+    expect((await drainStorageDeletions(db, fileStorage, new Date(now.getTime() + 3600_001))).removed).toBe(1); await expect(fileStorage.read(stored.storageKey)).rejects.toThrow();
+  });
+  it('never calls an external adapter before exact consent and encrypts payload and output without canonical writes', async () => {
+    const { preview, entity } = await processingPreview(); expect(processingCalls).toHaveLength(0);
+    expect((await request('POST', `/api/processing/${preview.id}/run`, { version: 1 })).statusCode).toBe(403);
+    expect((await request('POST', `/api/processing/${preview.id}/approve`, { version: 1, approved: false, previewToken: preview.previewToken })).statusCode).toBe(400);
+    expect((await request('POST', `/api/processing/${preview.id}/approve`, { version: 1, approved: true, previewToken: 'a'.repeat(64) })).statusCode).toBe(409);
+    const approved = await request('POST', `/api/processing/${preview.id}/approve`, { version: 1, approved: true, previewToken: preview.previewToken }); expect(approved.statusCode).toBe(200);
+    expect(processingCalls).toHaveLength(0);
+    const run = await request('POST', `/api/processing/${preview.id}/run`, { version: approved.json().version }); expect(run.statusCode, run.body).toBe(200);
+    expect(processingCalls).toEqual([preview.payload]);
+    expect((await request('POST', `/api/processing/${preview.id}/run`, { version: approved.json().version })).statusCode).toBe(409);
+    const stored = await db.processingConsent.findUniqueOrThrow({ where: { id: preview.id } });
+    expect(stored.processingPayload).not.toContain(preview.payload.text); expect(decrypt(stored.processingPayload, 'ProcessingConsent.processingPayload')).toBe(JSON.stringify(preview.payload));
+    expect(stored.processingResult).toMatch(/^v1\./); expect(JSON.stringify(await db.auditLog.findMany())).not.toContain(preview.payload.text);
+    expect(await db.club.findUnique({ where: { id: entity.id } })).toMatchObject({ name: entity.name, version: entity.version }); expect(await db.updateProposal.count()).toBe(0);
+  });
+  it('drains storage only after an authenticated purge commits', async () => {
+    const entity = await club(); const file = (await uploadFile(entity.id)).json();
+    const stored = await db.attachment.findUniqueOrThrow({ where: { id: file.id } });
+    await request('DELETE', `/api/records/Club/${entity.id}`, { version: entity.version });
+    const trash = await db.trashEntry.findFirstOrThrow({ where: { entityId: entity.id } });
+    const plan = (await request('GET', `/api/trash/${trash.id}/preview`)).json();
+    const payload = { version: trash.version, recordVersion: entity.version + 1, previewToken: plan.previewToken };
+    expect((await app.inject({ method: 'DELETE', url: `/api/trash/${trash.id}`, headers: { origin }, payload })).statusCode).toBe(401);
+    expect(await fileStorage.read(stored.storageKey)).toEqual(pdfFile);
+    expect((await request('DELETE', `/api/trash/${trash.id}`, payload)).statusCode).toBe(200);
+    await expect.poll(() => db.storageDeletion.count({ where: { storageKey: stored.storageKey } }), { timeout: 5000 }).toBe(0);
+    await expect(fileStorage.read(stored.storageKey)).rejects.toThrow();
+  });
+  it('rejects missing documents, stale document versions, changed destinations and expired previews', async () => {
+    const { preview, file } = await processingPreview();
+    processor.destination = 'https://example.com/changed';
+    expect((await request('POST', `/api/processing/${preview.id}/approve`, { version: 1, approved: true, previewToken: preview.previewToken })).statusCode).toBe(409);
+    processor.destination = 'https://example.com/process'; await db.attachment.update({ where: { id: file.id }, data: { version: { increment: 1 } } });
+    expect((await request('GET', `/api/processing/${preview.id}`)).statusCode).toBe(409);
+    await db.attachment.update({ where: { id: file.id }, data: { version: 1 } }); await db.processingConsent.update({ where: { id: preview.id }, data: { expiresAt: new Date(0) } });
+    expect((await request('POST', `/api/processing/${preview.id}/approve`, { version: 1, approved: true, previewToken: preview.previewToken })).statusCode).toBe(409); expect(processingCalls).toHaveLength(0);
+    expect((await request('POST', '/api/processing/preview', { adapterId: processor.id, attachmentId: '00000000-0000-4000-8000-000000000000', attachmentVersion: 1, text: 'Örnek' })).statusCode).toBe(404);
+  });
+  it('keeps external processing disabled by default and prevents replay after a processor failure', async () => {
+    const { preview } = await processingPreview();
+    const disabled = new DocumentProcessing(db, readConfig({ NODE_ENV: 'test' }), [processor]);
+    await expect(disabled.run(preview.id, { version: 1 })).rejects.toMatchObject({ code: 'PROCESSING_UNAVAILABLE' }); expect(disabled.available()).toEqual([]);
+    let calls = 0; const failed = new DocumentProcessing(db, readConfig({ NODE_ENV: 'test', EXTERNAL_PROCESSING_ENABLED: 'true' }), [{ ...processor, process: async () => { calls++; throw Error('example failure'); } }]);
+    const approved = await failed.approve(preview.id, { version: 1, approved: true, previewToken: preview.previewToken });
+    await expect(failed.run(preview.id, approved)).rejects.toThrow();
+    // Run takes only a version: strict input also rejects an injected payload/id.
+    await expect(failed.run(preview.id, { version: approved.version })).rejects.toMatchObject({ code: 'PROCESSING_FAILED' });
+    await expect(failed.run(preview.id, { version: approved.version })).rejects.toMatchObject({ code: 'STALE_PREVIEW' }); expect(calls).toBe(1);
+  });
+  it('rejects altered encrypted payloads and allows only one concurrent execution of an approved preview', async () => {
+    const { preview } = await processingPreview();
+    await db.processingConsent.update({ where: { id: preview.id }, data: { processingPayload: encrypt(JSON.stringify({ ...preview.payload, text: 'Örnek değiştirilmiş metin' }), 'ProcessingConsent.processingPayload') } });
+    expect((await request('POST', `/api/processing/${preview.id}/approve`, { version: 1, previewToken: preview.previewToken, approved: true })).statusCode).toBe(409); expect(processingCalls).toHaveLength(0);
+    await db.processingConsent.update({ where: { id: preview.id }, data: { processingPayload: encrypt(JSON.stringify(preview.payload), 'ProcessingConsent.processingPayload') } });
+    const approved = (await request('POST', `/api/processing/${preview.id}/approve`, { version: 1, previewToken: preview.previewToken, approved: true })).json();
+    const results = await Promise.all([request('POST', `/api/processing/${preview.id}/run`, { version: approved.version }), request('POST', `/api/processing/${preview.id}/run`, { version: approved.version })]);
+    expect(results.map(result => result.statusCode).sort()).toEqual([200, 409]); expect(processingCalls).toHaveLength(1);
+  });
+});
+
+describe('club network', () => {
+  it('counts and filters owner clubs and maps only valid coordinate pairs', async () => {
+    const continent = (await request('POST', '/api/clubs/geography', { type: 'Continent', name: 'Örnek Kıta' })).json();
+    const country = (await request('POST', '/api/clubs/geography', { type: 'Country', name: 'Örnek Ülke', isoCode: 'XA', continentId: continent.id })).json();
+    const other = (await request('POST', '/api/clubs/geography', { type: 'Country', name: 'Örnek İkinci Ülke', isoCode: 'XB', continentId: continent.id })).json();
+    const region = (await request('POST', '/api/clubs/geography', { type: 'Region', name: 'Örnek Bölge', countryId: country.id })).json();
+    expect((await request('POST', '/api/clubs/geography', { type: 'Country', name: 'Örnek Tekrar', isoCode: 'xa', continentId: continent.id })).statusCode).toBe(409);
+    const mapped = await club('Örnek Koordinatlı Kulüp');
+    const missing = await club('Örnek Konumsuz Kulüp');
+    const unassigned = await club('Örnek Ülkesiz Kulüp');
+    const loc = { version: mapped.version, countryId: country.id, regionId: region.id, lat: 0, lng: 0, city: null, stadium: null, relationStatus: 'ACTIVE', isTracked: true };
+    expect((await request('PATCH', `/api/clubs/${mapped.id}/location`, { ...loc, countryId: other.id })).statusCode).toBe(400);
+    expect((await request('PATCH', `/api/clubs/${mapped.id}/location`, { ...loc, lat: null })).statusCode).toBe(400);
+    expect((await request('PATCH', `/api/clubs/${mapped.id}/location`, { ...loc, lng: 181 })).statusCode).toBe(400);
+    expect((await request('PATCH', `/api/clubs/${mapped.id}/location`, loc)).statusCode).toBe(200);
+    expect((await request('PATCH', `/api/clubs/${mapped.id}/location`, loc)).statusCode).toBe(409);
+    expect((await request('PATCH', `/api/clubs/${missing.id}/location`, { ...loc, version: missing.version, lat: null, lng: null })).statusCode).toBe(200);
+    await db.club.create({ data: { name: 'Örnek Eski Hatalı Koordinat', searchName: 'ornek eski', countryId: country.id, regionId: region.id, lat: 92, lng: 10 } });
+    await db.club.create({ data: { name: 'Örnek Silinmiş Kulüp', searchName: 'ornek silinmis', countryId: country.id, regionId: region.id, lat: 15, lng: 15, deletedAt: new Date() } });
+    const tree = (await request('GET', '/api/clubs/geography')).json();
+    expect(tree).toMatchObject({ total: 4, unassigned: 1, continents: [{ id: continent.id, count: 3 }], regions: [{ id: region.id, count: 3 }] });
+    expect(tree.countries).toEqual(expect.arrayContaining([expect.objectContaining({ id: country.id, count: 3 }), expect.objectContaining({ id: other.id, count: 0 })]));
+    const filter = `countryId=${country.id}&regionId=${region.id}`;
+    const list = (await request('GET', `/api/clubs?${filter}`)).json();
+    expect(list.total).toBe(3);
+    expect((await request('GET', `/api/clubs/markers?${filter}`)).json().items).toEqual([{ id: mapped.id, name: mapped.name, lat: 0, lng: 0 }]);
+    expect((await request('GET', '/api/clubs?countryCode=xa')).json().total).toBe(3);
+    expect((await request('GET', '/api/clubs?countryCode=xb')).json().total).toBe(0);
+    expect((await request('GET', '/api/clubs?unassigned=true')).json().items.map((row: { id: string }) => row.id)).toEqual([unassigned.id]);
+    const events = await db.timelineEvent.findMany({ where: { entityId: mapped.id, action: 'update' } });
+    expect(events).toHaveLength(1);
+    expect(events[0].diffs).toMatchObject({ new: { relationStatus: 'ACTIVE', countryId: country.id, regionId: region.id } });
+  });
+
+  it('shows scoped club links and tenure history without exposing contacts or fetching sources', async () => {
+    await seedExamples(db);
+    const id = exampleId('club-0');
+    const path = `/api/clubs/${id}/sections`;
+    const staff = await request('GET', `${path}/staff`);
+    expect(staff.statusCode).toBe(200);
+    expect(staff.json().items).toEqual(expect.arrayContaining([expect.objectContaining({ href: `/record/Person/${exampleId('person-0-0')}`, label: 'HEAD_COACH', endDate: null })]));
+    expect(staff.body).not.toContain('email');
+    expect((await request('GET', `${path}/meetings`)).json().items).toHaveLength(2);
+    expect((await request('GET', `${path}/requests`)).json().items).toHaveLength(1);
+    expect((await request('GET', `${path}/players?players=suggested`)).json().items.length).toBeGreaterThan(0);
+    const contact = await db.relation.create({ data: { fromType: 'Person', fromId: exampleId('person-0-0'), toType: 'Club', toId: id, relation: 'contactOf', isExample: true } });
+    const activity = await request('GET', `${path}/relationship`);
+    expect(activity.statusCode).toBe(200);
+    expect(activity.json().items).toEqual(expect.arrayContaining([
+      expect.objectContaining({ id: contact.id, label: 'clubFirstContact' }),
+      expect.objectContaining({ label: 'clubMeetings' }), expect.objectContaining({ label: 'clubPresentation' }),
+      expect.objectContaining({ nameEn: expect.stringContaining('Suggested to') }),
+    ]));
+    await db.source.create({ data: { name: 'Örnek Kaynak', url: 'https://example.com/club-source', type: 'OFFICIAL', trustLevel: 'OFFICIAL', linkedClubIds: [id], isExample: true } });
+    await db.source.create({ data: { name: 'Örnek Güvensiz Bağlantı', url: 'javascript:example()', type: 'OFFICIAL', trustLevel: 'OFFICIAL', linkedClubIds: [id], isExample: true } });
+    const sources = (await request('GET', `${path}/sources`)).json().items;
+    expect(sources).toEqual(expect.arrayContaining([expect.objectContaining({ href: 'https://example.com/club-source', external: true })]));
+    expect(JSON.stringify(sources)).not.toContain('javascript:');
+    const note = await request('POST', `/api/clubs/${id}/notes`, { text: 'Örnek Ofis Notu' });
+    expect(note.statusCode).toBe(201);
+    expect((await request('GET', `${path}/notes`)).json().items[0].name).toBe('Örnek Ofis Notu');
+    expect((await app.inject({ url: `${path}/staff` })).statusCode).toBe(401);
+    await db.club.update({ where: { id }, data: { deletedAt: new Date() } });
+    expect((await request('GET', `${path}/staff`)).statusCode).toBe(404);
+  });
+});
+
+describe('player database', () => {
+  it('scores half-point criteria with versioned weights and keeps prior assessments when policy or position changes', async () => {
+    const row = (await request('POST', '/api/players', { name: 'Örnek Puan Oyuncusu', primaryPosition: 'CM' })).json();
+    const url = `/api/players/${row.id}/scoring`;
+    const settings = (await request('GET', '/api/settings')).json();
+    const initial = (await request('GET', url)).json();
+    expect(initial).toMatchObject({ score: null, settingsVersion: settings.version, weights: [1, 1, 1] });
+    expect((await request('PATCH', '/api/settings', { version: settings.version, levelWeights: { CM: [0, 0, 0] } })).statusCode).toBe(400);
+    const policy = await request('PATCH', '/api/settings', { version: settings.version, levelWeights: { CM: [3, 1, 0] } });
+    expect(policy.statusCode, policy.body).toBe(200);
+    const entry = { version: row.version, settingsVersion: policy.json().version, scores: [7, 8, 1], note: 'Örnek değerlendirme' };
+    expect((await request('PATCH', url, { ...entry, settingsVersion: settings.version })).statusCode).toBe(409);
+    expect((await request('PATCH', url, { ...entry, scores: [7.1, 8, 1] })).statusCode).toBe(400);
+    const first = await request('PATCH', url, entry);
+    expect(first.statusCode, first.body).toBe(200); expect(first.json().score).toBe('7.5');
+    expect((await request('GET', `/api/records/Player/${row.id}`)).json().levelScore).toBe('7.5');
+    expect((await request('PATCH', url, entry)).statusCode).toBe(409);
+    const snapshot = (await request('GET', url)).json();
+    expect(snapshot.history).toMatchObject([{ score: 7.5, position: 'CM', weights: [3, 1, 0], note: entry.note }]);
+    expect(await db.player.findUniqueOrThrow({ where: { id: row.id }, select: { levelSubscores: true } })).toEqual({ levelSubscores: { passing: 7, workRate: 8, vision: 1 } });
+    await request('PATCH', '/api/settings', { version: snapshot.settingsVersion, levelWeights: { CM: [1, 3, 1] } });
+    const unchanged = (await request('GET', url)).json();
+    expect(unchanged).toMatchObject({ score: '7.5', weights: [1, 3, 1], history: [{ weights: [3, 1, 0] }] });
+    expect((await request('PATCH', `/api/records/Player/${row.id}`, { version: snapshot.version, changes: { primaryPosition: 'CF' } })).statusCode).toBe(200);
+    expect((await request('GET', url)).json()).toMatchObject({ position: 'CF', score: null, scores: null, history: [{ position: 'CM', score: 7.5 }] });
+    expect(await db.timelineEvent.count({ where: { entityId: row.id, action: 'level_score' } })).toBe(1);
+  });
+
+  it('filters and sorts existing players with a safe currency boundary and allowlisted CSV', async () => {
+    const target = await club();
+    const created = await request('POST', '/api/players', { name: 'Örnek Şahin', primaryPosition: 'CM', status: 'OWN', currentClubId: target.id, birthDate: '2000-02-01' });
+    expect(created.statusCode, created.body).toBe(201); const player = created.json();
+    await db.player.update({ where: { id: player.id }, data: { tags: ['Örnek izlenecek'], levelScore: '7.0', marketValue: '123456.78', marketValueCurrency: 'EUR', notes: 'Örnek özel not', bio: 'Örnek özel metin', contractEndDate: new Date('2027-01-31') } });
+    await request('POST', '/api/players', { name: 'Örnek Diğer', primaryPosition: 'CF', status: 'TARGET' });
+    const query = `q=sahin&status=OWN&position=CM&clubId=${target.id}&tag=${encodeURIComponent('Örnek izlenecek')}&scoreMin=6.5&contractBefore=2027-02-01`;
+    const result = await request('GET', `/api/players?${query}`);
+    expect(result.statusCode, result.body).toBe(200);
+    expect(result.json()).toMatchObject({ total: 1, items: [{ id: player.id, tags: ['Örnek izlenecek'], birthDate: '***', levelScore: '7.0', marketValue: '123456.78' }] });
+    expect(result.body).not.toContain('Örnek özel'); expect(result.body).not.toContain('2000-02-01'); expect(result.body).not.toContain('birthDateIndex');
+    expect((await request('GET', '/api/players?sort=marketValue')).statusCode).toBe(400);
+    expect((await request('GET', '/api/players?scoreMin=8&scoreMax=5')).statusCode).toBe(400);
+    expect((await request('GET', '/api/players?sort=marketValue&currency=EUR')).json().total).toBe(1);
+    await request('DELETE', `/api/records/Club/${target.id}`, { version: target.version });
+    expect((await request('GET', '/api/players?q=sahin')).json().items[0].currentClub).toBeNull();
+    const csv = await request('GET', '/api/players/export?q=sahin');
+    expect(csv.statusCode, csv.body).toBe(200); expect(csv.body).toContain('123456.78'); expect(csv.body).toContain('Örnek Şahin');
+    for (const secret of ['birthDate', 'phone', 'email', 'healthNotes', 'injuryNotes', 'fieldProvenance', 'Örnek özel']) expect(csv.body).not.toContain(secret);
+    expect((await request('GET', '/api/export/Player')).body).not.toContain('Örnek özel');
+    expect(await db.timelineEvent.count({ where: { action: 'export', entityType: 'Owner' } })).toBe(2);
+  });
+
+  it('applies bulk tags atomically against versions and restores saved views through Trash', async () => {
+    const first = (await request('POST', '/api/players', { name: 'Örnek Etiket A', primaryPosition: 'CM' })).json();
+    const second = (await request('POST', '/api/players', { name: 'Örnek Etiket B', primaryPosition: 'CM' })).json();
+    const records = [first, second].map(row => ({ id: row.id, version: row.version }));
+    expect((await request('POST', '/api/players/tags', { records: [{ ...records[0], version: 99 }, records[1]], mode: 'add', tag: 'Örnek hedef' })).statusCode).toBe(409);
+    expect((await db.player.findUniqueOrThrow({ where: { id: second.id } })).tags).toEqual([]);
+    expect((await request('POST', '/api/players/tags', { records, mode: 'add', tag: 'Örnek hedef' })).statusCode).toBe(200);
+    expect((await request('GET', `/api/players?tag=${encodeURIComponent('Örnek hedef')}`)).json().total).toBe(2);
+    const updates = await db.timelineEvent.findMany({ where: { entityType: 'Player', action: 'update' } });
+    expect(updates).toHaveLength(2); expect(updates[0].batchId).toBe(updates[1].batchId);
+    const viewInput = { name: 'Örnek İzleme', filters: { q: 'Etiket', status: 'TARGET', tag: 'Örnek hedef', sort: 'name', direction: 'desc' }, columns: ['position', 'tags', 'status'] };
+    const created = await request('POST', '/api/players/views', viewInput);
+    expect(created.statusCode, created.body).toBe(201); const view = created.json();
+    expect((await request('GET', '/api/players/views')).json()).toMatchObject([{ id: view.id, ...viewInput }]);
+    await db.savedView.create({ data: { name: 'Örnek Eski Görünüm', tableName: 'Player', filters: { legacy: true }, columns: [], sort: {} } });
+    expect((await request('GET', '/api/players/views')).json()).toEqual(expect.arrayContaining([expect.objectContaining({ name: 'Örnek Eski Görünüm', unavailable: true })]));
+    expect((await request('DELETE', `/api/players/views/${view.id}`, { version: view.version })).statusCode).toBe(200);
+    const trash = await db.trashEntry.findFirstOrThrow({ where: { entityId: view.id } });
+    expect((await request('POST', `/api/trash/${trash.id}/restore`, { version: trash.version, recordVersion: view.version + 1 })).statusCode).toBe(200);
+    expect((await request('GET', '/api/players/views')).json()).toEqual(expect.arrayContaining([expect.objectContaining({ id: view.id, version: view.version + 2 })]));
+  });
+});
+
+describe('club source and update registry', () => {
+  it('manages manual sources with multiple live club links, versions and trash restore', async () => {
+    const first = await club('Örnek Kaynak A'); const second = await club('Örnek Kaynak B');
+    const input = { name: 'Örnek Kulüp Kaynağı', type: 'OFFICIAL', url: 'https://example.com/news', trustLevel: 'OFFICIAL', linkedClubIds: [first.id, second.id] };
+    expect((await request('POST', '/api/sources', { ...input, scanMethod: 'RSS' })).statusCode).toBe(400);
+    expect((await request('POST', '/api/sources', { ...input, url: 'javascript:alert(1)' })).statusCode).toBe(400);
+    expect((await request('POST', '/api/sources', { ...input, url: 'https://user:secret@example.com/news' })).statusCode).toBe(400);
+    const created = await request('POST', '/api/sources', input);
+    expect(created.statusCode, created.body).toBe(201);
+    const source = created.json();
+    expect(source).toMatchObject({ scanMethod: 'MANUAL', linkedClubIds: [first.id, second.id], version: 1 });
+    const filtered = await request('GET', `/api/sources?clubId=${first.id}`);
+    expect(filtered.json().items).toMatchObject([{ id: source.id, clubs: [{ id: first.id, name: first.name }, { id: second.id, name: second.name }] }]);
+    const updated = await request('PATCH', `/api/sources/${source.id}`, { ...input, version: 1, linkedClubIds: [second.id] });
+    expect(updated.statusCode, updated.body).toBe(200);
+    expect((await request('PATCH', `/api/sources/${source.id}`, { ...input, version: 1 })).statusCode).toBe(409);
+    expect((await request('GET', `/api/clubs/${first.id}/sections/sources`)).json().items).toEqual([]);
+    expect((await request('GET', `/api/clubs/${second.id}/sections/sources`)).json().items).toMatchObject([{ href: input.url, external: true }]);
+    expect((await request('DELETE', `/api/sources/${source.id}`, { version: 2 })).statusCode).toBe(200);
+    expect((await request('GET', '/api/sources')).json().items).toEqual([]);
+    const item = await db.trashEntry.findFirstOrThrow({ where: { entityId: source.id } });
+    expect((await request('POST', `/api/trash/${item.id}/restore`, { version: item.version, recordVersion: 3 })).statusCode).toBe(200);
+    expect((await request('GET', '/api/sources')).json().items).toMatchObject([{ id: source.id, version: 4 }]);
+  });
+
+  it('applies a verified stadium update only after approval and keeps injury notices metadata-only', async () => {
+    const target = await club(); const url = `/api/clubs/${target.id}/update-proposals`;
+    const evidence = { date: '2026-01-12', sourceUrl: 'https://example.com/statement' };
+    const draft = { ...evidence, type: 'stadium', name: 'Örnek Duyuru', summary: 'Örnek stadyum değişikliği', stadium: 'Örnek Stadyum' };
+    const created = await request('POST', url, draft);
+    expect(created.statusCode, created.body).toBe(201);
+    const proposal = created.json();
+    expect((await db.club.findUniqueOrThrow({ where: { id: target.id } })).stadium).toBeNull();
+    expect((await request('GET', '/api/overview')).json().pendingUpdates).toMatchObject([{ id: proposal.id }]);
+    const route = `/api/proposals/${proposal.id}`;
+    const preview = await request('GET', `${route}/context`);
+    expect(preview.json()).toMatchObject({ kind: 'news', club: { stadium: null, version: target.version }, update: { stadium: draft.stadium } });
+    const input = { action: 'approve', sourceUrl: evidence.sourceUrl, version: proposal.version, clubVersion: target.version,
+      update: { name: draft.name, summary: draft.summary, date: evidence.date, stadium: 'Örnek Düzeltilen Stadyum' } };
+    expect((await request('POST', `${route}/review`, { ...input, clubVersion: target.version + 1 })).statusCode).toBe(409);
+    expect((await request('POST', `${route}/review`, { ...input, sourceUrl: undefined })).statusCode).toBe(400);
+    const applied = await request('POST', `${route}/review`, input);
+    expect(applied.statusCode, applied.body).toBe(200);
+    expect(await db.club.findUniqueOrThrow({ where: { id: target.id } })).toMatchObject({ stadium: input.update.stadium, fieldProvenance: { stadium: { sourceUrl: evidence.sourceUrl, verificationStatus: 'VERIFIED' } } });
+    expect((await request('POST', `${route}/review`, input)).statusCode).toBe(404);
+    expect((await request('POST', url, { ...evidence, type: 'injury', summary: 'Örnek sağlık ayrıntısı' })).statusCode).toBe(400);
+    const injury = await request('POST', url, { ...evidence, type: 'injury' });
+    expect(injury.statusCode, injury.body).toBe(201);
+    expect(injury.json()).toMatchObject({ type: 'injury', summary: '', payload: {} });
+    expect((await request('POST', `/api/proposals/${injury.json().id}/review`, { ...input, version: 1, clubVersion: target.version + 1, update: { date: evidence.date, summary: 'Örnek sağlık ayrıntısı' } })).statusCode).toBe(400);
+  });
+});
+
+describe('club staff approval', () => {
+  it('imports validated TFF CSV as pending proposals, binding the preview and deduplicating after review', async () => {
+    const team = await club();
+    const person = (await request('POST', '/api/people', { name: 'Örnek, CSV Adayı', role: 'HEAD_COACH' })).json();
+    const endpoint = `/api/clubs/${team.id}/staff-import`;
+    const header = '\uFEFFaction;person;role;effectiveDate;sourceUrl\r\n';
+    const row = 'coach_appointment;"Örnek, CSV Adayı";HEAD_COACH;2026-01-12;https://www.tff.org/example';
+    const csv = `${header}${row}\r\n${row}`;
+    const invalid = (await request('POST', `${endpoint}/preview`, { csv: `${header}${row.replace('www.tff.org', 'www.tff.org.example.com')}` })).json();
+    expect(invalid).toMatchObject({ issues: [{ line: 2, code: 'ROW' }], previewToken: null });
+    const preview = (await request('POST', `${endpoint}/preview`, { csv })).json();
+    expect(preview.rows).toMatchObject([{ line: 2, person: 'Örnek, CSV Adayı', duplicate: false }, { line: 3, duplicate: true }]);
+    expect(await db.updateProposal.count()).toBe(0);
+    expect((await request('POST', `${endpoint}/apply`, { csv: csv.replace('2026-01-12', '2026-01-13'), previewToken: preview.previewToken })).statusCode).toBe(409);
+    const applied = await request('POST', `${endpoint}/apply`, { csv, previewToken: preview.previewToken });
+    expect(applied.statusCode, applied.body).toBe(201);
+    expect(applied.json().ids).toHaveLength(1);
+    const proposal = await db.updateProposal.findFirstOrThrow();
+    expect(proposal).toMatchObject({ approvalStatus: 'PENDING', sourceType: 'TFF', verificationStatus: 'UNVERIFIED' });
+    expect(await db.relation.count()).toBe(0);
+    const context = (await request('GET', `/api/proposals/${proposal.id}/context`)).json();
+    expect(context.candidate).toMatchObject({ person: 'Örnek, CSV Adayı', role: 'HEAD_COACH', effectiveDate: '2026-01-12' });
+    const approval = await request('POST', `/api/proposals/${proposal.id}/review`, { action: 'approve', personId: person.id, version: proposal.version,
+      personVersion: person.version, clubVersion: team.version, effectiveDate: '2026-01-12', staffRole: 'HEAD_COACH', sourceUrl: proposal.sourceUrl });
+    expect(approval.statusCode, approval.body).toBe(200);
+    expect(await db.relation.findFirstOrThrow()).toMatchObject({ sourceType: 'TFF', verificationStatus: 'VERIFIED' });
+    expect((await request('POST', `${endpoint}/preview`, { csv })).json()).toMatchObject({ previewToken: null, rows: [{ duplicate: true }, { duplicate: true }] });
+    expect((await request('POST', `${endpoint}/apply`, { csv, previewToken: preview.previewToken })).statusCode).toBe(409);
+  });
+
+  async function setup(type: 'coach_departure' | 'coach_appointment') {
+    const team = await club();
+    const person = async (name: string, role: 'HEAD_COACH' | 'ASSISTANT') => {
+      const result = await request('POST', '/api/people', { name, role });
+      expect(result.statusCode, result.body).toBe(201);
+      return result.json<{ id: string; version: number }>();
+    };
+    const [head, assistant, candidate] = await Promise.all([
+      person('Örnek Teknik Direktör', 'HEAD_COACH'), person('Örnek Yardımcı', 'ASSISTANT'), person('Örnek Aday', 'HEAD_COACH'),
+    ]);
+    const startDate = new Date('2024-01-01T00:00:00Z');
+    const tenure = (personId: string, role: string | null) => db.relation.create({ data: { fromType: 'Person', fromId: personId, toType: 'Club', toId: team.id, relation: 'memberOf', role, startDate } });
+    const [headTenure, headOtherRole, assistantTenure] = await Promise.all([
+      tenure(head.id, null), tenure(head.id, 'YOUTH_COORDINATOR'), tenure(assistant.id, 'ASSISTANT'),
+    ]);
+    const created = await request('POST', `/api/clubs/${team.id}/staff-proposals`, { name: 'Örnek Personel Önerisi', type, summary: 'Örnek kaynaklı değişiklik' });
+    expect(created.statusCode, created.body).toBe(201);
+    const proposal = created.json<{ id: string; version: number; approvalStatus: string }>();
+    expect(proposal.approvalStatus).toBe('PENDING');
+    expect(await db.relation.count({ where: { toId: team.id } })).toBe(3);
+    const route = `/api/proposals/${proposal.id}`;
+    const context = async () => {
+      const result = await request('GET', `${route}/context`);
+      expect(result.statusCode, result.body).toBe(200);
+      return result.json().people.find((row: { id: string }) => row.id === head.id);
+    };
+    const review = (details: Record<string, unknown>) => request('POST', `${route}/review`, {
+      action: 'approve', version: proposal.version, clubVersion: team.version, effectiveDate: '2025-01-15', sourceUrl: 'https://example.com/notice', ...details,
+    });
+    const endDate = async (id: string) => (await db.relation.findUniqueOrThrow({ where: { id } })).endDate;
+    return { team, head, assistant, candidate, headTenure, headOtherRole, assistantTenure, proposal, context, review, endDate };
+  }
+
+  it('closes only the explicitly selected departing person and logs an atomic follow-up', async () => {
+    const { team, head, headTenure, headOtherRole, assistantTenure, context, review, endDate } = await setup('coach_departure');
+    expect((await review({})).json().code).toBe('PERSON_REQUIRED');
+    expect(await endDate(headTenure.id)).toBeNull();
+    const selection = await context();
+    const result = await review({ personId: head.id, personVersion: selection.version, tenureToken: selection.tenureToken });
+    expect(result.statusCode, result.body).toBe(200);
+    expect(await endDate(headTenure.id)).toEqual(new Date('2025-01-15T00:00:00Z'));
+    expect(await endDate(headOtherRole.id)).toEqual(new Date('2025-01-15T00:00:00Z'));
+    expect(await endDate(assistantTenure.id)).toBeNull();
+    expect(await db.task.findFirst({ where: { entityId: team.id, priority: 'HIGH' } })).not.toBeNull();
+    const events = await db.timelineEvent.findMany({ where: { action: 'coach_departure' } });
+    expect(events.map(row => row.entityId)).toEqual(expect.arrayContaining([team.id, head.id]));
+    expect(new Set(events.map(row => row.batchId)).size).toBe(1);
+  });
+
+  it('creates an appointment without closing any open tenure when no predecessor is selected', async () => {
+    const { team, candidate, headTenure, assistantTenure, review, endDate } = await setup('coach_appointment');
+    const approval = { personId: candidate.id, personVersion: candidate.version, staffRole: 'HEAD_COACH' };
+    expect(await db.relation.count({ where: { fromId: candidate.id } })).toBe(0);
+    const result = await review(approval);
+    expect(result.statusCode, result.body).toBe(200);
+    const created = await db.relation.findFirstOrThrow({ where: { fromId: candidate.id, toId: team.id } });
+    expect(created).toMatchObject({ role: 'HEAD_COACH', startDate: new Date('2025-01-15T00:00:00Z'), sourceUrl: 'https://example.com/notice', verificationStatus: 'VERIFIED' });
+    expect(await endDate(headTenure.id)).toBeNull();
+    expect(await endDate(assistantTenure.id)).toBeNull();
+    expect((await review(approval)).statusCode).toBe(404);
+    expect(await db.relation.count({ where: { fromId: candidate.id } })).toBe(1);
+  });
+
+  it('rejects a stale predecessor selection and ends only the selected head coach role after refresh', async () => {
+    const { head, candidate, headTenure, headOtherRole, assistantTenure, proposal, context, review, endDate } = await setup('coach_appointment');
+    const approval = { personId: candidate.id, personVersion: candidate.version, staffRole: 'HEAD_COACH' };
+    const initial = await context();
+    await db.relation.update({ where: { id: headTenure.id }, data: { version: { increment: 1 } } });
+    expect((await review({ ...approval, predecessor: { personId: head.id, version: initial.version, tenureToken: initial.headCoachToken } })).json().code).toBe('PREVIEW_STALE');
+    expect(await db.relation.count({ where: { fromId: candidate.id } })).toBe(0);
+    expect((await db.updateProposal.findUniqueOrThrow({ where: { id: proposal.id } })).approvalStatus).toBe('PENDING');
+    const refreshed = await context();
+    const result = await review({ ...approval, predecessor: { personId: head.id, version: refreshed.version, tenureToken: refreshed.headCoachToken } });
+    expect(result.statusCode, result.body).toBe(200);
+    expect(await endDate(headTenure.id)).toEqual(new Date('2025-01-15T00:00:00Z'));
+    expect(await endDate(headOtherRole.id)).toBeNull();
+    expect(await endDate(assistantTenure.id)).toBeNull();
+  });
+});
+
 describe('security baseline', () => {
+  it('exports a versioned English profile with provenance and excludes sensitive data', async () => {
+    const source = { sourceUrl: 'https://example.com/profile-source', sourceType: 'OFFICIAL', retrievedAt: '2026-11-02T00:00:00Z', verificationStatus: 'VERIFIED' };
+    const player = (await request('POST', '/api/players', {
+      name: 'Örnek ŞĞİ Profili', primaryPosition: 'CM', birthDate: '2000-02-01', fieldProvenance: { name: source },
+    })).json();
+    await db.player.update({ where: { id: player.id }, data: { healthNotes: encrypt('Örnek hassas sağlık kaydı', 'Player.healthNotes'), notes: 'Örnek özel not', heightCm: 181 } });
+    const path = `/api/documents/profile/${player.id}`;
+    const input = { format: 'docx', language: 'en', version: player.version };
+    expect((await app.inject({ method: 'POST', url: path, headers: { origin }, payload: input })).statusCode).toBe(401);
+    expect((await request('POST', path, { ...input, version: 99 })).statusCode).toBe(409);
+    expect((await request('POST', path, { ...input, includeSensitive: true })).statusCode).toBe(400);
+    const result = await request('POST', path, input);
+    expect(result.statusCode).toBe(200);
+    expect(result.headers['cache-control']).toBe('no-store');
+    expect(result.headers['content-disposition']).toContain('metodo-profile-en.docx');
+    const zip = await JSZip.loadAsync(result.rawPayload);
+    const xml = await zip.file('word/document.xml')!.async('string');
+    expect(xml).toContain('Player profile');
+    expect(xml).toContain(source.sourceUrl);
+    expect(xml).toContain('Height (cm) · 181');
+    expect(xml).not.toMatch(/2000-02-01|hassas sağlık kaydı|Örnek özel not|v1\.dev\./);
+    expect(await zip.file('word/footer1.xml')!.async('string')).toContain('Record version 1');
+    const logged = await db.timelineEvent.findFirstOrThrow({ where: { entityId: player.id, action: 'export' } });
+    expect(logged.diffs).toMatchObject({ format: 'docx', language: 'en', template: 'profile-1', sourceVersions: [{ type: 'Player', id: player.id, version: 1 }], snapshotHash: expect.stringMatching(/^[a-f0-9]{64}$/) });
+  });
+  it('keeps procedural migration batches intact and rolls back a failed batch', async () => {
+    const adapter = await new MigrationPg({ connectionString: process.env.DATABASE_URL }).connect();
+    try {
+      await adapter.executeScript("DO $test$ BEGIN PERFORM length('a;b'); PERFORM 1; END $test$; SELECT 1;");
+      await expect(adapter.executeScript('CREATE TABLE "_MetodoMigrationAtomicTest" (id int); DO $test$ BEGIN RAISE EXCEPTION \'expected migration failure\'; END $test$;')).rejects.toThrow();
+      const rows = await db.$queryRaw<{ name: string | null }[]>`SELECT to_regclass('public."_MetodoMigrationAtomicTest"')::text AS name`;
+      expect(rows[0].name).toBeNull();
+    } finally { await db.$executeRawUnsafe('DROP TABLE IF EXISTS "_MetodoMigrationAtomicTest"'); await adapter.dispose(); }
+  });
+  it('enables row security for every CRM table and never grants the public role table access', async () => {
+    const names = [...Prisma.dmmf.datamodel.models.map(model => model.dbName ?? model.name), '_prisma_migrations'];
+    const rows = await db.$queryRaw<{ name: string; enabled: boolean }[]>(Prisma.sql`SELECT c.relname::text AS name, c.relrowsecurity AS enabled FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace WHERE n.nspname = 'public' AND c.relname::text IN (${Prisma.join(names)})`);
+    expect(rows).toHaveLength(names.length); expect(rows.every(row => row.enabled)).toBe(true);
+    const grants = await db.$queryRaw<{ table_name: string }[]>(Prisma.sql`SELECT table_name::text FROM information_schema.table_privileges WHERE table_schema = 'public' AND grantee IN ('PUBLIC', 'anon', 'authenticated') AND table_name IN (${Prisma.join(names)})`);
+    expect(grants).toEqual([]);
+  });
+  it('version-checks privacy acknowledgement, preserves it across sessions and renews outdated notices', async () => {
+    const state = (await request('GET', '/api/privacy')).json();
+    expect(state.acknowledgementRequired).toBe(true);
+    expect((await request('POST', '/api/privacy/acknowledge', { version: state.version, noticeVersion: 'old', language: 'tr' })).statusCode).toBe(400);
+    expect((await request('POST', '/api/privacy/acknowledge', { version: state.version + 1, noticeVersion: state.noticeVersion, language: 'tr' })).statusCode).toBe(409);
+    const input = { version: state.version, noticeVersion: state.noticeVersion, language: 'en' };
+    expect((await request('POST', '/api/privacy/acknowledge', input)).statusCode).toBe(200);
+    expect((await request('POST', '/api/privacy/acknowledge', input)).statusCode).toBe(200);
+    await login(); expect((await request('GET', '/api/privacy')).json().acknowledgementRequired).toBe(false);
+    const saved = await db.userSettings.findUniqueOrThrow({ where: { ownerId: 'owner' } });
+    expect(saved.privacyAcknowledgedLanguage).toBe('en'); expect(saved.privacyAcknowledgedAt).not.toBeNull();
+    expect(await db.auditLog.count({ where: { entityId: saved.id } })).toBe(1);
+    await db.userSettings.update({ where: { id: saved.id }, data: { privacyNoticeVersion: 'older' } });
+    expect((await request('GET', '/api/privacy')).json().acknowledgementRequired).toBe(true);
+  });
+  it('encrypts incident contact, masks settings and logs reveals without the value', async () => {
+    const state = (await request('GET', '/api/privacy')).json(); const value = 'incident@example.com';
+    expect((await request('PATCH', '/api/privacy/incident-contact', { version: state.version, value })).statusCode).toBe(200);
+    expect((await request('PATCH', '/api/privacy/incident-contact', { version: state.version, value: 'replacement@example.com' })).statusCode).toBe(409);
+    const saved = await db.userSettings.findUniqueOrThrow({ where: { ownerId: 'owner' } });
+    expect(saved.breachContact).not.toContain(value); expect(decrypt(saved.breachContact!, 'UserSettings.breachContact')).toBe(value);
+    expect((await request('GET', '/api/settings')).body).not.toContain(saved.breachContact!);
+    expect((await request('PATCH', '/api/settings', { version: saved.version, theme: 'light' })).body).not.toContain(saved.breachContact!);
+    expect((await request('GET', '/api/privacy')).body).not.toContain(value);
+    const reveal = await request('POST', '/api/privacy/incident-contact/reveal');
+    expect(reveal.json()).toEqual({ value, expiresIn: 60 });
+    const audit = await db.auditLog.findMany({ where: { entityId: saved.id } });
+    expect(JSON.stringify(audit)).not.toContain(value); expect(audit.filter(row => row.action === 'reveal')).toHaveLength(1);
+    expect((await request('POST', '/api/privacy/incident-contact/reveal', { extra: value })).statusCode).toBe(400);
+    expect((await app.inject({ method: 'POST', url: '/api/privacy/incident-contact/reveal', headers: { cookie, origin } })).statusCode).toBe(403);
+  });
   it('returns 401 without authentication and 403 outside the allowlist (R15)', async () => {
     expect((await app.inject('/api/clubs')).statusCode).toBe(401);
     expect((await login('outsider@example.com')).statusCode).toBe(403);
@@ -180,7 +853,7 @@ describe('example seed and suggestion transaction', () => {
   it('blocks verification without a source and never applies an unsupported proposal', async () => {
     await seedExamples(db);
     expect((await request('POST', `/api/proposals/${exampleId('proposal')}/review`, { version: 1, action: 'approve' })).statusCode).toBe(400);
-    expect((await request('POST', `/api/proposals/${exampleId('proposal')}/review`, { version: 1, action: 'approve', sourceUrl: 'https://example.com/source' })).statusCode).toBe(409);
+    expect((await request('POST', `/api/proposals/${exampleId('proposal')}/review`, { version: 1, action: 'approve', sourceUrl: 'https://example.com/source' })).statusCode).toBe(400);
   });
 });
 
@@ -226,16 +899,58 @@ describe('foundation acceptance gaps', () => {
     expect((await request('DELETE', `/api/trash/${item.id}`, { version: item.version, recordVersion: item.recordVersion, previewToken: plan.previewToken })).statusCode).toBe(409);
     expect(await db.club.count()).toBe(1);
   });
-  it('applies versioned retention settings and logs automatic purge', async () => {
+  it('applies retention only to previewed deleted records and never through daily jobs', async () => {
     const settings = (await request('GET', '/api/settings')).json();
     expect((await request('PATCH', '/api/settings', { version: settings.version, retentionDays: { Club: 2 } })).statusCode).toBe(200);
     expect((await request('PATCH', '/api/settings', { version: settings.version, retentionDays: { Club: 3 } })).statusCode).toBe(409);
     const row = await club(); await request('DELETE', `/api/records/Club/${row.id}`, { version: 1 });
     const item = await db.trashEntry.findFirstOrThrow();
     expect(item.expiresAt.getTime() - item.createdAt.getTime()).toBeCloseTo(2 * 86400_000, -3);
-    expect(await purgeExpired(db, new Date(item.expiresAt.getTime() - 1))).toEqual({ purged: 0, blocked: 0 });
-    expect(await purgeExpired(db, new Date(item.expiresAt.getTime() + 1))).toEqual({ purged: 1, blocked: 0 });
-    expect(await db.club.count()).toBe(0); expect(await db.timelineEvent.count({ where: { action: 'purge', entityId: row.id } })).toBe(1);
+    await db.club.update({ where: { id: row.id }, data: { deletedAt: new Date(Date.now() - 3 * 86400_000) } });
+    await db.trashEntry.update({ where: { id: item.id }, data: { expiresAt: new Date(Date.now() - 86400_000) } });
+    expect((await dailyJobs()).trash).toEqual({ purged: 0, blocked: 0 });
+    expect(await db.club.count({ where: { id: row.id } })).toBe(1);
+    const plan = (await request('POST', '/api/admin/retention/preview', { table: 'Club' })).json();
+    expect(plan.records).toContainEqual({ type: 'Club', id: row.id, version: 2 });
+    const input = { table: 'Club', asOf: plan.asOf, previewToken: plan.previewToken };
+    expect((await request('POST', '/api/admin/retention/purge', input)).statusCode).toBe(200);
+    expect((await request('POST', '/api/admin/retention/purge', input)).statusCode).toBe(409);
+    expect(await db.club.count()).toBe(0); expect(await db.auditLog.count({ where: { action: 'purge' } })).toBe(1);
+  });
+  it('covers every table and defaults to indefinite retention outside security expiry', async () => {
+    const catalog = (await request('GET', '/api/admin/retention')).json();
+    expect(catalog.tables.map((row: { type: string }) => row.type).sort()).toEqual(Prisma.dmmf.datamodel.models.map(model => model.name).sort());
+    expect(catalog.periods).toEqual({}); expect(catalog.automaticBusinessDeletion).toBe(false);
+    for (const retentionDays of [{ Unknown: 1 }, { Session: 1 }, { Club: 0 }]) expect((await request('PATCH', '/api/settings', { version: catalog.version, retentionDays })).statusCode).toBe(400);
+    expect((await request('PATCH', '/api/settings', { version: catalog.version, retentionDays: { WorkLog: 14, MedicalRecord: 365 } })).statusCode).toBe(200);
+    const row = await db.workLog.create({ data: { name: 'Örnek silinmiş çalışma', date: new Date('2020-01-01'), summary: 'Örnek not', category: 'Örnek kategori', durationMin: 15, status: 'DONE', deletedAt: new Date('2020-01-01') } });
+    let plan = (await request('POST', '/api/admin/retention/preview', { table: 'WorkLog' })).json();
+    expect(plan.records).toContainEqual({ type: 'WorkLog', id: row.id, version: 1 });
+    const state = (await request('GET', '/api/settings')).json();
+    expect((await request('PATCH', '/api/settings', { version: state.version, retentionDays: {} })).statusCode).toBe(200);
+    expect((await request('POST', '/api/admin/retention/purge', { table: 'WorkLog', asOf: plan.asOf, previewToken: plan.previewToken })).statusCode).toBe(409);
+    plan = (await request('POST', '/api/admin/retention/preview', { table: 'WorkLog' })).json(); expect(plan.total).toBe(0);
+    expect(await db.workLog.count()).toBe(1);
+  });
+  it('rejects stale retention previews and blocks active dependent business records', async () => {
+    const state = (await request('GET', '/api/settings')).json(); await request('PATCH', '/api/settings', { version: state.version, retentionDays: { Club: 1 } });
+    const row = await club(); await request('DELETE', `/api/records/Club/${row.id}`, { version: 1 });
+    await db.club.update({ where: { id: row.id }, data: { deletedAt: new Date('2020-01-01') } });
+    let plan = (await request('POST', '/api/admin/retention/preview', { table: 'Club' })).json();
+    await db.note.create({ data: { entityType: 'Club', entityId: row.id, text: 'Örnek yeni bağlantı' } });
+    expect((await request('POST', '/api/admin/retention/purge', { table: 'Club', asOf: plan.asOf, previewToken: plan.previewToken })).statusCode).toBe(409);
+    await db.player.create({ data: { name: 'Örnek Korunacak Oyuncu', searchName: 'ornek korunacak oyuncu', primaryPosition: 'CM', currentClubId: row.id } });
+    plan = (await request('POST', '/api/admin/retention/preview', { table: 'Club' })).json(); expect(plan.canPurge).toBe(false);
+    expect((await request('POST', '/api/admin/retention/purge', { table: 'Club', asOf: plan.asOf, previewToken: plan.previewToken })).statusCode).toBe(409);
+    expect(await db.club.count()).toBe(1); expect(await db.player.count()).toBe(1); expect(await db.note.count()).toBe(1);
+  });
+  it('exposes only field-view metadata even if a historical log has extra sensitive properties', async () => {
+    const value = 'contact@example.com';
+    await db.auditLog.create({ data: { actor: 'owner', action: 'reveal', entityType: 'Person', entityId: exampleId('view'), diffs: { field: 'email', value, arbitrary: 'sensitive extra' } } });
+    const result = (await request('GET', '/api/admin/access-log')).json();
+    expect(result.items[0]).toMatchObject({ field: 'email', actor: 'owner', entityType: 'Person' });
+    expect(JSON.stringify(result)).not.toContain(value); expect(JSON.stringify(result)).not.toContain('sensitive extra');
+    expect(Object.keys(result.items[0]).sort()).toEqual(['id', 'actor', 'entityType', 'entityId', 'field', 'occurredAt'].sort());
   });
   it('removes examples and unflagged dependents while preserving unrelated records (R11)', async () => {
     await seedExamples(db); const saved = await club('Örnek Korunacak Kayıt');

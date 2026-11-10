@@ -1,0 +1,28 @@
+export const fileTr = {
+  fileCleanup: 'Onaylanmış dosya temizliği', fileCleanupHelp: 'Yalnız önceden onaylanmış silmeler ve başarısız yüklemelerden kalan dosyalar temizlenir.', fileCleanupPending: 'Bekleyen dosya: {{count}}', fileCleanupRetry: 'Dosya temizliğini yeniden dene',
+  modelProcessingConsent: 'Belge işleme onayları', modelStorageDeletion: 'Dosya temizleme kuyruğu',
+  filesTitle: 'Özel dosyalar', fileSelect: 'Dosya seç', fileUpload: 'Dosyayı yükle',
+  filePolicy: 'En fazla 10 MB: PDF, JPEG, PNG veya WebP. Fotoğraflar 1600 piksele küçültülür; metaveri ve konum bilgisi kaldırılır. Maç videosu yüklenmez.',
+  fileStorageMissing: 'Kalıcı özel depolama henüz yapılandırılmadı.', fileDownload: 'İndirme bağlantısı oluştur', fileOpen: 'Dosyayı indir',
+  fileExpires: 'Bağlantı 5 dakika geçerlidir. Dosya erişimi günlüğe kaydedilir.',
+  fileProcessing: 'Belge işleme', processingUnavailable: 'Henüz bir belge işleme adaptörü yapılandırılmadı. Sözleşme okuyucu ve yerel OCR ayrı paketlerde eklenecek.',
+  processingText: 'İşlenecek metin', processingAdapter: 'İşlem adaptörü', processingPreview: 'Kesin gönderim önizlemesi',
+  processingNotice: 'Aşağıdaki yükün tamamını inceleyin. Sadece gösterilen metin ve belge referansı işlenir. Sonuçlar kanonik kaydı değiştirmez; alan onayı ayrıca gerekir.',
+  processingConfirm: 'Bu belge ve bu kullanım için gösterilen yükün işlenmesini onaylıyorum.', processingRun: 'Onayla ve bir kez işle',
+  processingDone: 'İşleme tamamlandı. Kanonik kayıt değiştirilmedi.', processingLocal: 'Bu bilgisayarda', processingExternal: 'Harici işlem',
+  ProcessingConsent: 'Belge işleme onayları', StorageDeletion: 'Dosya temizleme kuyruğu', document: 'Dosya içeriği', processingPayload: 'İşlem önizlemesi', processingResult: 'İşlem sonucu',
+};
+export const fileEn: Record<keyof typeof fileTr, string> = {
+  fileCleanup: 'Approved file cleanup', fileCleanupHelp: 'Only previously approved deletions and abandoned uploads are cleaned up.', fileCleanupPending: 'Pending files: {{count}}', fileCleanupRetry: 'Retry file cleanup',
+  modelProcessingConsent: 'Document processing consents', modelStorageDeletion: 'File cleanup queue',
+  filesTitle: 'Private files', fileSelect: 'Choose a file', fileUpload: 'Upload file',
+  filePolicy: 'Up to 10 MB: PDF, JPEG, PNG or WebP. Photos are resized to 1600 pixels; metadata and location are removed. Match videos cannot be uploaded.',
+  fileStorageMissing: 'Persistent private storage has not been configured yet.', fileDownload: 'Create download link', fileOpen: 'Download file',
+  fileExpires: 'The link lasts 5 minutes. File access is logged.',
+  fileProcessing: 'Document processing', processingUnavailable: 'No document processing adapter is configured yet. The contract reader and local OCR will be added in separate packages.',
+  processingText: 'Text to process', processingAdapter: 'Processing adapter', processingPreview: 'Exact payload preview',
+  processingNotice: 'Review the entire payload below. Only the displayed text and document reference are processed. Results do not change canonical records; field approval is separate.',
+  processingConfirm: 'I approve processing the displayed payload for this document and this use.', processingRun: 'Approve and process once',
+  processingDone: 'Processing completed. The canonical record was not changed.', processingLocal: 'On this computer', processingExternal: 'External processing',
+  ProcessingConsent: 'Document processing consents', StorageDeletion: 'File cleanup queue', document: 'File contents', processingPayload: 'Processing preview', processingResult: 'Processing result',
+};
