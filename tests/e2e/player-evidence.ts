@@ -63,12 +63,18 @@ export async function exercisePlayerCardEditor(page: Page) {
   await dialog.getByRole('button', { name: 'Kaydet', exact: true }).click();
   await expect(dialog).toHaveCount(0);
   await expect(page.getByRole('heading', { name: 'Örnek biyografi başlığı', exact: true })).toBeVisible();
+  await expect(page.getByText('field_bio', { exact: true })).toHaveCount(0);
 }
 
 export async function exercisePrintCard(page: Page) {
   const printSheet = page.locator('.player-card-print');
   await expect(printSheet).toBeHidden();
   await printSheet.locator('img').evaluate((image: HTMLImageElement) => image.decode());
+  await expect(page.locator('html')).toHaveClass(/\bplayer-card-page\b/);
+  await page.emulateMedia({ media: 'print' });
+  await expect(page.locator('main')).toBeHidden();
+  await expect(printSheet).toBeVisible();
+  await page.emulateMedia({ media: null });
   const pdf = new PDFParse({ data: new Uint8Array(await page.pdf({ printBackground: true })) });
   try {
     const text = (await pdf.getText()).text;

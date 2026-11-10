@@ -26,6 +26,12 @@ export const cardTr = {
   bioHeading: 'Başlık', bioSubheading: 'Alt başlık', bioBold: 'Kalın', bioItalic: 'İtalik', bioBulletList: 'Madde işaretli liste', bioNumberedList: 'Numaralı liste',
   bioLinkAddress: 'Bağlantı adresi', bioAddLink: 'Bağlantı ekle', bioRemoveLink: 'Bağlantıyı kaldır', bioInvalidLink: 'Kullanıcı bilgisi içermeyen tam bir HTTP veya HTTPS adresi girin.',
   bioTooLong: 'Biyografi izin verilen uzunluğu aşıyor.', timeline_player_biography: '{name} · genel bilgiler güncellendi',
+  field_bio: 'Genel bilgiler', field_photo: 'Profil fotoğrafı', field_photoSourceUrl: 'Fotoğraf kaynağı', field_photoRightsNote: 'Fotoğraf kullanım hakkı',
+  field_nationalities: 'Uyruklar', field_euPassport: 'AB pasaportu', field_heightCm: 'Boy', field_weightKg: 'Kilo',
+  field_secondaryPositions: 'İkincil pozisyonlar', field_preferredFoot: 'Tercih edilen ayak', field_currentLeagueId: 'Lig',
+  field_levelScore: 'Seviye puanı', field_levelSubscores: 'Pozisyon kriterleri', field_marketValue: 'Piyasa değeri',
+  field_marketValueCurrency: 'Piyasa değeri para birimi', field_marketValueDate: 'Piyasa değeri tarihi', field_marketValueSourceUrl: 'Piyasa değeri kaynağı',
+  field_transfermarktUrl: 'Transfermarkt profil bağlantısı',
 };
 
 export const cardEn: Record<keyof typeof cardTr, string> = {
@@ -56,4 +62,10 @@ export const cardEn: Record<keyof typeof cardTr, string> = {
   bioHeading: 'Heading', bioSubheading: 'Subheading', bioBold: 'Bold', bioItalic: 'Italic', bioBulletList: 'Bulleted list', bioNumberedList: 'Numbered list',
   bioLinkAddress: 'Link address', bioAddLink: 'Add link', bioRemoveLink: 'Remove link', bioInvalidLink: 'Enter a full HTTP or HTTPS address without user credentials.',
   bioTooLong: 'The biography exceeds the allowed length.', timeline_player_biography: '{name} · general information updated',
+  field_bio: 'General information', field_photo: 'Profile photo', field_photoSourceUrl: 'Photo source', field_photoRightsNote: 'Photo usage rights',
+  field_nationalities: 'Nationalities', field_euPassport: 'EU passport', field_heightCm: 'Height', field_weightKg: 'Weight',
+  field_secondaryPositions: 'Secondary positions', field_preferredFoot: 'Preferred foot', field_currentLeagueId: 'League',
+  field_levelScore: 'Level score', field_levelSubscores: 'Position criteria', field_marketValue: 'Market value',
+  field_marketValueCurrency: 'Market value currency', field_marketValueDate: 'Market value date', field_marketValueSourceUrl: 'Market value source',
+  field_transfermarktUrl: 'Transfermarkt profile link',
 };

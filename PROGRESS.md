@@ -1,6 +1,6 @@
 # Metodo CRM progress
 
-Updated 2026-11-10, Europe/Istanbul. Authoritative scope: SPEC.md + docs/REQUIREMENTS.md; execution ledger: [SESSION_PLAN.md](SESSION_PLAN.md); [100-row acceptance matrix](docs/acceptance-matrix.md). Historical checkpoints remain in Git history; stale statements below older commits do not override this file.
+Updated 2026-11-11, Europe/Istanbul. SPEC.md and docs/REQUIREMENTS.md define the scope. See the [session plan](SESSION_PLAN.md) and [100-row acceptance matrix](docs/acceptance-matrix.md) for the current records. Earlier checkpoints are available in Git history.
 
 ## Current state
 
@@ -32,6 +32,10 @@ Updated 2026-11-10, Europe/Istanbul. Authoritative scope: SPEC.md + docs/REQUIRE
 - Package09 DONE on 2026-11-10. [Exact application commit 186932c CI](https://github.com/metodoagency/Metodo_CRM/actions/runs/42705773858) passed PostgreSQL 16 and 17, including the linked photo and league suitability columns. The local security gate passed 33/33. Package10 remains IN_PROGRESS for sanitized biography and the printable infographic. Milestone B remains open and project acceptance is 10%.
 
 - Package10 checkpoint on 2026-11-11. The owner can edit nationality, EU passport status, measurements, secondary positions, preferred foot, club and league. The card shows the authenticated portrait, current club and league, contract end, manual market value and level score. The print sheet excludes biography, raw birth date and private notes. The owner can separately preview and include age or the league-fit summary for 60 seconds. The API logs access without those values. The print button waits for the portrait to decode or fall back to a placeholder. Embedded views offer a top-level print link. The TR/EN rich editor uses locally bundled Tiptap and a server-side HTML allowlist. New and legacy biographies are sanitized and biography text is excluded from audit diffs. The existing database fields support the card and biography. The previous docs-only CI failed after the shared Chromium and accessibility server reached its request quota. The default browser runner now starts a fresh server for each project and retains both reports. The application rate limits stay in force. Keep Package10 open until the new application commit passes the full PostgreSQL 16/17 CI matrix.
+
+- Package10 local verification passed 110/110 PostgreSQL tests, 36/36 security tests, ten Chromium scenarios and both TR/EN accessibility scans. Each language scan covers 13 routes and the print and biography dialogs. Chromium PDF extraction confirmed that the default card omits the biography and date of birth even while the birth date is visible on screen. The dependency audit reported zero vulnerabilities. Lint, TypeScript, build and 681 bilingual keys passed. The follow-up confines Fastify to loopback in E2E, selects a dedicated local upload directory, disables external processing and verifies the database host before the readiness probe. All twelve browser scenarios passed again with those settings.
+
+- Application commit b7533b2 passed both PostgreSQL 16 and 17 CI jobs. Codex Security reviewed 26 changed files in the matching local tree 868a708 and sealed scan aec58185-7dde-4a74-9400-e64496db093f with zero reportable findings. The review identified a conditional print compatibility defect. The follow-up scopes print styling to the mounted card, checks the class is cleared on navigation, and localizes the provenance labels. The follow-up requires its own CI evidence. [Application CI](https://github.com/metodoagency/Metodo_CRM/actions/runs/42917660579)
 
 ## Milestone gates
 

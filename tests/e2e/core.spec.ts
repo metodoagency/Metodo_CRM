@@ -126,6 +126,7 @@ test('owner creates club and player, suggests a player and reads the shared time
   await expect(page.getByText('01.02.2000', { exact: true })).toHaveCount(0);
   await page.clock.resume();
   await page.getByRole('link', { name: 'Transfer talepleri', exact: true }).click();
+  await expect(page.locator('html')).not.toHaveClass(/\bplayer-card-page\b/);
   await page.getByRole('link', { name: /Örnek Orta Saha Talebi/ }).click();
   await page.getByRole('button', { name: 'Oyuncu öner', exact: true }).click();
   await page.getByLabel('Oyuncu', { exact: true }).selectOption({ label: playerName });

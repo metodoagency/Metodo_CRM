@@ -41,9 +41,9 @@
 .player-rich-editor { min-height: 9rem; padding: .75rem; border: 1px solid var(--border); background: var(--field); border-radius: .5rem; white-space: pre-wrap; }
 .player-rich-editor:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 @media print {
-  html:has(body > .player-card-print), body:has(> .player-card-print) { background: #fff; overflow: visible !important; }
-  body:has(> .player-card-print) > :not(.player-card-print) { display: none !important; }
-  body > .player-card-print { display: block !important; color: #17251c; background: #fff; --border: #b5c5b9; --muted: #354b3c; --field: #f4f7f4; --accent: #2d6239; }
+  html.player-card-page, html.player-card-page body { background: #fff; overflow: visible !important; }
+  html.player-card-page body > :not(.player-card-print) { display: none !important; }
+  html.player-card-page body > .player-card-print { display: block !important; color: #17251c; background: #fff; --border: #b5c5b9; --muted: #354b3c; --field: #f4f7f4; --accent: #2d6239; }
   .player-card-print .player-infographic { break-inside: avoid; }
   .player-card-print .player-infographic-grid { grid-template-columns: repeat(3,minmax(0,1fr)); }
 }

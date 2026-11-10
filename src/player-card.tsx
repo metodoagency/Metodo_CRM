@@ -11,6 +11,10 @@ import { PlayerAvatar } from './player-photo';
 
 type PrivatePreview = { fields: PrivateCardFields; validUntil: number; version: number };
 
+function markPlayerCardPage(portal: HTMLDivElement | null) {
+  document.documentElement.classList.toggle('player-card-page', portal !== null);
+}
+
 export function PlayerCardPanel({ id, version }: { id: string; version: number }) {
   const { t } = useTranslation();
   const card = useQuery({ queryKey: ['player-card', id, version], queryFn: () => api<PlayerCard>(`/api/players/${id}/card`) });
@@ -66,7 +70,7 @@ export function PlayerCardPanel({ id, version }: { id: string; version: number }
     {preview && snapshot && <PrintPreview key={snapshot.version} card={snapshot} print={print} ready={ready} printError={printError} onClose={() => {
       clear(); setPreview(false);
     }} />}
-    {createPortal(<div className="player-card-print">{snapshot && <CardContent card={snapshot}
+    {createPortal(<div className="player-card-print" ref={markPlayerCardPage}>{snapshot && <CardContent card={snapshot}
       details={printFields?.version === snapshot.version ? printFields.fields : undefined}
       print onPortraitReady={() => setReadyPortraitVersion(snapshot.version)} />}</div>, document.body)}
   </section>;
