@@ -1,6 +1,6 @@
 import type { FieldSource } from '../shared/provenance';
 export type RecordType = 'Club' | 'Player' | 'Person' | 'Request';
-export type RecordRow = { id: string; name: string; city?: string; status?: string; primaryPosition?: string; role?: string; relationStatus?: string; currentClub?: RecordRow | null; club?: RecordRow; clubId?: string; requesterId?: string; birthDate?: string; photo?: string | null; photoSourceUrl?: string | null; photoRightsNote?: string | null; isExample: boolean; version: number; createdAt: string; sourceUrl?: string; verificationStatus: string; fieldProvenance: Record<string, FieldSource> };
+export type RecordRow = { id: string; name: string; city?: string; status?: string; primaryPosition?: string; role?: string; relationStatus?: string; currentClub?: RecordRow | null; club?: RecordRow; clubId?: string; requesterId?: string; birthDate?: string; bio?: string; photo?: string | null; photoSourceUrl?: string | null; photoRightsNote?: string | null; isExample: boolean; version: number; createdAt: string; sourceUrl?: string; verificationStatus: string; fieldProvenance: Record<string, FieldSource> };
 export type List = { items: RecordRow[]; total: number; page: number };
 export type ClubRecord = RecordRow & { countryId: string | null; regionId: string | null; lat: number | null; lng: number | null; stadium: string | null; isTracked: boolean; notes: string };
 export type Timeline = { id: string; summaryTr: string; summaryEn: string; createdAt: string; entityType: string; entityId: string };

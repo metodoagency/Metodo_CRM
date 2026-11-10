@@ -34,6 +34,13 @@ export type Suitability = {
   expiresIn: number;
 };
 
+export function bestSuitability(data: Suitability | undefined) {
+  const suitable = data?.results.find(tier => tier.status === 'SUITABLE');
+  if (suitable) return { tier: suitable.tier, status: 'SUITABLE' as const };
+  const close = data?.results.find(tier => tier.status === 'CLOSE');
+  return close ? { tier: close.tier, status: 'CLOSE' as const } : null;
+}
+
 export function evaluateSuitability(settings: unknown, score: number | null, birthDate: string | null, asOf: string): Suitability {
   const { tiers, example } = suitabilityTiers(settings);
   const missing: Suitability['missing'] = [];

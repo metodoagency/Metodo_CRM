@@ -23,6 +23,8 @@ import { PlayerScoringPanel, ScoringWeightsPanel } from './player-scoring';
 import { PlayerMarketPanel } from './player-market';
 import { PlayerPhotoPanel } from './player-photo';
 import { LeagueTiersPanel, PlayerFit } from './player-suitability';
+import { PlayerBiography } from './player-biography';
+import { PlayerCardPanel } from './player-card';
 import { hasCoordinates, type ClubFilters } from '../shared/club-network';
 import type { PrivacyState } from '../shared/privacy';
 import type { ClubRecord, List, RecordRow, RecordType, Overview, Timeline } from './types';
@@ -173,11 +175,12 @@ function Detail() {
   if (record.isError) return <ErrorMessage />; if (!record.data) return <p role="status">{t('loading')}</p>; const row = record.data;
   const timelinePanel = <section className="panel"><div className="panel-header"><h2>{t('timeline')}</h2><ArrowLeftRight size={15} /></div><div className="panel-body">{!timeline.data?.length ? <Empty /> : timeline.data.map(e => <div key={e.id} className="list-line"><span className="activity-dot" /><div><div>{i18n.language === 'tr' ? e.summaryTr : e.summaryEn}</div><p className="muted text-[10px] mt-2">{date(e.createdAt)}</p></div></div>)}</div></section>;
   const overview = <>
+    {type === 'Player' && <PlayerCardPanel key={row.id} id={row.id} version={row.version} />}
     <div className="detail-grid"><div className="space-y-5"><section className="panel"><div className="panel-header"><h2>{t('overview')}</h2><Badge value="unverified" /></div><div className="panel-body">{(type === 'Player' ? ['primaryPosition', 'status'] : type === 'Person' ? ['role'] : ['city']).map(key => <div className="detail-field" key={key}><span className="muted">{t(key === 'primaryPosition' ? 'position' : key)}</span><span>{t(String(row[key as keyof RecordRow] || 'empty'))}</span></div>)}{(type === 'Player' || type === 'Person') && <Sensitive type={type} id={row.id} field="birthDate" />}<div className="detail-field"><span className="muted">{t('version')}</span><span>{row.version}</span></div><p className="muted text-[10px] mt-5">{t('noSensitiveExports')}</p></div></section><section className="panel"><div className="panel-header"><h2>{t('relations')}</h2><Link2 size={15} /></div><div className="panel-body">{['outgoing', 'incoming'].map(direction => <div key={direction}><h3 className="muted text-xs my-4">{t(direction)}</h3>{!links.data?.filter(l => l.direction === direction).length ? <p className="muted text-xs">{t('empty')}</p> : links.data.filter(l => l.direction === direction).map(l => <div key={l.id} className="list-line"><span className="muted">{t(l.relation)}</span>{l.available ? <Link className="ml-auto text-accent" to={`/record/${l.targetType}/${l.targetId}`}>{l.label}</Link> : <span className="ml-auto muted">{t('trash')}</span>}</div>)}</div>)}</div></section></div>{timelinePanel}</div>
     <FieldEvidence sources={row.fieldProvenance ?? {}} />
     {type === 'Player' && <><PlayerPhotoPanel key={row.id} row={row} /><PlayerScoringPanel id={row.id} />
       <section className="panel panel-body mt-5"><h2 className="mb-3">{t('playerFit')}</h2><PlayerFit key={`${row.id}:${row.version}`} id={row.id} name={row.name} /></section>
-      <PlayerMarketPanel key={row.id} id={row.id} /><ProfileExport id={row.id} version={row.version} /></>}
+      <PlayerMarketPanel key={row.id} id={row.id} /><PlayerBiography key={row.id} id={row.id} version={row.version} html={row.bio ?? ''} /><ProfileExport id={row.id} version={row.version} /></>}
     <AttachmentPanel type={type} id={row.id} />
   </>;
   return <><div className="eyebrow"><Link to={`/${endpoints[type]}`}>{t(endpoints[type])}</Link></div><div className="flex justify-between gap-3 flex-wrap"><div><h1>{row.name}</h1><div className="flex gap-3 mt-3"><Badge value={row.status || row.relationStatus || 'NEW'} />{row.isExample && <span className="badge">{t('example')}</span>}</div></div><div className="flex gap-2 items-start">{type === 'Request' && <button className="primary" onClick={() => setModal('suggest')}><Plus size={15} />{t('suggest')}</button>}<button className="secondary" onClick={() => setModal('relation')}><Link2 size={15} />{t('addRelation')}</button><button className="icon-button" aria-label={t('delete')} onClick={() => setModal('delete')}><Trash2 size={15} /></button></div></div>

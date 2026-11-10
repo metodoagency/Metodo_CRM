@@ -27,7 +27,7 @@ for (const language of ['tr', 'en']) test(`main routes have no serious or critic
   const paths = ['/', '/clubs', '/players', '/people', '/requests', '/proposals', '/sources', '/trash', '/settings', '/privacy', '/incident',
     `/record/Club/${club.id}`, `/record/Player/${player.id}`];
   for (const path of paths) {
-    await page.goto(path); await expect(page.locator('main h1')).toBeVisible();
+    await page.goto(path); await expect(page.locator('main h1'), `${language} ${path}`).toBeVisible();
     if (path === '/clubs') await expect(page.locator('.club-map')).toBeVisible();
     if (path.startsWith('/record/Club/')) await expect(page.getByRole('button', {
       name: language === 'tr' ? 'Kulüp bilgilerini düzenle' : 'Edit club information', exact: true,
@@ -37,5 +37,17 @@ for (const language of ['tr', 'en']) test(`main routes have no serious or critic
     })).toBeEnabled();
     const result = await new AxeBuilder({ page }).analyze();
     expect(result.violations.filter(v => v.impact === 'serious' || v.impact === 'critical'), `${language} ${path}`).toEqual([]);
+  }
+  const dialogs = [
+    { name: language === 'tr' ? 'Yazdırma önizlemesi' : 'Print preview', control: language === 'tr' ? 'Kartı yazdır' : 'Print card', role: 'button' },
+    { name: language === 'tr' ? 'Genel bilgileri düzenle' : 'Edit general information', control: language === 'tr' ? 'Biyografi metni' : 'Biography text', role: 'textbox' },
+  ] as const;
+  for (const { name, control, role } of dialogs) {
+    await page.getByRole('button', { name, exact: true }).click();
+    const dialog = page.getByRole('dialog', { name, exact: true });
+    await expect(dialog.getByRole(role, { name: control, exact: true })).toBeVisible();
+    const result = await new AxeBuilder({ page }).include('[role="dialog"]').analyze();
+    expect(result.violations.filter(v => v.impact === 'serious' || v.impact === 'critical'), `${language} ${name}`).toEqual([]);
+    await dialog.getByRole('button', { name: language === 'tr' ? 'Kapat' : 'Close', exact: true }).click();
   }
 });

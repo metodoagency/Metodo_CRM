@@ -10,6 +10,8 @@ import { playerScoringInput, positionWeights } from './player-scoring.js';
 import { marketPage, marketWrite } from './player-market.js';
 import { photoSelection, playerImageMimes } from './player-photo.js';
 import { leagueTiers } from './player-suitability.js';
+import { playerCardWrite, privateCardInput } from './player-card.js';
+import { biographyWrite } from './player-biography.js';
 import { acknowledgePrivacy, incidentContactInput } from './privacy.js';
 import { retentionPeriods, retentionPreviewInput, retentionPurgeInput } from './retention.js';
 import { clubInput, entityTypes, isoDate, personInput, playerInput, relationInput, requestInput, suggestionInput } from './domain.js';
@@ -45,6 +47,10 @@ export const revealInput = z.object({ field: z.enum(['birthDate', 'phone', 'emai
 export const patchInput = versionInput.extend({ changes: z.record(z.string(), z.unknown()) });
 export type ApiContract = { method: 'get' | 'post' | 'patch' | 'delete'; path: string; query?: z.ZodType; params?: z.ZodType; body?: z.ZodType; success?: number; public?: boolean; testOnly?: boolean; csv?: boolean; multipart?: boolean; download?: readonly string[] };
 export const apiContracts: ApiContract[] = [
+  { method: 'patch', path: '/api/players/:id/biography', params: idParams, body: biographyWrite },
+  { method: 'get', path: '/api/players/:id/card', params: idParams },
+  { method: 'patch', path: '/api/players/:id/card', params: idParams, body: playerCardWrite },
+  { method: 'post', path: '/api/players/:id/card/private', params: idParams, body: privateCardInput },
   { method: 'post', path: '/api/players/:id/suitability', params: idParams },
   { method: 'get', path: '/api/players/:id/photo', params: idParams, download: playerImageMimes },
   { method: 'patch', path: '/api/players/:id/photo', params: idParams, body: photoSelection },

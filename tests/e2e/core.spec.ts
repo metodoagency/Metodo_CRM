@@ -3,7 +3,7 @@ import { PDFParse } from 'pdf-parse';
 import { signIn } from './login';
 import { exerciseClubMap } from './club-network';
 import { exercisePlayerList } from './player-list';
-import { exercisePlayerEvidence } from './player-evidence';
+import { exercisePlayerCardEditor, exercisePlayerEvidence, exercisePrintCard } from './player-evidence';
 import pg from 'pg';
 
 for (const language of ['tr', 'en']) test(`privacy notice is shown on first login and acknowledged (${language})`, async ({ page }) => {
@@ -65,6 +65,7 @@ test('table retention defaults to indefinite and purges only the confirmed recor
   await expect(page.getByText('Önizlemedeki kayıtlar kaldırıldı.')).toBeVisible();
 });
 test('owner creates club and player, suggests a player and reads the shared timeline', async ({ page }) => {
+  test.setTimeout(75_000);
   await signIn(page);
   await expect(page.getByRole('heading', { name: 'Ofisiniz, bir bakışta.' })).toBeVisible();
   await page.screenshot({ path: '.local/dashboard.png', fullPage: true });
@@ -83,7 +84,7 @@ test('owner creates club and player, suggests a player and reads the shared time
   await page.getByRole('dialog').getByLabel('Pozisyon', { exact: true }).selectOption('CM');
   await page.getByRole('dialog').getByLabel('Doğum tarihi', { exact: true }).fill('2000-02-01');
   await page.getByRole('button', { name: 'Oluştur', exact: true }).click();
-  await expect(page.getByRole('heading', { name: playerName })).toBeVisible();
+  await expect(page.getByRole('heading', { name: playerName, level: 1, exact: true })).toBeVisible();
   const profileDownload = page.waitForEvent('download');
   const profileResponse = page.waitForResponse(response => response.url().includes('/api/documents/profile/') && response.request().method() === 'POST');
   await page.getByRole('button', { name: 'Profil PDF indir', exact: true }).click();
@@ -109,11 +110,13 @@ test('owner creates club and player, suggests a player and reads the shared time
   await page.getByText('Puan geçmişi', { exact: true }).click();
   await expect(page.getByText('Örnek puanlama', { exact: true })).toBeVisible();
   await exercisePlayerEvidence(page);
+  await exercisePlayerCardEditor(page);
   await expect(page.getByRole('button', { name: '60 saniye göster' })).toBeVisible();
   await expect(page.getByText('2000-02-01', { exact: true })).toHaveCount(0);
   await page.clock.install();
   await page.getByRole('button', { name: '60 saniye göster' }).click();
   await expect(page.getByText('01.02.2000', { exact: true })).toBeVisible();
+  await exercisePrintCard(page);
   await page.getByRole('button', { name: /Uygunluğu hesapla/ }).click();
   const suitability = page.getByRole('dialog', { name: 'Lig uygunluğu' });
   await expect(suitability.getByRole('heading', { name: 'Kademe 1 · Uygun' })).toBeVisible();

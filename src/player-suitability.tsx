@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import { leagueTiers, suitabilityTiers, type LeagueTier, type Suitability } from '../shared/player-suitability';
+import { bestSuitability, leagueTiers, suitabilityTiers, type LeagueTier, type Suitability } from '../shared/player-suitability';
 import { api, ApiError, body } from './api';
 import { ErrorMessage, Modal } from './components';
 
@@ -16,7 +16,7 @@ export function PlayerFit({ id, name }: { id: string; name: string }) {
     const timer = window.setTimeout(() => { reset(); setOpen(false); }, data.expiresIn * 1000);
     return () => window.clearTimeout(timer);
   }, [data, reset]);
-  const best = data?.results.find(tier => tier.status === 'SUITABLE') ?? data?.results.find(tier => tier.status === 'CLOSE');
+  const best = bestSuitability(data);
   const label = data ? best ? `${t('fitTierLabel', { tier: best.tier })} · ${t(`fit_${best.status}`)}`
     : data.missing.length ? t('playerFitUnassessed') : t('fit_UNSUITABLE') : t('fitCheck');
   return <>

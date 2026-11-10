@@ -64,6 +64,89 @@ describe('sensitive paths: player card evidence', () => {
     return result.json();
   }
 
+  it('sanitizes legacy and new biographies, preserves formatting, and excludes biography content from audit diffs', async () => {
+    const player = await createPlayer('Örnek biyografi');
+    const recordUrl = `/api/records/Player/${player.id}`;
+    const url = `/api/players/${player.id}/biography`;
+    const legacy = 'Örnek eski biyografi\nİkinci satır';
+    await db.player.update({ where: { id: player.id }, data: { bio: legacy } });
+    expect((await request('GET', recordUrl)).json().bio).toBe('<p>Örnek eski biyografi<br />İkinci satır</p>');
+    const unsafe = '<svg><script>exampleSvg()</script></svg><img src="https://example.com/blocked.png" onerror="exampleError()"><iframe srcdoc="<script>exampleFrame()</script>">hidden</iframe>'
+      + '<a href="jav&#9;ascript:exampleBad()">Bad scheme</a><a href="//example.com">Relative</a><a href="https://name:secret@example.com">Credentials</a>';
+    await db.player.update({ where: { id: player.id }, data: { bio: `<h2>Örnek eski başlık</h2>${unsafe}` } });
+    const safeLegacy = (await request('GET', recordUrl)).json().bio;
+    expect(safeLegacy).toContain('<h3>Örnek eski başlık</h3>');
+    expect(safeLegacy).not.toMatch(/<svg|<script|<img|<iframe|exampleBad|name:secret|href=/i);
+    const html = '<h3>Örnek başlık</h3><p><b>Örnek gizli biyografi metni</b> <i>Örnek vurgu</i></p><ul><li>Birinci</li></ul><ol><li>İkinci</li></ol>'
+      + '<a href="https://example.com/evidence" target="popup" onclick="exampleClick()">Kaynak</a>' + unsafe;
+    const payload = { version: player.version, html };
+    expect((await app.inject({ method: 'PATCH', url, headers: { origin }, payload })).statusCode).toBe(401);
+    expect((await app.inject({ method: 'PATCH', url, headers: { origin, cookie }, payload })).statusCode).toBe(403);
+    expect((await request('PATCH', url, { ...payload, html: 'a'.repeat(24_001) })).statusCode).toBe(400);
+    const saved = await request('PATCH', url, payload);
+    expect(saved.statusCode, saved.body).toBe(200);
+    const updated = saved.json();
+    expect(updated.bio).toContain('<strong>Örnek gizli biyografi metni</strong>');
+    expect(updated.bio).toContain('<em>Örnek vurgu</em>');
+    expect(updated.bio).toContain('<ul><li>Birinci</li></ul><ol><li>İkinci</li></ol>');
+    expect(updated.bio).toContain('href="https://example.com/evidence" rel="noopener noreferrer" target="_blank"');
+    expect(updated.bio).not.toMatch(/<svg|<script|<img|<iframe|exampleBad|name:secret|onclick/i);
+    expect((await request('GET', recordUrl)).json().bio).toBe(updated.bio);
+    expect((await request('PATCH', url, payload)).statusCode).toBe(409);
+    expect((await request('PATCH', recordUrl, { version: updated.version, changes: { status: 'OWN' } })).statusCode).toBe(200);
+    const logs = await db.auditLog.findMany({ where: { entityId: player.id }, select: { diffs: true } });
+    const history = await request('GET', `${recordUrl}/timeline`);
+    expect(JSON.stringify(logs) + history.body).not.toMatch(/gizli biyografi|exampleError|exampleSvg/);
+    expect((await request('GET', '/api/export/Player')).body).not.toContain('gizli biyografi');
+  });
+
+  it('updates card metadata with a version and projects only owner-scoped printable fields', async () => {
+    const player = await createPlayer('Örnek kart oyuncusu', '2000-02-01');
+    const linked = await club('Örnek kart kulübü');
+    const deleted = await club('Örnek silinen kulüp');
+    await db.club.update({ where: { id: deleted.id }, data: { deletedAt: new Date() } });
+    await db.player.update({ where: { id: player.id }, data: { bio: 'Örnek gizli biyografi', notes: 'Örnek özel not', contractEndDate: new Date('2027-02-01'), marketValue: '9999999999999999.99', marketValueCurrency: 'EUR' } });
+    const url = `/api/players/${player.id}/card`;
+    expect((await app.inject({ url })).statusCode).toBe(401);
+    expect((await request('PATCH', url, { version: player.version, changes: { currentClubId: deleted.id } })).statusCode).toBe(404);
+    expect((await request('PATCH', url, { version: player.version, changes: { secondaryPositions: ['CM'] } })).statusCode).toBe(400);
+    expect((await request('PATCH', url, { version: player.version, changes: { contractEndDate: '2027-12-31' } })).statusCode).toBe(400);
+    const changes = { nationalities: ['Örnek uyruk'], euPassport: false, heightCm: 183, weightKg: '73.45', secondaryPositions: ['DM'], preferredFoot: 'LEFT', currentClubId: linked.id };
+    const saved = await request('PATCH', url, { version: player.version, changes, sourceUrl: 'https://example.com/profile' });
+    expect(saved.statusCode, saved.body).toBe(200);
+    const card = (await request('GET', url)).json();
+    expect(card).toMatchObject({ name: player.name, nationalities: changes.nationalities, euPassport: false, heightCm: 183, weightKg: '73.45',
+      secondaryPositions: ['DM'], preferredFoot: 'LEFT', currentClub: { id: linked.id, name: linked.name }, contractEndDate: '2027-02-01',
+      marketValue: '9999999999999999.99', marketValueCurrency: 'EUR', hasBirthDate: true });
+    expect(JSON.stringify(card)).not.toMatch(/birthDateIndex|storageKey|gizli biyografi|özel not|2000-02-01|example\.com\/profile/);
+    expect((await request('GET', `/api/records/Player/${player.id}`)).json().fieldProvenance.heightCm.sourceUrl).toBe('https://example.com/profile');
+    expect((await request('PATCH', url, { version: player.version, changes })).statusCode).toBe(409);
+    const cleared = await request('PATCH', url, { version: saved.json().version, changes: { weightKg: null } });
+    expect(cleared.statusCode).toBe(200);
+    expect((await request('GET', url)).json().weightKg).toBeNull();
+    expect((await request('PATCH', `/api/records/Player/${player.id}`, { version: cleared.json().version, changes: { primaryPosition: 'DM' } })).statusCode).toBe(200);
+    expect((await request('GET', url)).json()).toMatchObject({ primaryPosition: 'DM', secondaryPositions: [] });
+  });
+
+  it('reveals only individually selected card fields with value-free logging and a version guard', async () => {
+    const birthDate = '2000-02-01';
+    const player = await createPlayer('Örnek süreli kart', birthDate);
+    await db.player.update({ where: { id: player.id }, data: { levelScore: '9.5' } });
+    const url = `/api/players/${player.id}/card/private`;
+    const ageOnly = { version: player.version, includeAge: true, includeFit: false };
+    expect((await app.inject({ method: 'POST', url, headers: { origin, cookie }, payload: ageOnly })).statusCode).toBe(403);
+    expect((await request('POST', url, { ...ageOnly, version: player.version + 1 })).statusCode).toBe(409);
+    expect((await request('POST', url, { ...ageOnly, includeAge: false })).statusCode).toBe(400);
+    const age = await request('POST', url, ageOnly);
+    expect(age.json()).toEqual({ age: ageOn(birthDate), expiresIn: 60 });
+    const fit = await request('POST', url, { ...ageOnly, includeAge: false, includeFit: true });
+    expect(fit.json()).toMatchObject({ fit: { status: 'SUITABLE', example: true }, expiresIn: 60 });
+    expect(fit.json()).not.toHaveProperty('age');
+    expect(fit.body).not.toMatch(/birthDate|referenceAge|scoreMeets|2000-02-01/);
+    const views = await db.auditLog.findMany({ where: { entityId: player.id, action: 'reveal' }, select: { diffs: true } });
+    expect(views.map(view => view.diffs)).toEqual([{ field: 'birthDate' }, { field: 'birthDate' }]);
+  });
+
   it('evaluates versioned owner tiers on demand without disclosing age or birth date', async () => {
     const birthDate = '2000-02-01';
     const age = ageOn(birthDate);

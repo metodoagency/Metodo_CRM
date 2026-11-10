@@ -23,12 +23,15 @@ import { exportPlayers, listPlayers, registerPlayerLists } from './player-list.j
 import { registerPlayerScoring } from './player-scoring.js';
 import { registerPlayerMarket } from './player-market.js';
 import { registerPlayerSuitability } from './player-suitability.js';
+import { registerPlayerCards } from './player-card.js';
+import { cleanBiography, registerPlayerBiographies } from './player-biography.js';
 import { playerFilters } from '../shared/player-list.js';
 
 const idParams = z.object({ id: z.string().uuid() });
 const entityParams = z.object({ type: z.enum(entityTypes), id: z.string().uuid() });
 const listQuery = z.object({ page: z.coerce.number().int().min(1).default(1), q: z.string().max(100).default(''), status: z.enum(['OWN', 'TARGET', 'INTERMEDIARY', 'MANDATED']).optional() }).strict();
 const masked = (row: unknown) => maskSensitive(row);
+const maskedRecord = (row: Awaited<ReturnType<typeof requireEntity>>) => masked('bio' in row ? { ...row, bio: cleanBiography(row.bio) } : row);
 const trashWrite = z.object({ version: z.number().int().positive(), recordVersion: z.number().int().positive() }).strict();
 
 export async function registerRoutes(app: FastifyInstance, db: PrismaClient) {
@@ -42,6 +45,8 @@ export async function registerRoutes(app: FastifyInstance, db: PrismaClient) {
   await registerPlayerScoring(app, db);
   await registerPlayerMarket(app, db);
   await registerPlayerSuitability(app, db);
+  await registerPlayerCards(app, db);
+  await registerPlayerBiographies(app, db);
   app.get('/api/me', async req => ({ id: 'owner', csrfToken: csrfToken(req.cookies[sessionCookie]!) }));
   app.get('/api/settings', async () => masked(await db.userSettings.upsert({ where: { ownerId: 'owner' }, create: { ownerId: 'owner' }, update: {} })));
   app.patch('/api/settings', async req => {
@@ -122,7 +127,7 @@ export async function registerRoutes(app: FastifyInstance, db: PrismaClient) {
   app.post('/api/suggestions', async (req, reply) => reply.code(201).send(await createSuggestion(db, suggestionInput.parse(req.body))));
   app.get('/api/records/:type/:id', async req => {
     const { type, id } = entityParams.parse(req.params);
-    return masked(await requireEntity(db, type, id));
+    return maskedRecord(await requireEntity(db, type, id));
   });
   app.patch('/api/records/:type/:id', async req => {
     const { type, id } = entityParams.parse(req.params);
@@ -136,8 +141,11 @@ export async function registerRoutes(app: FastifyInstance, db: PrismaClient) {
       if (before.version !== version) throw new AppError('STALE_VERSION', 409);
       // Relationship changes use domain flows; this generic editor supports only
       // safe identity and status fields, with explicit schema validation.
-      const changedPosition = 'primaryPosition' in before && 'primaryPosition' in input && input.primaryPosition && input.primaryPosition !== before.primaryPosition;
-      const changesToSave = changedPosition ? { ...input, levelScore: null, levelSubscores: {} } : input;
+      const nextPosition = 'primaryPosition' in input ? input.primaryPosition : undefined;
+      const changedPosition = 'primaryPosition' in before && nextPosition && nextPosition !== before.primaryPosition;
+      const secondaryPositions = changedPosition && 'secondaryPositions' in before && before.secondaryPositions.includes(nextPosition)
+        ? before.secondaryPositions.filter(position => position !== nextPosition) : undefined;
+      const changesToSave = changedPosition ? { ...input, levelScore: null, levelSubscores: {}, ...(secondaryPositions ? { secondaryPositions } : {}) } : input;
       const data: Record<string, unknown> = { ...changesToSave, fieldProvenance: provenanceFor(changesToSave, before.fieldProvenance), version: { increment: 1 } };
       if ('currentClubId' in input && input.currentClubId) await requireEntity(tx, 'Club', input.currentClubId);
       if ('clubId' in input && input.clubId) await requireEntity(tx, 'Club', input.clubId);
@@ -152,8 +160,9 @@ export async function registerRoutes(app: FastifyInstance, db: PrismaClient) {
       if ('deadline' in input && input.deadline) data.deadline = new Date(input.deadline);
       const where = { ...live, id, version };
       const after = type === 'Club' ? await tx.club.update({ where, data }) : type === 'Player' ? await tx.player.update({ where, data }) : type === 'Person' ? await tx.person.update({ where, data }) : await tx.request.update({ where, data });
-      await logEvent(tx, { entityType: type, entityId: id, name: before.name, action: 'update', diffs: { old: before, new: changesToSave }, isExample: before.isExample });
-      return masked(after);
+      const old = Object.fromEntries(Object.keys(changesToSave).map(key => [key, before[key as keyof typeof before]]));
+      await logEvent(tx, { entityType: type, entityId: id, name: before.name, action: 'update', diffs: { old, new: changesToSave }, isExample: before.isExample });
+      return maskedRecord(after);
     });
   });
   app.get('/api/records/:type/:id/links', async req => {

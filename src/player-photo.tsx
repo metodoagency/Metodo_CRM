@@ -8,24 +8,26 @@ import { api, ApiError, body } from './api';
 import { ErrorMessage, Modal } from './components';
 import type { RecordRow } from './types';
 
-function Portrait({ id, available, large }: { id: string; available: boolean; large: boolean }) {
+function Portrait({ id, available, large, eager, onReady }: { id: string; available: boolean; large: boolean; eager: boolean; onReady?: () => void }) {
   const [failed, setFailed] = useState(false);
   return <span className={large ? 'avatar player-portrait' : 'avatar player-avatar'}>
     {available && !failed
-      ? <img src={`/api/players/${id}/photo`} alt="" loading="lazy" onError={() => setFailed(true)} />
+      ? <img src={`/api/players/${id}/photo`} alt="" loading={eager ? 'eager' : 'lazy'}
+        onLoad={onReady ? event => { void event.currentTarget.decode().catch(() => setFailed(true)).finally(onReady); } : undefined}
+        onError={() => { setFailed(true); onReady?.(); }} />
       : <UserRound size={large ? 36 : 17} aria-hidden="true" />}
   </span>;
 }
 
-export function PlayerAvatar({ id, version, available, large = false }: { id: string; version: number; available: boolean; large?: boolean }) {
-  return <Portrait key={`${id}:${version}`} id={id} available={available} large={large} />;
+export function PlayerAvatar({ id, version, available, large = false, eager = false, onReady }: { id: string; version: number; available: boolean; large?: boolean; eager?: boolean; onReady?: () => void }) {
+  return <Portrait key={`${id}:${version}`} id={id} available={available} large={large} eager={eager} onReady={onReady} />;
 }
 
 export function PlayerPhotoPanel({ row }: { row: RecordRow }) {
   const { t } = useTranslation();
   const [editing, setEditing] = useState(false);
   const photoId = activePhotoId({ photo: row.photo ?? null, photoSourceUrl: row.photoSourceUrl ?? null, photoRightsNote: row.photoRightsNote ?? null });
-  return <section className="panel panel-body mt-5">
+  return <section className="panel panel-body mt-5 player-photo-panel">
     <div className="flex items-start gap-4 flex-wrap">
       <PlayerAvatar id={row.id} version={row.version} available={!!photoId} large />
       <div className="min-w-0 flex-1">
