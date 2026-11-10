@@ -37,6 +37,8 @@ Updated 2026-11-11, Europe/Istanbul. SPEC.md and docs/REQUIREMENTS.md define the
 
 - Application commit b7533b2 passed both PostgreSQL 16 and 17 CI jobs. Codex Security reviewed 26 changed files in the matching local tree 868a708 and sealed scan aec58185-7dde-4a74-9400-e64496db093f with zero reportable findings. The review identified a conditional print compatibility defect. The follow-up scopes print styling to the mounted card, checks the class is cleared on navigation, and localizes the provenance labels. The follow-up requires its own CI evidence. [Application CI](https://github.com/metodoagency/Metodo_CRM/actions/runs/42917660579)
 
+- Package10 DONE on 2026-11-11. The final code commit a77391e passed PostgreSQL 16/17 CI and all 12 local browser scenarios. The follow-up verifies that print media hides the CRM screen, the actual Chromium PDF includes only the card, and navigation removes the print class. Both language scans cover the print and biography dialogs. Lint, TypeScript and 699 bilingual keys passed locally. Milestone B is in progress and project acceptance is 10%. [Final code CI](https://github.com/metodoagency/Metodo_CRM/actions/runs/42919677655)
+
 ## Milestone gates
 
 | Stage | Status | Gate |
@@ -85,7 +87,7 @@ Existing update validation:2 acquisition-policy tests and1 real PostgreSQL reten
 
 ## Next actions and verification boundaries
 
-Finish package10 verification for the implemented biography editor and print card. Check the PostgreSQL 16/17 CI jobs and both language scans, including the print and biography dialogs. Then proceed to package11 for the person directory, role conflicts and Istanbul-date reminders. Preserve B draft until all B acceptance criteria and the security review pass.
+Start package11 with versioned person profiles and dated club tenures from existing Person and Relation records. Preserve the people-list response used by proposal selectors. Derive overlapping stints from active records, show unknown dates without inferring an overlap, and keep profile links manual. Reuse the Istanbul age helpers for a logged 60-second reveal. For M15, add the focused schema support for agent birthdays, significant dates and yearly greeting state. Keep reminders internal and deduplicated per threshold and occurrence. Preserve the B draft until the acceptance criteria and security review pass.
 
 Finish package02 with the approved OAuth client, Render configuration, HTTPS health and real owner login. Verify package05 with a private Supabase bucket, server-side S3 configuration and an example-file upload/download/delete smoke. Apply migration008 when live storage is ready and its release review is complete. Finish M4 with a tracked-club TFF check after obtaining representative anonymized markup. Require explicit owner action and robots permission, a strict HTTPS host allowlist and CSV fallback on denial or failure. Keep the working CSV path usable independently. The local PostgreSQL launcher reuses a live process and allows up to three minutes for startup/recovery. The Windows browser cache is configured in the ignored local environment. PostgreSQL 16/17 CI artifacts have distinct names.
 
