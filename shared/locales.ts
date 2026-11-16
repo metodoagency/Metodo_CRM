@@ -1,6 +1,30 @@
 import { adminTr, adminEn } from './admin-locales.js';
+import { clubTr, clubEn } from './club-locales.js';
+import { privacyTr, privacyEn } from './privacy-locales.js';
+import { retentionTr, retentionEn } from './retention-locales.js';
+import { fileTr, fileEn } from './file-locales.js';
+import { documentTr, documentEn } from './document-locales.js';
+import { clubNetworkTr, clubNetworkEn } from './club-network-locales.js';
+import { clubSourceTr, clubSourceEn } from './club-source-locales.js';
+import { playerListTr, playerListEn } from './player-list-locales.js';
+import { scoringTr, scoringEn } from './player-scoring-locales.js';
+import { cardTr, cardEn } from './player-card-locales.js';
+import { personNetworkTr, personNetworkEn } from './person-network-locales.js';
+import { calendarTr, calendarEn } from './calendar-locales.js';
 export const tr = {
   ...adminTr,
+  ...clubTr,
+  ...privacyTr,
+  ...retentionTr,
+  ...fileTr,
+  ...documentTr,
+  ...clubNetworkTr,
+  ...clubSourceTr,
+  ...playerListTr,
+  ...scoringTr,
+  ...cardTr,
+  ...personNetworkTr,
+  ...calendarTr,
   "brand": "Metodo",
   "crm": "CRM",
   "tagline": "Futbolun ilişkilerini yönetin.",
@@ -211,6 +235,18 @@ export const tr = {
 } as const;
 export const en: Record<keyof typeof tr, string> = {
   ...adminEn,
+  ...clubEn,
+  ...privacyEn,
+  ...retentionEn,
+  ...fileEn,
+  ...documentEn,
+  ...clubNetworkEn,
+  ...clubSourceEn,
+  ...playerListEn,
+  ...scoringEn,
+  ...cardEn,
+  ...personNetworkEn,
+  ...calendarEn,
   "brand": "Metodo",
   "crm": "CRM",
   "tagline": "Manage the relationships behind football.",

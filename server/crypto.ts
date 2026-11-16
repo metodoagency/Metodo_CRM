@@ -55,6 +55,8 @@ export function verifyCsrf(session: string, token: unknown): boolean {
 }
 export const encryptedFields: Record<string, readonly string[]> = {
   Owner: ['email'], Session: ['email'], Person: ['birthDate', 'phone', 'email'],
+  Agent: ['birthDate'], BirthdayGreeting: ['greetingNote'],
   Player: ['birthDate', 'phone', 'email', 'healthNotes', 'injuryNotes'], Guardian: ['phone', 'email'],
-  MedicalRecord: ['summary'], Contract: ['salaryAmount', 'bonuses'], Mandate: ['commissionTerms'],
+  MedicalRecord: ['summary'], Contract: ['salaryAmount', 'bonuses'], Mandate: ['commissionTerms'], UserSettings: ['breachContact'],
+  ProcessingConsent: ['processingPayload', 'processingResult'],
 };

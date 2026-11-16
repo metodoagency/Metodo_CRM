@@ -1,0 +1,41 @@
+# Optional fresh-install blueprint; the existing owner service is already created.
+# Spec verified against https://render.com/docs/blueprint-spec on 2026-11-04.
+services:
+  - type: web
+    name: metodo-crm
+    runtime: docker
+    plan: free
+    region: frankfurt
+    repo: https://github.com/metodoagency/Metodo_CRM
+    branch: main
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    autoDeployTrigger: 'off'
+    healthCheckPath: /healthz
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: E2E_TEST_MODE
+        value: 'false'
+      - key: HOST
+        value: 0.0.0.0
+      - key: APP_ORIGIN
+        sync: false
+      - key: ALLOWED_EMAILS
+        sync: false
+      - key: DATABASE_URL
+        sync: false
+      - key: DIRECT_URL
+        sync: false
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false
+      - key: GOOGLE_REDIRECT_URI
+        sync: false
+      - key: FIELD_ENCRYPTION_KEY
+        generateValue: true
+      - key: BLIND_INDEX_KEY
+        generateValue: true
+      - key: FIELD_ENCRYPTION_KEY_ID
+        value: primary

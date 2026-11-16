@@ -10,5 +10,9 @@ export default defineConfig({
     { command: 'node --import tsx server/index.ts', url: 'http://localhost:3000/healthz', reuseExistingServer: false, timeout: 60000 },
     { command: 'node node_modules/vite/bin/vite.js --host 127.0.0.1 --strictPort', url: 'http://localhost:5173', reuseExistingServer: false, timeout: 60000 },
   ],
-  projects: [{ name: 'chromium', testMatch: '**/core.spec.ts' }, { name: 'a11y', testMatch: '**/a11y.spec.ts' }],
+  projects: [
+    { name: 'chromium', testMatch: '**/core.spec.ts', grepInvert: /@club-workspace/ },
+    { name: 'club-workspace', testMatch: '**/core.spec.ts', grep: /@club-workspace/ },
+    { name: 'a11y', testMatch: '**/a11y.spec.ts' },
+  ],
 });

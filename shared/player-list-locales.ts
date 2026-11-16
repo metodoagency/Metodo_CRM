@@ -1,0 +1,28 @@
+export const playerListTr = {
+  AVAILABLE: 'Müsait', UNAVAILABLE: 'Müsait değil', playerDirection: 'Sıralama yönü',
+  playerFilters: 'Oyuncu filtreleri', playerSort: 'Sıralama', playerAscending: 'Artan', playerDescending: 'Azalan',
+  playerClubSearch: 'Kulüp ara', playerLeague: 'Lig', playerScoreMin: 'En düşük puan', playerScoreMax: 'En yüksek puan',
+  playerContractBefore: 'Sözleşmesi bu tarihe kadar biten', playerTags: 'Etiketler', playerTag: 'Etiket', playerTagAdd: 'Etiket ekle', playerTagRemove: 'Etiket kaldır',
+  playerSelected: '{{count}} oyuncu seçili', playerSelect: '{{name}} oyuncusunu seç', playerSelectPage: 'Bu sayfadaki oyuncuları seç',
+  playerBulkTags: 'Seçili oyuncuları etiketle', playerViewSave: 'Görünümü kaydet', playerViewChoose: 'Kayıtlı görünüm', playerViewDelete: 'Görünümü çöp kutusuna taşı',
+  playerViewUnavailable: 'Bu görünüm eski bir biçim kullanıyor.', playerColumns: 'Görünür sütunlar', playerFilterReset: 'Filtreleri sıfırla',
+  playerPhoto: 'Fotoğraf', playerAge: 'Yaş', playerScore: 'Seviye puanı', playerFit: 'Lig uygunluğu', playerFitUnassessed: 'Değerlendirilmedi',
+  playerMarketValue: 'Manuel piyasa değeri', playerContractEnd: 'Sözleşme bitişi', playerAvailability: 'Müsaitlik', playerCurrency: 'Para birimi',
+  playerCurrencySort: 'Değere göre sıralamak için bir para birimi seçin.', playerSelectionStale: 'Seçilen kayıtlardan biri değişti. Listeyi yenileyip oyuncuları tekrar seçin.',
+  playerExportLimit: 'Dışa aktarımı 10.000 oyuncuyla sınırlamak için filtre uygulayın.', playerTagLimit: 'Bir oyuncuya en fazla 50 etiket eklenebilir.',
+  playerExport: 'Filtrelenmiş CSV indir', playerRevealAge: 'Yaşı 60 saniye göster',
+};
+export const playerListEn: Record<keyof typeof playerListTr, string> = {
+  AVAILABLE: 'Available', UNAVAILABLE: 'Unavailable', playerDirection: 'Sort direction',
+  playerFilters: 'Player filters', playerSort: 'Sort by', playerAscending: 'Ascending', playerDescending: 'Descending',
+  playerClubSearch: 'Search clubs', playerLeague: 'League', playerScoreMin: 'Minimum score', playerScoreMax: 'Maximum score',
+  playerContractBefore: 'Contract ends by', playerTags: 'Tags', playerTag: 'Tag', playerTagAdd: 'Add tag', playerTagRemove: 'Remove tag',
+  playerSelected: '{{count}} players selected', playerSelect: 'Select {{name}}', playerSelectPage: 'Select players on this page',
+  playerBulkTags: 'Tag selected players', playerViewSave: 'Save view', playerViewChoose: 'Saved view', playerViewDelete: 'Move view to trash',
+  playerViewUnavailable: 'This view uses an older format.', playerColumns: 'Visible columns', playerFilterReset: 'Reset filters',
+  playerPhoto: 'Photo', playerAge: 'Age', playerScore: 'Level score', playerFit: 'League fit', playerFitUnassessed: 'Not assessed',
+  playerMarketValue: 'Manual market value', playerContractEnd: 'Contract end', playerAvailability: 'Availability', playerCurrency: 'Currency',
+  playerCurrencySort: 'Select a currency before sorting by value.', playerSelectionStale: 'A selected record changed. Refresh the list and select the players again.',
+  playerExportLimit: 'Apply filters to keep the export within 10,000 players.', playerTagLimit: 'Each player can have up to 50 tags.',
+  playerExport: 'Download filtered CSV', playerRevealAge: 'Show age for 60 seconds',
+};

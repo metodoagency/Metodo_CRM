@@ -14,6 +14,10 @@ describe('calendar accuracy', () => {
   it('accepts a leap date', () => expect(isoDate.parse('2024-02-29')).toBe('2024-02-29'));
   it('uses Istanbul around midnight', () => expect(istanbulToday(new Date('2026-11-01T21:30:00Z'))).toBe('2026-11-02'));
   it('turns 18 on the local birthday', () => { expect(ageOn('2008-11-02', '2026-11-01')).toBe(17); expect(ageOn('2008-11-02', '2026-11-02')).toBe(18); });
+  it('advances a leap-day age on March 1 in a non-leap year', () => {
+    expect(ageOn('2008-02-29', '2026-02-28')).toBe(17);
+    expect(ageOn('2008-02-29', '2026-03-01')).toBe(18);
+  });
 });
 describe('localization', () => {
   it('has identical keys and no empty translations', () => { expect(Object.keys(tr).sort()).toEqual(Object.keys(en).sort()); for (const v of [...Object.values(tr), ...Object.values(en)]) expect(v.length).toBeGreaterThan(0); });

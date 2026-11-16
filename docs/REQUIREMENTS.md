@@ -17,7 +17,7 @@ Work milestone by milestone (section 10). After each milestone, tests must pass,
 - No Google Apps Script. No localStorage or sessionStorage for business data. Browser storage is allowed only for UI state, such as the last open tab and the theme choice.
 - Write tests together with each feature, not at the end.
 - You may run out of session time or context before the last milestones are done. Keep the repository runnable at every commit. If you stop mid-milestone, commit work in progress to the milestone branch, write the exact next step in PROGRESS.md, and do not merge.
-- If time runs short, the priority is: milestones A to F first, then G, then H, then I. Never trade security or data accuracy for feature count. If a feature cannot be built safely, ship a documented stub with a NOT DONE entry in the feature matrix.
+- If time runs short, prioritize A–F, then the new G, then preserved H–J. Never trade security or data accuracy for feature count. If a feature cannot be built safely, ship a documented stub with a NOT DONE entry in the feature matrix.
 
 ---
 
@@ -29,7 +29,7 @@ P2 Human approval. Automated or AI-extracted changes never write to canonical re
 
 P3 Fixture source. Fixtures and results (schedule, dates, scores, match status) come only from tff.org. Each league's TFF page URL is stored in Settings. No other site may provide fixtures or results. Performance and statistical data is a separate category, covered in M35: it may come only from a licensed data provider, through a user-supplied file import or an owner-licensed API adapter. Scraping is never allowed.
 
-P4 Lawful fetching. Every external page fetch is user-triggered and never scheduled. Before any fetch, check robots.txt for the target path and stop if it is disallowed. Send an identifying User-Agent. Rate limit: at most one request per 3 seconds per host. Cache responses for 6 hours. If a fetch is disallowed or fails, fall back to manual CSV import with a downloadable template. Transfermarkt: no automated fetching of any kind. The "Transfermarkt'ta aç" button opens the profile in a new tab. The owner types the market value, which is stored with amount, currency, date and source URL. No scraping of any financial, competitor or media site.
+P4 Data acquisition (SPEC update 1, 2026-11-03). Automated fetching, crawling, scraping or parsing of Transfermarkt and every other commercial site is forbidden under all circumstances. Only owner-triggered TFF checks may fetch pages, after robots.txt permits the target path; failures/disallow fall back to CSV. Never schedule TFF requests. Market values and contracts are manual, with sourceUrl, date and method note. Licensed-provider adapters are deferred: do not implement a provider now. Gmail mailbox ingestion is read-only, filtered by owner rules, and creates proposals with excerpts only. No canonical writes without approval. Local enabled voice transcription covers owner-dictated notes only, never third-party conversations.
 
 P5 Record-keeping only. The contract module shows: "Bu modül kayıt ve takip amaçlıdır, hukuki tavsiye değildir." (EN: "This module is for record-keeping and tracking only and does not constitute legal advice."). The system never produces legal conclusions. Compliance hints appear only as checklist prompts such as "Kontrol edin: ...". The text of those prompts comes from versioned rule files (section 2.9).
 
@@ -45,7 +45,7 @@ P7 No identity or banking identifiers. Never store national ID numbers (TC kimli
 
 P8 Timeline. Every create, update, delete, approval, rejection, suggestion, tenure change, CV export, backup, share-link action and outbound draft event writes a TimelineEvent with: actor, timestamp, entity reference, field diffs (old and new values, masked under P6), batchId, and bilingual summaries (summaryTr, summaryEn) generated from templates.
 
-P9 Soft delete everywhere. Deleted records go to a Trash view where they can be restored. Permanent deletion happens only from Trash, either manually or after 30 days. Category-specific retention can shorten or extend that period in Settings, but never removes a row without a logged purge.
+P9 Soft delete and owner-selected retention. Deleted records remain restorable in Trash. Default: no automatic business-data deletion for any table. The owner chooses retention per table and confirms a previewed, versioned purge; every purge is logged. A retention duration alone is not consent to automatic deletion.
 
 P10 Examples. Every example row has isExample = true and a name beginning with "ÖRNEK" or "Örnek". "ÖRNEK veriyi temizle" removes only isExample rows and every dependent row (relations, timeline events, notifications, tasks, attachments, share links, medical records, guardians, deals, commission terms and payment schedules).
 
@@ -101,7 +101,7 @@ Legal and regulatory checklist text lives in versioned files under config/compli
 - AI assistant through a provider adapter (Gemini or OpenAI). The API key comes from the environment only.
 - Email digest through SMTP, sent only to the owner's address.
 - TCMB daily exchange-rate feed, fetched on a user click under P4.
-- Email ingest through IMAP, read-only (M38).
+- Email ingestion through the Gmail plugin only, read-only; sender/domain rules create proposals, never canonical changes or replies.
 - Licensed performance-data API adapter (M35), requiring owner credentials.
 
 ### 2.11 Scheduling and local development
@@ -452,7 +452,7 @@ M37 Secure Share Links
 
 M38 Communication Log and Email Ingest
 - Manual communication log for calls, messages, meeting follow-ups and WhatsApp conversations. WhatsApp entries are logged by hand; the app never sends them. Each entry links to its entities.
-- Optional email ingest: the owner either forwards messages to a configured address, or the app reads one owner-configured mailbox read-only over IMAP. Messages are matched to people through the normalized email blind index. Unmatched messages go to an inbox for manual linking. Attachments follow the same upload rules.
+- Optional email ingestion uses the Gmail plugin read-only. Owner-forwarded or owner-selected messages matching sender/domain rules become UpdateProposals with original excerpts. No canonical changes without approval; no sending or automatic replies.
 - No tracking pixels and no automatic replies.
 - Acceptance: a repeated Message-ID is ignored. Unmatched messages are never linked automatically.
 
@@ -734,3 +734,9 @@ When finished, reply with:
 8. Security: Codex Security findings and their status, plus the open items in the threat model.
 9. Known risks: Google Sites iframe sign-in behavior, TFF page structure changes, the manual Transfermarkt flow, the AI assistant's cost and consent, and the dependence on licensed data providers.
 10. What the owner must provide before going live: ALLOWED_EMAILS, DATABASE_URL, FIELD_ENCRYPTION_KEY, BLIND_INDEX_KEY, storage credentials, optional API keys and provider license notes, the reference CV file in docs/reference-cv/, and the owner's review of config/compliance/.
+
+## SPEC update 1 — 2026-11-03
+
+SPEC.md is the authoritative amendment, incorporated with the full baseline in docs/REQUIREMENTS.md. Its data-acquisition policy overrides all older fetching, RSS, scraping, IMAP and provider implementation instructions. No commercial-site acquisition code, including optional AI page extraction. Licensed providers are deferred, interface only. First-login bilingual privacy notice; per-table owner-selected retention with no automatic deletion by default; value-free sensitive-field view logs; encrypted sensitive backups; breach checklist/contact; per-document consent and exact preview before any external document/audio processing. Local adapters process locally.
+
+Insert a new G after F with G1–G15 and required tests from SPEC.md. Preserve the old G/H/I scopes as H/I/J; do not drop medical/minor, finance or intelligence requirements. Gmail is read-only, sending forbidden. External OCR/transcription/processing is Tier A and needs owner approval per use. Owner-only digest permission does not authorize Gmail sending. Never record third-party conversations. Report progress by accepted milestone gates, with unfinished work explicitly marked; no schema/stub credit as completed features.

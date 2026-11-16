@@ -1,6 +1,11 @@
 import { z } from 'zod';
 
 export const sourceTypes = ['OFFICIAL', 'TFF', 'MEDIA', 'SOCIAL', 'MANUAL', 'AI_EXTRACTED', 'DATA_PROVIDER', 'KAP', 'DOCUMENT'] as const;
+export const manualSourceUrl = z.url({ protocol: /^https?$/ }).max(2048).refine(value => {
+  if (!URL.canParse(value)) return false;
+  const url = new URL(value);
+  return !url.username && !url.password;
+}, 'INVALID_SOURCE');
 export const fieldSource = z.object({
   sourceUrl: z.url().nullable(), sourceType: z.enum(sourceTypes),
   retrievedAt: z.iso.datetime({ offset: true }),
@@ -10,8 +15,11 @@ export const fieldSource = z.object({
   if (value.sourceUrl && !['https:', 'http:'].includes(new URL(value.sourceUrl).protocol)) ctx.addIssue({ code: 'custom', path: ['sourceUrl'], message: 'INVALID_SOURCE' });
 });
 export type FieldSource = z.infer<typeof fieldSource>;
+const unapprovedSource = fieldSource
+  .refine(source => source.verificationStatus !== 'VERIFIED', 'APPROVAL_REQUIRED')
+  .refine(source => source.sourceUrl === null || manualSourceUrl.safeParse(source.sourceUrl).success, { path: ['sourceUrl'], message: 'INVALID_SOURCE' });
 export function withProvenance<T extends z.ZodRawShape>(shape: T) {
-  return z.object({ ...shape, fieldProvenance: z.record(z.string(), fieldSource).optional() }).strict();
+  return z.object({ ...shape, fieldProvenance: z.record(z.string(), unapprovedSource).optional() }).strict();
 }
 // A manual edit resets that field's evidence unless the owner supplies new
 // provenance. Unchanged fields retain their original sources.

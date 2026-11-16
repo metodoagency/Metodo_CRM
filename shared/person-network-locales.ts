@@ -1,0 +1,31 @@
+export const personNetworkTr = {
+  MEDIA: 'Medya', personProfile: 'Kişi profili', personEdit: 'Kişi profilini düzenle',
+  personBirthDateHelp: 'Yeni bir tarih girmek için alanı doldurun. Mevcut tarihi silmek için aşağıdaki kutuyu işaretleyin.',
+  personClearBirthDate: 'Kayıtlı doğum tarihini sil', personHideBirthYear: 'Doğum tarihini gün ve ay olarak göster',
+  personTransfermarkt: 'Transfermarkt profil adresi', personTff: 'TFF profil adresi',
+  personOpenTransfermarkt: 'Transfermarkt profilini aç', personOpenTff: 'TFF profilini aç',
+  personShowAge: 'Yaşı 60 saniye göster', personMinor: '18 yaşın altında', personNoAge: 'Doğum tarihi bulunmuyor.',
+  personNetwork: 'Kulüp görev geçmişi', personTenures: 'Görevler', personWorkedTogether: 'Birlikte çalıştı', personOverlaps: 'Görev çakışmaları',
+  personAddTenure: 'Görev ekle', personEditTenure: 'Görevi düzenle', personTenureStart: 'Başlangıç tarihi',
+  personTenureEnd: 'Ayrılış tarihi', personTenureActive: 'Açık dönem', personTenureUnknown: 'Tarih bilinmiyor',
+  personTenureDates: 'Ayrılış günü ortak çalışma dönemine dahil edilmez. Başlangıcı bilinmeyen görevler çakışma hesabına dahil edilmez.',
+  personDuplicateTenure: 'Aynı kulüp, görev ve tarihlerle kayıt zaten var.',
+  field_country: 'Ülke', field_hideBirthYear: 'Doğum yılı görünürlüğü', field_tffProfileUrl: 'TFF profil adresi',
+  timeline_person_tenure_added: '{name} · kulüp görevi eklendi', timeline_person_tenure_updated: '{name} · kulüp görevi güncellendi',
+};
+
+export const personNetworkEn: Record<keyof typeof personNetworkTr, string> = {
+  MEDIA: 'Media', personProfile: 'Person profile', personEdit: 'Edit person profile',
+  personBirthDateHelp: 'Enter a date to replace the saved date, or use the checkbox below to clear it.',
+  personClearBirthDate: 'Clear saved date of birth', personHideBirthYear: 'Show day and month for birth dates',
+  personTransfermarkt: 'Transfermarkt profile URL', personTff: 'TFF profile URL',
+  personOpenTransfermarkt: 'Open Transfermarkt profile', personOpenTff: 'Open TFF profile',
+  personShowAge: 'Show age for 60 seconds', personMinor: 'Under 18', personNoAge: 'No date of birth is available.',
+  personNetwork: 'Club tenure history', personTenures: 'Tenures', personWorkedTogether: 'Worked together', personOverlaps: 'Overlapping roles',
+  personAddTenure: 'Add tenure', personEditTenure: 'Edit tenure', personTenureStart: 'Start date',
+  personTenureEnd: 'Departure date', personTenureActive: 'Open period', personTenureUnknown: 'Date unknown',
+  personTenureDates: 'The overlap calculation excludes the departure day and periods with an unknown start date.',
+  personDuplicateTenure: 'A tenure with the same club, role and dates already exists.',
+  field_country: 'Country', field_hideBirthYear: 'Birth year visibility', field_tffProfileUrl: 'TFF profile URL',
+  timeline_person_tenure_added: '{name} · club tenure added', timeline_person_tenure_updated: '{name} · club tenure updated',
+};
