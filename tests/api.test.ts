@@ -21,7 +21,8 @@ import { readFile } from 'node:fs/promises';
 import { purgeTrash } from '../server/lifecycle.js';
 import JSZip from 'jszip';
 import sharp from 'sharp';
-import { ageOn } from '../shared/domain.js';
+import { ageOn, istanbulToday } from '../shared/domain.js';
+import { readBirthdayCalendar, refreshBirthdayReminders } from '../server/birthdays.js';
 
 const fileStorage = new LocalFileStorage('.local/tmp/api-files');
 const processingCalls: ProcessingPreview['payload'][] = [];
@@ -52,6 +53,139 @@ afterEach(async () => {
 afterAll(async () => { await app.close(); await db.$disconnect(); });
 
 const pdfFile = Buffer.from('%PDF-1.7\n%%EOF');
+describe('sensitive paths: birthday calendar', () => {
+  it('shows only live owner birthdays and audits calendar access without birth dates', async () => {
+    const now = new Date('2026-12-29T21:00:00Z');
+    const birthDate = '1996-12-31';
+    const person = await db.person.create({ data: { name: 'Örnek Takvim Kişisi', searchName: 'ornek takvim', birthDate: encrypt(birthDate, 'Person.birthDate') } });
+    const player = await db.player.create({ data: { name: 'Örnek Takvim Oyuncusu', searchName: 'ornek oyuncu', primaryPosition: 'CM', birthDate: encrypt(birthDate, 'Player.birthDate') } });
+    const agent = await db.agent.create({ data: { name: 'Örnek Takvim Menajeri', birthDate: encrypt(birthDate, 'Agent.birthDate'), countries: [], markets: [], networkMemberships: [] } });
+    await db.person.create({ data: { name: 'Örnek Silinmiş Kişi', searchName: '', birthDate: encrypt(birthDate, 'Person.birthDate'), deletedAt: now } });
+    const owner = await db.owner.create({ data: { id: 'other', email: encrypt('other@example.com', 'Owner.email') } });
+    await db.person.create({ data: { ownerId: owner.id, name: 'Örnek Başka Sahip', searchName: '', birthDate: encrypt(birthDate, 'Person.birthDate') } });
+    const list = await db.$transaction(tx => readBirthdayCalendar(tx, 'month', 1, now));
+    expect(list).toMatchObject({ total: 3, today: '2026-12-30', expiresIn: 60 });
+    expect(list.items.map(row => row.id).sort()).toEqual([agent.id, person.id, player.id].sort());
+    expect(list.items.every(row => row.date === '2026-12-31' && row.days === 1)).toBe(true);
+    expect(JSON.stringify(list)).not.toContain(birthDate);
+    const access = await db.auditLog.findMany({ where: { action: 'reveal' } });
+    expect(access).toHaveLength(3);
+    expect(access.every(row => JSON.stringify(row.diffs) === '{"field":"birthDate"}')).toBe(true);
+    expect((await app.inject({ method: 'POST', url: '/api/calendar/birthdays', headers: { origin }, payload: { view: 'month' } })).statusCode).toBe(401);
+    expect((await app.inject({ method: 'POST', url: '/api/calendar/birthdays', headers: { cookie, origin }, payload: { view: 'month' } })).statusCode).toBe(403);
+    expect((await request('POST', '/api/calendar/birthdays', { view: 'month', ownerId: 'other' })).statusCode).toBe(400);
+  });
+
+  it('catches up due thresholds at the Istanbul date boundary and retrying concurrently keeps one per occurrence', async () => {
+    const birthday = '1995-01-01';
+    const person = await db.person.create({ data: { name: 'Örnek Yıl Dönümü', searchName: 'ornek yil donumu', birthDate: encrypt(birthday, 'Person.birthDate') } });
+    const before = new Date('2026-12-31T20:59:59Z');
+    const after = new Date('2026-12-31T21:00:00Z');
+    const created = await Promise.all([refreshBirthdayReminders(db, before), refreshBirthdayReminders(db, before)]);
+    expect(created.reduce((total, count) => total + count)).toBe(2);
+    const reminder = await db.$transaction(tx => readBirthdayCalendar(tx, 'reminders', 1, before));
+    expect(reminder.items).toMatchObject([{ id: person.id, date: '2027-01-01', days: 1, thresholds: [30, 7] }]);
+    expect(await refreshBirthdayReminders(db, after)).toBe(1);
+    expect(await refreshBirthdayReminders(db, after)).toBe(0);
+    expect((await db.notification.findMany({ where: { type: 'BIRTHDAY' }, orderBy: { thresholdDays: 'asc' } })).map(row => [row.thresholdDays, row.targetDate.toISOString().slice(0, 10)])).toEqual([[0, '2027-01-01'], [7, '2027-01-01'], [30, '2027-01-01']]);
+    await db.person.update({ where: { id: person.id }, data: { deletedAt: after } });
+    expect((await db.$transaction(tx => readBirthdayCalendar(tx, 'reminders', 1, after))).items).toEqual([]);
+    expect(await db.notification.count({ where: { entityId: person.id } })).toBe(3);
+  });
+
+  it('handles leap days and disables or changes configured thresholds without deleting the history', async () => {
+    await db.person.create({ data: { name: 'Örnek 29 Şubat', searchName: '', birthDate: encrypt('2000-02-29', 'Person.birthDate') } });
+    const now = new Date('2027-02-28T21:00:00Z');
+    const settings = (await request('GET', '/api/settings')).json();
+    expect(settings.birthdayThresholds).toEqual([30, 7, 0]);
+    expect((await request('PATCH', '/api/settings', { version: settings.version, birthdayThresholds: [7, 7] })).statusCode).toBe(400);
+    expect((await request('PATCH', '/api/settings', { version: settings.version, birthdayThresholds: [2, 0] })).statusCode).toBe(200);
+    expect(await refreshBirthdayReminders(db, now)).toBe(2);
+    expect((await db.$transaction(tx => readBirthdayCalendar(tx, 'reminders', 1, now))).items).toMatchObject([{ date: '2027-03-01', days: 0, thresholds: [2, 0] }]);
+    expect((await db.$transaction(tx => readBirthdayCalendar(tx, 'month', 1, new Date('2028-02-29T00:00:00Z')))).items).toMatchObject([{ date: '2028-02-29', days: 0 }]);
+    expect((await request('PATCH', '/api/settings', { version: settings.version + 1, birthdayThresholds: [] })).statusCode).toBe(200);
+    expect((await db.$transaction(tx => readBirthdayCalendar(tx, 'reminders', 1, now))).items).toEqual([]);
+    expect(await db.notification.count()).toBe(2);
+  });
+
+  it('encrypts agent birthdays, keeps individual year hiding and preserves player age reveal', async () => {
+    const agentDate = '1993-08-23';
+    const created = await request('POST', '/api/calendar/agents', { name: 'Örnek Menajer Doğum Günü', birthDate: agentDate, hideBirthYear: true });
+    expect(created.statusCode).toBe(201);
+    expect(created.body).not.toContain(agentDate);
+    const agent = created.json();
+    const record = await db.agent.findUniqueOrThrow({ where: { id: agent.id } });
+    expect(record.birthDate).not.toBe(agentDate);
+    expect(decrypt(record.birthDate!, 'Agent.birthDate')).toBe(agentDate);
+    const path = `/api/calendar/birthdays/Agent/${agent.id}`;
+    expect((await request('POST', `${path}/view`)).json()).toEqual({ value: '08-23', expiresIn: 60 });
+    expect((await request('PATCH', path, { version: agent.version, hideBirthYear: false })).statusCode).toBe(200);
+    expect((await request('POST', `${path}/view`)).json().value).toBe(agentDate);
+    expect((await request('PATCH', path, { version: agent.version, hideBirthYear: false, birthDate: null })).statusCode).toBe(409);
+    expect((await request('GET', '/api/calendar/agents?q=DOGUM')).json()).toMatchObject({ total: 1 });
+    const player = (await request('POST', '/api/players', { name: 'Örnek Yaşı Gizli Oyuncu', primaryPosition: 'CM', birthDate: agentDate })).json();
+    expect((await request('PATCH', `/api/calendar/birthdays/Player/${player.id}`, { version: player.version, hideBirthYear: true })).statusCode).toBe(200);
+    expect((await request('POST', `/api/records/Player/${player.id}/reveal`, { field: 'birthDate' })).json()).toMatchObject({ value: '08-23', format: 'monthDay' });
+    expect((await request('POST', `/api/records/Player/${player.id}/age`)).json()).toMatchObject({ age: ageOn(agentDate), expiresIn: 60 });
+    const log = await db.timelineEvent.findMany({ where: { entityId: { in: [agent.id, player.id] } } });
+    expect(JSON.stringify(log)).not.toContain(agentDate);
+  });
+
+  it('keeps a versioned, privately revealed greeting per year and restores it from Trash', async () => {
+    const person = (await request('POST', '/api/people', { name: 'Örnek Yıllık Tebrik', birthDate: '1990-05-01' })).json();
+    const year = Number(istanbulToday().slice(0, 4));
+    const path = `/api/calendar/greetings/Person/${person.id}/${year}`;
+    const greetingNote = 'Örnek gizli tebrik notu';
+    const saved = await request('PATCH', path, { version: null, greetingNote, sent: true });
+    expect(saved.statusCode).toBe(200);
+    expect(saved.json()).toEqual({ version: 1, sent: true });
+    expect((await request('PATCH', path, { version: null, greetingNote, sent: false })).statusCode).toBe(409);
+    expect((await request('POST', `${path}/view`)).json()).toEqual({ version: 1, greetingNote, sent: true, expiresIn: 60 });
+    expect((await request('POST', `/api/calendar/greetings/Person/${person.id}/${year - 1}/view`)).json()).toMatchObject({ version: null, greetingNote: '', sent: false });
+    const [stored] = await db.birthdayGreeting.findMany();
+    expect(stored.greetingNote).not.toBe(greetingNote);
+    expect(decrypt(stored.greetingNote!, 'BirthdayGreeting.greetingNote')).toBe(greetingNote);
+    expect(JSON.stringify(await db.auditLog.findMany({ where: { entityType: 'BirthdayGreeting' } }))).not.toContain(greetingNote);
+    expect((await request('GET', '/api/admin/access-log')).json().items).toContainEqual(expect.objectContaining({ field: 'greetingNote', entityType: 'BirthdayGreeting', entityId: stored.id }));
+    expect((await request('DELETE', path, { version: 1 })).statusCode).toBe(200);
+    expect((await request('POST', `${path}/view`)).statusCode).toBe(409);
+    const trash = await db.trashEntry.findFirstOrThrow({ where: { entityId: stored.id } });
+    expect((await request('GET', `/api/trash/${trash.id}/preview`)).statusCode).toBe(200);
+    expect((await request('POST', `/api/trash/${trash.id}/restore`, { version: trash.version, recordVersion: 2 })).statusCode).toBe(200);
+    expect((await request('POST', `${path}/view`)).json()).toMatchObject({ version: 3, greetingNote, sent: true });
+  });
+
+  it('validates and restores manually recorded significant dates with optimistic versions', async () => {
+    expect((await request('POST', '/api/calendar/dates', { name: 'Örnek Önemli Tarih', date: '2026-02-30' })).statusCode).toBe(400);
+    const added = await request('POST', '/api/calendar/dates', { name: 'Örnek Önemli Tarih', date: '2027-01-18' });
+    expect(added.statusCode).toBe(201);
+    const row = added.json();
+    const path = `/api/calendar/dates/${row.id}`;
+    expect((await request('PATCH', path, { version: row.version, name: 'Örnek Yıldönümü', date: '2027-01-19' })).statusCode).toBe(200);
+    expect((await request('DELETE', path, { version: row.version })).statusCode).toBe(409);
+    expect((await request('DELETE', path, { version: row.version + 1 })).statusCode).toBe(200);
+    expect((await request('GET', '/api/calendar/dates')).json().items).toEqual([]);
+    const trash = await db.trashEntry.findFirstOrThrow({ where: { entityId: row.id } });
+    expect((await request('GET', `/api/trash/${trash.id}/preview`)).json()).toMatchObject({ canPurge: true });
+    expect((await request('POST', `/api/trash/${trash.id}/restore`, { version: trash.version, recordVersion: row.version + 2 })).statusCode).toBe(200);
+    expect((await request('GET', '/api/calendar/dates')).json()).toMatchObject({ items: [{ name: 'Örnek Yıldönümü', date: '2027-01-19T00:00:00.000Z' }], total: 1 });
+  });
+
+  it('includes example greetings and reminders in the same previewed cleanup as their parent', async () => {
+    const today = istanbulToday();
+    const year = Number(today.slice(0, 4));
+    const parent = await db.person.create({ data: { name: 'Örnek Temizlik Doğum Günü', searchName: '', isExample: true, birthDate: encrypt(`1996-${today.slice(5)}`, 'Person.birthDate') } });
+    const path = `/api/calendar/greetings/Person/${parent.id}/${year}`;
+    expect((await request('PATCH', path, { version: null, greetingNote: 'Örnek Temizlik Notu', sent: false })).statusCode).toBe(200);
+    expect((await dailyJobs()).birthdayReminders).toBe(3);
+    const preview = (await request('GET', '/api/admin/examples/preview')).json();
+    expect(preview.counts).toMatchObject({ Person: 1, BirthdayGreeting: 1, Notification: 3 });
+    expect((await request('POST', '/api/admin/examples/cleanup', { previewToken: preview.previewToken })).statusCode).toBe(200);
+    expect(await db.birthdayGreeting.count()).toBe(0);
+    expect(await db.notification.count()).toBe(0);
+  });
+});
+
 describe('sensitive paths: people and club network', () => {
   it('keeps dates encrypted, supports day-month view and clears the corresponding blind index', async () => {
     const birthDate = '2000-02-29';

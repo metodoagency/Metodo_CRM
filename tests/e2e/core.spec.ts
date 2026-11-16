@@ -5,6 +5,7 @@ import { exerciseClubMap } from './club-network';
 import { exercisePlayerList } from './player-list';
 import { exercisePlayerCardEditor, exercisePlayerEvidence, exercisePrintCard } from './player-evidence';
 import { exercisePersonNetwork } from './person-network';
+import { istanbulToday } from '../../shared/domain';
 import pg from 'pg';
 
 for (const language of ['tr', 'en']) test(`privacy notice is shown on first login and acknowledged (${language})`, async ({ page }) => {
@@ -54,7 +55,7 @@ test('table retention defaults to indefinite and purges only the confirmed recor
   try { await client.query('UPDATE "Club" SET "deletedAt" = $1, "version" = "version" + 1 WHERE "id" = $2', [new Date('2020-01-01'), id]); } finally { await client.end(); }
   await page.goto('/settings');
   await expect(page.getByLabel('Tablo', { exact: true })).toBeVisible();
-  await expect(page.getByLabel('Tablo', { exact: true }).locator('option')).toHaveCount(61);
+  await expect(page.getByLabel('Tablo', { exact: true }).locator('option')).toHaveCount(63);
   await page.getByLabel('Tablo', { exact: true }).selectOption('WorkLog');
   await expect(page.getByLabel('Gün', { exact: true })).toHaveValue('');
   await page.getByLabel('Tablo', { exact: true }).selectOption('Club'); await page.getByLabel('Gün', { exact: true }).fill('1');
@@ -64,6 +65,60 @@ test('table retention defaults to indefinite and purges only the confirmed recor
   const purge = dialog.getByRole('button', { name: 'Listelenen kayıtları kalıcı sil' }); await expect(purge).toBeDisabled();
   await dialog.getByRole('checkbox').check(); await purge.click(); await expect(dialog).toHaveCount(0);
   await expect(page.getByText('Önizlemedeki kayıtlar kaldırıldı.')).toBeVisible();
+});
+
+test('owner views a private birthday and records a yearly greeting and significant date', { tag: '@club-workspace' }, async ({ page }) => {
+  await signIn(page);
+  await page.goto('/birthdays');
+  await expect(page.getByRole('heading', { name: 'Doğum günleri ve önemli tarihler', exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Menajer doğum günleri', exact: true }).click();
+  await page.getByRole('button', { name: 'Menajer ekle', exact: true }).click();
+  const agent = page.getByRole('dialog', { name: 'Menajer ekle' });
+  const agentName = `Örnek Takvim Menajeri ${Date.now()}`;
+  const today = istanbulToday();
+  await agent.getByLabel('Ad', { exact: true }).fill(agentName);
+  await agent.getByLabel('Doğum tarihi', { exact: true }).fill(`1996-${today.slice(5)}`);
+  await agent.getByRole('checkbox', { name: 'Yalnızca gün ve ayı göster' }).check();
+  await agent.getByRole('button', { name: 'Kaydet', exact: true }).click();
+  await expect(agent).toBeHidden();
+  await page.getByRole('button', { name: 'Bu ay doğum günleri', exact: true }).click();
+  await expect(page.getByText(agentName, { exact: true })).toBeHidden();
+  await page.clock.install();
+  await page.getByRole('button', { name: 'Tarihleri göster', exact: true }).click();
+  const row = page.locator('.list-line').filter({ has: page.getByText(agentName, { exact: true }) });
+  await expect(row).toBeVisible();
+  await expect(row).not.toContainText('1996');
+  await page.clock.fastForward(60_001);
+  await expect(row).toBeHidden();
+  await page.clock.resume();
+  await page.getByRole('button', { name: 'Tarihleri göster', exact: true }).click();
+  await row.getByRole('button', { name: 'Yıllık tebrik notu', exact: true }).click();
+  const greeting = page.getByRole('dialog', { name: 'Yıllık tebrik notu', exact: true });
+  await greeting.getByRole('button', { name: 'Bu yılın notunu aç', exact: true }).click();
+  await greeting.getByLabel('Tebrik notu', { exact: true }).fill('Örnek yıllık tebrik');
+  await greeting.getByRole('checkbox', { name: 'Gönderildi olarak işaretle' }).check();
+  await greeting.getByRole('button', { name: 'Kaydet', exact: true }).click();
+  await expect(greeting).toBeHidden();
+  await expect(row.getByText('Gönderildi', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Menajer doğum günleri', exact: true }).click();
+  await row.getByRole('button', { name: 'Yıllık tebrik notu', exact: true }).click();
+  await greeting.getByLabel('Tebrik yılı', { exact: true }).fill(String(Number(today.slice(0, 4)) - 1));
+  await greeting.getByRole('button', { name: 'Bu yılın notunu aç', exact: true }).click();
+  await expect(greeting.getByLabel('Tebrik notu', { exact: true })).toHaveValue('');
+  await expect(greeting.getByRole('checkbox', { name: 'Gönderildi olarak işaretle' })).not.toBeChecked();
+  await greeting.getByRole('button', { name: 'Kapat', exact: true }).click();
+  await page.getByRole('button', { name: 'Önemli tarihler', exact: true }).click();
+  await page.getByRole('button', { name: 'Önemli tarih ekle', exact: true }).click();
+  const date = page.getByRole('dialog', { name: 'Önemli tarih ekle' });
+  const eventName = `Örnek Önemli Tarih ${Date.now()}`;
+  await date.getByLabel('Ad', { exact: true }).fill(eventName);
+  await date.getByLabel('Tarih', { exact: true }).fill(today);
+  await date.getByRole('button', { name: 'Kaydet', exact: true }).click();
+  await expect(date).toBeHidden();
+  await expect(page.getByText(eventName, { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Doğum günü hatırlatmaları', exact: true }).click();
+  await page.getByRole('button', { name: 'Tarihleri göster', exact: true }).click();
+  await expect(row).toContainText('30, 7, 0');
 });
 test('owner creates club and player, suggests a player and reads the shared timeline', async ({ page }) => {
   test.setTimeout(75_000);

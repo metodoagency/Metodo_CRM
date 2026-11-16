@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 import { PlayerAvatar } from './player-photo';
 import { PlayerFit } from './player-suitability';
-import { ageOn, positions, statuses } from '../shared/domain';
+import { positions, statuses } from '../shared/domain';
 import { formatMarketAmount } from '../shared/player-market';
 import { playerColumns, playerFilters, playerParams, playerSorts, playerTagBatch, playerViewInput, type PlayerColumn, type PlayerFilters, type PlayerListRow, type PlayerView } from '../shared/player-list';
 import { api, apiBlob, ApiError, body } from './api';
@@ -155,9 +155,9 @@ function PlayerAge({ id }: { id: string }) {
   const mounted = useRef(true);
   const timer = useRef<ReturnType<typeof setTimeout>>();
   useEffect(() => { mounted.current = true; return () => { mounted.current = false; clearTimeout(timer.current); }; }, []);
-  const reveal = useMutation({ mutationFn: () => api<{ value: string | null }>(`/api/records/Player/${id}/reveal`, { method: 'POST', body: body({ field: 'birthDate' }) }), onSuccess: result => {
+  const reveal = useMutation({ gcTime: 0, mutationFn: () => api<{ age: number | null; expiresIn: number }>(`/api/records/Player/${id}/age`, { method: 'POST' }), onSuccess: result => {
     if (!mounted.current) return;
-    clearTimeout(timer.current); setAge(result.value ? ageOn(result.value) : undefined); timer.current = setTimeout(() => setAge(undefined), 60000);
+    clearTimeout(timer.current); setAge(result.age ?? undefined); timer.current = setTimeout(() => { setAge(undefined); reveal.reset(); }, result.expiresIn * 1000);
   } });
   return <>{age === undefined ? <button className="text-accent" disabled={reveal.isPending} onClick={() => reveal.mutate()}>{t('playerRevealAge')}</button>
     : <span>{age} <button className="text-accent" onClick={() => { clearTimeout(timer.current); setAge(undefined); }}>{t('hide')}</button></span>}{reveal.isError && <ErrorMessage />}</>;

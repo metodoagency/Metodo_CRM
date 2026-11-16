@@ -16,6 +16,7 @@ import { ageParams, personNetworkQuery, tenureCreate, tenureParams, tenureUpdate
 import { acknowledgePrivacy, incidentContactInput } from './privacy.js';
 import { retentionPeriods, retentionPreviewInput, retentionPurgeInput } from './retention.js';
 import { clubInput, entityTypes, isoDate, personInput, playerInput, relationInput, requestInput, suggestionInput } from './domain.js';
+import { agentBirthdayCreate, agentBirthdayQuery, birthdayChange, birthdayPage, birthdaySubject, birthdayThresholds, calendarPage, greetingSubject, greetingWrite, significantDateChange, significantDateWrite } from './calendar.js';
 
 export const idParams = z.object({ id: z.uuid() }).strict();
 export const entityParams = z.object({ type: z.enum(entityTypes), id: z.uuid() }).strict();
@@ -24,7 +25,7 @@ export const clubListQuery = listQuery.extend(clubFilters.shape);
 export const versionInput = z.object({ version: z.number().int().positive() }).strict();
 export const trashWrite = versionInput.extend({ recordVersion: z.number().int().positive() });
 export const previewConfirmation = z.object({ previewToken: z.string().regex(/^[a-f0-9]{64}$/) }).strict();
-export const settingsInput = versionInput.extend({ language: z.enum(['tr', 'en']).optional(), theme: z.enum(['dark', 'light']).optional(), retentionDays: retentionPeriods.optional(), levelWeights: positionWeights.optional(), leagueTiers: leagueTiers.optional() });
+export const settingsInput = versionInput.extend({ language: z.enum(['tr', 'en']).optional(), theme: z.enum(['dark', 'light']).optional(), retentionDays: retentionPeriods.optional(), levelWeights: positionWeights.optional(), leagueTiers: leagueTiers.optional(), birthdayThresholds: birthdayThresholds.optional() });
 export { staffRoles } from './staff-import.js';
 const recordVersion = z.number().int().positive();
 const tenureDigest = z.string().regex(/^[a-f0-9]{64}$/);
@@ -48,6 +49,18 @@ export const revealInput = z.object({ field: z.enum(['birthDate', 'phone', 'emai
 export const patchInput = versionInput.extend({ changes: z.record(z.string(), z.unknown()) });
 export type ApiContract = { method: 'get' | 'post' | 'patch' | 'delete'; path: string; query?: z.ZodType; params?: z.ZodType; body?: z.ZodType; success?: number; public?: boolean; testOnly?: boolean; csv?: boolean; multipart?: boolean; download?: readonly string[] };
 export const apiContracts: ApiContract[] = [
+  { method: 'post', path: '/api/calendar/birthdays', body: birthdayPage },
+  { method: 'patch', path: '/api/calendar/birthdays/:kind/:id', params: birthdaySubject, body: birthdayChange },
+  { method: 'post', path: '/api/calendar/birthdays/:kind/:id/view', params: birthdaySubject },
+  { method: 'get', path: '/api/calendar/agents', query: agentBirthdayQuery },
+  { method: 'post', path: '/api/calendar/agents', body: agentBirthdayCreate, success: 201 },
+  { method: 'post', path: '/api/calendar/greetings/:kind/:id/:year/view', params: greetingSubject },
+  { method: 'patch', path: '/api/calendar/greetings/:kind/:id/:year', params: greetingSubject, body: greetingWrite },
+  { method: 'delete', path: '/api/calendar/greetings/:kind/:id/:year', params: greetingSubject, body: versionInput },
+  { method: 'get', path: '/api/calendar/dates', query: calendarPage },
+  { method: 'post', path: '/api/calendar/dates', body: significantDateWrite, success: 201 },
+  { method: 'patch', path: '/api/calendar/dates/:id', params: idParams, body: significantDateChange },
+  { method: 'delete', path: '/api/calendar/dates/:id', params: idParams, body: versionInput },
   { method: 'get', path: '/api/people/:id/network', params: idParams, query: personNetworkQuery },
   { method: 'post', path: '/api/people/:id/tenures', params: idParams, body: tenureCreate, success: 201 },
   { method: 'patch', path: '/api/people/:id/tenures/:relationId', params: tenureParams, body: tenureUpdate },

@@ -213,6 +213,8 @@ enum NotificationStatus {
 }
 
 model Owner {
+ birthdayGreetings BirthdayGreeting[]
+ significantDates SignificantDate[]
  processingConsents ProcessingConsent[]
  storageDeletions StorageDeletion[]
  pressItemRecords PressItem[]
@@ -554,6 +556,8 @@ model Agent {
  retrievedAt DateTime @default(now())
  verificationStatus VerificationStatus @default(UNVERIFIED)
  name String
+ birthDate String?
+ hideBirthYear Boolean @default(false)
  agency String?
  countries String[]
  markets String[]
@@ -598,6 +602,7 @@ model Player {
  availabilityUntil DateTime? @db.Date
  birthDate String?
  birthDateIndex String?
+ hideBirthYear Boolean @default(false)
  @@index([birthDateIndex])
  nationalities String[]
  euPassport Boolean?
@@ -1401,6 +1406,52 @@ model Notification {
  @@index([ownerId, targetDate])
 }
 
+model BirthdayGreeting {
+ id String @id @default(uuid()) @db.Uuid
+ ownerId String @default("owner")
+ owner Owner @relation(fields: [ownerId], references: [id])
+ isExample Boolean @default(false)
+ deletedAt DateTime?
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+ createdBy String @default("owner")
+ updatedBy String @default("owner")
+ version Int @default(1)
+ fieldProvenance Json @default("{}")
+ sourceUrl String?
+ sourceType SourceType @default(MANUAL)
+ retrievedAt DateTime @default(now())
+ verificationStatus VerificationStatus @default(UNVERIFIED)
+ entityType String
+ entityId String @db.Uuid
+ year Int
+ greetingNote String?
+ sentAt DateTime?
+ @@unique([ownerId, entityType, entityId, year])
+ @@index([ownerId, deletedAt])
+}
+
+model SignificantDate {
+ id String @id @default(uuid()) @db.Uuid
+ ownerId String @default("owner")
+ owner Owner @relation(fields: [ownerId], references: [id])
+ isExample Boolean @default(false)
+ deletedAt DateTime?
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+ createdBy String @default("owner")
+ updatedBy String @default("owner")
+ version Int @default(1)
+ fieldProvenance Json @default("{}")
+ sourceUrl String?
+ sourceType SourceType @default(MANUAL)
+ retrievedAt DateTime @default(now())
+ verificationStatus VerificationStatus @default(UNVERIFIED)
+ name String
+ date DateTime @db.Date
+ @@index([ownerId, deletedAt, date, id])
+}
+
 model Attachment {
  processingConsents ProcessingConsent[]
  licenseRecordLinks LicenseRecord[]
@@ -1531,6 +1582,7 @@ model UserSettings {
  theme String @default("dark")
  dashboardLayout Json @default("[]")
  notificationThresholds Json @default("[180,90,30]")
+ birthdayThresholds Json @default("[30,7,0]")
  levelWeights Json @default("{}")
  leagueTiers Json @default("[]")
  matchingWeights Json @default("{}")

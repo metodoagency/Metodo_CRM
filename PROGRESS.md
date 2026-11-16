@@ -45,6 +45,8 @@ Updated 2026-11-16, Europe/Istanbul. SPEC.md and docs/REQUIREMENTS.md define the
 
 - M14 and R8 accepted on 2026-11-16. PostgreSQL 16 and 17 CI passed for bda07a9 after splitting the browser groups. All 12 browser scenarios also passed locally with the same split. Package11 remains in progress for M15. [Directory CI](https://github.com/metodoagency/Metodo_CRM/actions/runs/43910888820)
 
+- Package11 calendar checkpoint on 2026-11-16. The bilingual calendar shows this month's Person, Player and Agent birthdays after an explicit 60-second reveal. Individual dates can use day and month only. Configurable 30/7/0-day defaults create one internal notification per occurrence and reached threshold, with catch-up for birthdays still due at startup and the Istanbul daily run. February 29 is observed March 1 in common years. The monthly view still lists earlier dates in the same month. Greeting notes are encrypted and year-specific, with a manual sent marker. They are accessible from the calendar or directly from the subject throughout the year. Manually entered significant dates and greeting notes use versioned Trash, retention and audit. Migration010 adds two owner-scoped tables with Data API roles denied, encrypted Agent birth dates, the Player year-display preference and a separate reminder setting. Local migration and all seven calendar integration tests passed. Full-suite and exact-head CI verification are pending at this checkpoint.
+
 ## Milestone gates
 
 | Stage | Status | Gate |
@@ -93,7 +95,7 @@ Existing update validation:2 acquisition-policy tests and1 real PostgreSQL reten
 
 ## Next actions and verification boundaries
 
-Continue package11 with M15. Add encrypted agent birth dates and optional year hiding where needed. Add owner-scoped significant dates and yearly greeting state with retention and example cleanup. Reuse the existing Notification model with birthday-specific 30/7/0 thresholds and occurrence-level deduplication. Verify year rollover, leap-day behavior, retry and the missed-run catch-up. Build the owner calendar using explicit, audited date access. Keep greetings as notes with a manual sent marker. Preserve the B draft until the acceptance criteria and security review pass.
+Complete M15 verification on PostgreSQL 16/17 and record the CI evidence. Close the remaining B-scoped R5/R6 acceptance checks and run the milestone security review. The owner-triggered, robots-gated staff check remains pending under Owner input needed. Preserve the B draft until its acceptance criteria pass. Continue independent package12 transfer request and matching work when B is waiting for the live staff-check input.
 
 Finish package02 with the approved OAuth client, Render configuration, HTTPS health and real owner login. Verify package05 with a private Supabase bucket, server-side S3 configuration and an example-file upload/download/delete smoke. Apply migration008 when live storage is ready and its release review is complete. Finish M4 with a tracked-club TFF check after obtaining representative anonymized markup. Require explicit owner action and robots permission, a strict HTTPS host allowlist and CSV fallback on denial or failure. Keep the working CSV path usable independently. The local PostgreSQL launcher reuses a live process and allows up to three minutes for startup/recovery. The Windows browser cache is configured in the ignored local environment. PostgreSQL 16/17 CI artifacts have distinct names.
 

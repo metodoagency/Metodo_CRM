@@ -10,6 +10,7 @@ import { playerListTr, playerListEn } from './player-list-locales.js';
 import { scoringTr, scoringEn } from './player-scoring-locales.js';
 import { cardTr, cardEn } from './player-card-locales.js';
 import { personNetworkTr, personNetworkEn } from './person-network-locales.js';
+import { calendarTr, calendarEn } from './calendar-locales.js';
 export const tr = {
   ...adminTr,
   ...clubTr,
@@ -23,6 +24,7 @@ export const tr = {
   ...scoringTr,
   ...cardTr,
   ...personNetworkTr,
+  ...calendarTr,
   "brand": "Metodo",
   "crm": "CRM",
   "tagline": "Futbolun ilişkilerini yönetin.",
@@ -244,6 +246,7 @@ export const en: Record<keyof typeof tr, string> = {
   ...scoringEn,
   ...cardEn,
   ...personNetworkEn,
+  ...calendarEn,
   "brand": "Metodo",
   "crm": "CRM",
   "tagline": "Manage the relationships behind football.",

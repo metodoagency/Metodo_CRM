@@ -25,11 +25,15 @@ for (const language of ['tr', 'en']) test(`main routes have no serious or critic
   const personResponse = await page.request.post('/api/people', { headers, data: { name: `Örnek Kişi Erişilebilirlik ${language}` } });
   expect(clubResponse.status()).toBe(201); expect(playerResponse.status()).toBe(201); expect(personResponse.status()).toBe(201);
   const club = await clubResponse.json(); const player = await playerResponse.json(); const person = await personResponse.json();
-  const paths = ['/', '/clubs', '/players', '/people', '/requests', '/proposals', '/sources', '/trash', '/settings', '/privacy', '/incident',
+  const paths = ['/', '/clubs', '/players', '/people', '/requests', '/proposals', '/sources', '/birthdays', '/trash', '/settings', '/privacy', '/incident',
     `/record/Club/${club.id}`, `/record/Person/${person.id}`, `/record/Player/${player.id}`];
   for (const path of paths) {
     await page.goto(path); await expect(page.locator('main h1'), `${language} ${path}`).toBeVisible();
     if (path === '/clubs') await expect(page.locator('.club-map')).toBeVisible();
+    if (path === '/birthdays') {
+      await page.getByRole('button', { name: language === 'tr' ? 'Doğum günü hatırlatmaları' : 'Birthday reminders', exact: true }).click();
+      await expect(page.getByRole('textbox', { name: language === 'tr' ? 'Hatırlatma eşikleri (gün)' : 'Reminder thresholds (days)' })).toBeVisible();
+    }
     if (path.startsWith('/record/Club/')) await expect(page.getByRole('button', {
       name: language === 'tr' ? 'Kulüp bilgilerini düzenle' : 'Edit club information', exact: true,
     })).toBeEnabled();

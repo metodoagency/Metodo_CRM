@@ -6,4 +6,5 @@ export const loggerOptions = {
   serializers: { req: (req: { method: string; url: string }) => ({ method: req.method, url: req.url.split('?')[0] }) },
 };
 logRedactions.push('processingPayload', 'processingResult', '*.processingPayload', '*.processingResult');
+logRedactions.push('greetingNote', '*.greetingNote');
 export function createLogger(stream?: DestinationStream) { return stream ? pino({ ...loggerOptions, level: 'info' }, stream) : pino(loggerOptions); }

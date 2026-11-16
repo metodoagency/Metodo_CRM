@@ -20,7 +20,7 @@ Live commercial/provider implementation is explicitly deferred by SPEC update1. 
 | M12 | Sunum matrisi | 13 | PARTIAL | Foundation API tests; full baseline subsection remains pending |
 | M13 | Menajer ağı | 19 | NOT_DONE | — |
 | M14 | Kişiler/çakışan görevler | 11 | DONE | Versioned person profiles, dated club tenures, overlapping roles and colleagues, direct links to Staff, and manual profile URLs under SPEC update 1. [API](../tests/api.test.ts), [browser](../tests/e2e/person-network.ts) and [PostgreSQL 16/17 CI](https://github.com/metodoagency/Metodo_CRM/actions/runs/43910888820) passed. |
-| M15 | Doğum/önemli gün | 11 | NOT_DONE | — |
+| M15 | Doğum/önemli gün | 11 | PARTIAL | Calendar, preferences, annual greetings and significant dates implemented. [Seven local PostgreSQL calendar tests passed](../tests/api.test.ts). Full-suite and exact-head CI review pending. |
 | M16 | Araçlar | 20 | NOT_DONE | — |
 | M17 | Operasyon/muhasebe | 20,21 | NOT_DONE | — |
 | M18 | Etkinlikler | 22 | NOT_DONE | — |
@@ -54,7 +54,7 @@ Live commercial/provider implementation is explicitly deferred by SPEC update1. 
 | R1 | Coach departure | 08 | DONE | [PostgreSQL regression](../tests/api.test.ts) covers explicit person, unrelated staff, follow-up and batched timeline. [PostgreSQL16/17 CI passed for f3f00c5](https://github.com/metodoagency/Metodo_CRM/actions/runs/42044968007). |
 | R2 | Coach appointment | 08 | DONE | [PostgreSQL regression](../tests/api.test.ts) covers no predecessor, stale predecessor and selected-role-only closure. [Browser test](../tests/e2e/core.spec.ts) verifies pending through preview and write on approval. [PostgreSQL16/17 CI passed for f3f00c5](https://github.com/metodoagency/Metodo_CRM/actions/runs/42044968007). |
 | R3 | Suggestion transaction | 13 | PARTIAL | tests/api.test.ts, tests/domain.test.ts, tests/acquisition-policy.test.ts; full milestone behavior still requires acceptance |
-| R4 | Notification dedupe | 11,15,44 | NOT_DONE | — |
+| R4 | Notification dedupe | 11,15,44 | PARTIAL | Birthday rule covers configurable thresholds, repeated/concurrent runs, Istanbul midnight, cross-year targets and leap days in [integration tests](../tests/api.test.ts). Remaining rules and notification center are pending. |
 | R5 | Verification source | 08,10 | PARTIAL | tests/api.test.ts, tests/domain.test.ts, tests/acquisition-policy.test.ts; full milestone behavior still requires acceptance |
 | R6 | Sensitive masking | 04,06,40,52 | PARTIAL | tests/api.test.ts, tests/domain.test.ts, tests/acquisition-policy.test.ts; full milestone behavior still requires acceptance |
 | R7 | Missing-data matching | 12 | NOT_DONE | — |

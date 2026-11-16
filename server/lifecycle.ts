@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 import { Prisma, type PrismaClient } from '@prisma/client';
-import { AppError, live, logEvent, type EntityType, type Tx } from './core.js';
+import { AppError, live, logEvent, type Tx } from './core.js';
 import { retentionPeriods, type RetentionPlan } from '../shared/retention.js';
 
 // Identifiers come exclusively from the compiled Prisma schema. All data values
@@ -144,8 +144,8 @@ export async function cleanupExamples(db: PrismaClient, expected: string) {
     return plan.result;
   }, { isolationLevel: 'Serializable', timeout: 30000 });
 }
-const ancillary = new Set(['Relation', 'Note', 'Attachment', 'ProcessingConsent', 'Task', 'Notification', 'UpdateProposal', 'ShareLink', 'TrashEntry']);
-export async function deletionPreview(tx: Tx, type: EntityType, id: string) {
+const ancillary = new Set(['Relation', 'Note', 'Attachment', 'ProcessingConsent', 'Task', 'Notification', 'UpdateProposal', 'ShareLink', 'TrashEntry', 'BirthdayGreeting']);
+export async function deletionPreview(tx: Tx, type: string, id: string) {
   const graph = await loadGraph(tx);
   if (!graph.get(type)?.some(row => row.id === id)) throw new AppError('NOT_FOUND', 404);
   const selected = selection(graph, new Set([keyOf(type, id)]), true);
@@ -167,6 +167,7 @@ export async function restoreTrash(db: PrismaClient, id: string, version: number
     const graph = await loadGraph(tx); const record = graph.get(item.entityType)?.find(row => row.id === item.entityId);
     if (!record || !record.deletedAt || record.version !== recordVersion) throw new AppError('STALE_VERSION', 409);
     for (const edge of graph.foreignKeys.filter(edge => edge.fromType === item.entityType)) if (record[edge.fromField] && !graph.get(edge.toType)?.some(row => row.id === record[edge.fromField] && !row.deletedAt)) throw new AppError('LINKED_RECORDS', 409);
+    if (item.entityType === 'BirthdayGreeting' && !graph.get(String(record.entityType))?.some(row => row.id === record.entityId && !row.deletedAt)) throw new AppError('LINKED_RECORDS', 409);
     const changed = await tx.$executeRaw(Prisma.sql`UPDATE ${table(item.entityType)} SET "deletedAt" = NULL, "version" = "version" + 1, "updatedAt" = CURRENT_TIMESTAMP WHERE "id" = ${item.entityId}::uuid AND "ownerId" = ${'owner'} AND "version" = ${recordVersion} AND "deletedAt" IS NOT NULL`);
     if (changed !== 1 || (await tx.trashEntry.deleteMany({ where: { ...live, id, version } })).count !== 1) throw new AppError('STALE_VERSION', 409);
     await logEvent(tx, { entityType: item.entityType, entityId: item.entityId, action: 'restore', name: item.label, isExample: item.isExample });
@@ -178,7 +179,7 @@ export async function purgeTrash(db: PrismaClient, id: string, version: number, 
     const item = await tx.trashEntry.findFirst({ where: { ...live, id } });
     if (!item) throw new AppError('NOT_FOUND', 404);
     if (item.version !== version) throw new AppError('STALE_VERSION', 409);
-    const plan = await deletionPreview(tx, item.entityType as EntityType, item.entityId);
+    const plan = await deletionPreview(tx, item.entityType, item.entityId);
     const record = plan.graph.get(item.entityType)!.find(row => row.id === item.entityId)!;
     if (!record.deletedAt || record.version !== recordVersion || expected && expected !== plan.result.previewToken) throw new AppError('STALE_PREVIEW', 409);
     if (!plan.result.canPurge) throw new AppError('LINKED_RECORDS', 409);
