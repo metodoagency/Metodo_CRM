@@ -4,6 +4,7 @@ import { signIn } from './login';
 import { exerciseClubMap } from './club-network';
 import { exercisePlayerList } from './player-list';
 import { exercisePlayerCardEditor, exercisePlayerEvidence, exercisePrintCard } from './player-evidence';
+import { exercisePersonNetwork } from './person-network';
 import pg from 'pg';
 
 for (const language of ['tr', 'en']) test(`privacy notice is shown on first login and acknowledged (${language})`, async ({ page }) => {
@@ -141,6 +142,7 @@ test('owner creates club and player, suggests a player and reads the shared time
   await exercisePlayerList(page, playerName);
 });
 test('owner manages club geography and downloads a private file with logged access', async ({ page }) => {
+  test.setTimeout(75_000);
   await signIn(page); const me = await (await page.request.get('/api/me')).json();
   const response = await page.request.post('/api/clubs', { headers: { origin: 'http://localhost:5173', 'x-csrf-token': me.csrfToken }, data: { name: `Örnek Dosya Kulübü ${Date.now()}` } });
   expect(response.status()).toBe(201); const club = await response.json(); await page.goto(`/record/Club/${club.id}`);
@@ -156,7 +158,9 @@ test('owner manages club geography and downloads a private file with logged acce
   await page.getByRole('button', { name: 'Kapat', exact: true }).click();
   await page.getByRole('link', { name: 'Ayarlar', exact: true }).click();
   await expect(page.getByText('Dosya içeriği', { exact: true }).first()).toBeVisible();
-  await exerciseClubMap(page, club, { origin: 'http://localhost:5173', 'x-csrf-token': me.csrfToken });
+  const headers = { origin: 'http://localhost:5173', 'x-csrf-token': me.csrfToken };
+  await exerciseClubMap(page, club, headers);
+  await exercisePersonNetwork(page, club, headers);
 });
 
 test('club sources and updates use explicit review, including CSV proposals', async ({ page }) => {

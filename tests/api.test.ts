@@ -52,6 +52,78 @@ afterEach(async () => {
 afterAll(async () => { await app.close(); await db.$disconnect(); });
 
 const pdfFile = Buffer.from('%PDF-1.7\n%%EOF');
+describe('sensitive paths: people and club network', () => {
+  it('keeps dates encrypted, supports day-month view and clears the corresponding blind index', async () => {
+    const birthDate = '2000-02-29';
+    const payload = { name: 'Örnek Kişi Profili', role: 'MEDIA', birthDate, hideBirthYear: true, transfermarktUrl: 'https://example.com/profile' };
+    const created = await request('POST', '/api/people', payload);
+    expect(created.statusCode, created.body).toBe(201);
+    const { id, version } = created.json();
+    expect(created.json()).toMatchObject({ birthDate: '***', role: 'MEDIA', hideBirthYear: true });
+    const stored = await db.person.findUniqueOrThrow({ where: { id } });
+    expect(stored.birthDate).not.toBe(birthDate);
+    expect(decrypt(stored.birthDate!, 'Person.birthDate')).toBe(birthDate);
+    expect(stored.birthDateIndex).not.toBeNull();
+    const path = `/api/records/Person/${id}`;
+    const age = `${path}/age`;
+    expect((await request('GET', '/api/people?q=Kişi')).json().items).toEqual([expect.objectContaining({ id, birthDate: '***' })]);
+    expect((await request('GET', '/api/export/Person')).body).not.toContain(birthDate);
+    expect((await app.inject({ method: 'POST', url: age, headers: { origin, cookie } })).statusCode).toBe(403);
+    const revealed = await request('POST', age);
+    expect(revealed.statusCode, revealed.body).toBe(200);
+    expect(revealed.json()).toEqual({ age: ageOn(birthDate), minor: false, expiresIn: 60 });
+    expect((await request('POST', `${path}/reveal`, { field: 'birthDate' })).json()).toEqual({ value: '02-29', format: 'monthDay', expiresIn: 60 });
+    expect((await request('PATCH', path, { version, changes: { tffProfileUrl: 'https://user:password@example.com' } })).statusCode).toBe(400);
+    expect((await request('PATCH', path, { version: version + 1, changes: { birthDate: null } })).statusCode).toBe(409);
+    expect((await request('PATCH', path, { version, changes: { birthDate: null } })).statusCode).toBe(200);
+    expect((await db.person.findUniqueOrThrow({ where: { id } })).birthDateIndex).toBeNull();
+    expect((await request('POST', age)).json()).toEqual({ age: null, minor: null, expiresIn: 60 });
+    expect(JSON.stringify(await db.auditLog.findMany({ where: { entityId: id } }))).not.toContain(birthDate);
+  });
+
+  it('computes club overlap from dated live memberships and treats departure dates as exclusive', async () => {
+    const person = async (name: string) => (await request('POST', '/api/people', { name, role: 'HEAD_COACH' })).json();
+    const current = await person('Örnek Kişi Ağ');
+    const peer = await person('Örnek Önceki Yardımcı');
+    const successor = await person('Örnek Devir Alan');
+    const unknown = await person('Örnek Tarihsiz');
+    const hidden = await person('Örnek Silinen');
+    const first = await club('Örnek Birinci Kulüp');
+    const second = await club('Örnek İkinci Kulüp');
+    const create = (id: string, c: string, startDate: string | null, endDate: string | null, role = 'HEAD_COACH') => request('POST', `/api/people/${id}/tenures`, { clubId: c, role, startDate, endDate, sourceUrl: 'https://example.com/staff' });
+    const initial = await create(current.id, first.id, '2024-01-01', '2024-06-01');
+    expect(initial.statusCode, initial.body).toBe(201);
+    const tenure = initial.json();
+    expect((await create(current.id, first.id, '2024-01-01', '2024-06-01')).statusCode).toBe(409);
+    expect((await create(current.id, second.id, '2024-04-01', '2024-06-15', 'SCOUT')).statusCode).toBe(201);
+    expect((await create(peer.id, first.id, '2024-05-01', '2024-06-01', 'ASSISTANT')).statusCode).toBe(201);
+    expect((await create(successor.id, first.id, '2024-06-01', null)).statusCode).toBe(201);
+    expect((await create(unknown.id, first.id, null, null)).statusCode).toBe(201);
+    expect((await create(hidden.id, first.id, '2024-01-01', null)).statusCode).toBe(201);
+    await db.person.update({ where: { id: hidden.id }, data: { deletedAt: new Date() } });
+    const endpoint = `/api/people/${current.id}/network`;
+    const overlap = await request('GET', `${endpoint}?section=workedTogether`);
+    expect(overlap.statusCode, overlap.body).toBe(200);
+    expect(overlap.json().items).toEqual([expect.objectContaining({ personId: peer.id, clubId: first.id, startDate: '2024-05-01', lastDay: '2024-05-31' })]);
+    const conflicts = await request('GET', `${endpoint}?section=overlaps`);
+    expect(conflicts.statusCode, conflicts.body).toBe(200);
+    expect(conflicts.json().items).toEqual([expect.objectContaining({ startDate: '2024-04-01', lastDay: '2024-05-31' })]);
+    const own = await request('GET', endpoint);
+    expect(own.statusCode, own.body).toBe(200);
+    expect(own.json().items).toHaveLength(2);
+    const update = { version: tenure.version, startDate: '2024-01-01', endDate: '2024-07-01', role: 'HEAD_COACH', sourceUrl: null };
+    expect((await request('PATCH', `/api/people/${successor.id}/tenures/${tenure.id}`, update)).statusCode).toBe(404);
+    const saved = await request('PATCH', `/api/people/${current.id}/tenures/${tenure.id}`, update);
+    expect(saved.statusCode, saved.body).toBe(200);
+    expect((await request('PATCH', `/api/people/${current.id}/tenures/${tenure.id}`, update)).statusCode).toBe(409);
+    const events = await db.timelineEvent.findMany({ where: { action: 'person_tenure_updated' }, select: { entityId: true, batchId: true } });
+    expect(events.map(event => event.entityId).sort()).toEqual([current.id, first.id].sort());
+    expect(new Set(events.map(event => event.batchId)).size).toBe(1);
+    await db.club.update({ where: { id: first.id }, data: { deletedAt: new Date() } });
+    expect((await request('GET', `${endpoint}?section=workedTogether`)).json().items).toEqual([]);
+  });
+});
+
 function uploadFile(id: string, data = pdfFile, mime = 'application/pdf', extra = '', type: 'Club' | 'Player' = 'Club') {
   const boundary = 'example-boundary';
   const payload = Buffer.concat([Buffer.from(`--${boundary}\r\nContent-Disposition: form-data; name="file"; filename="Örnek belge.pdf"\r\nContent-Type: ${mime}\r\n\r\n`), data, Buffer.from(`\r\n${extra}--${boundary}--\r\n`)]);

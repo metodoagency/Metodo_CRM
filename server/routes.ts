@@ -26,6 +26,7 @@ import { registerPlayerSuitability } from './player-suitability.js';
 import { registerPlayerCards } from './player-card.js';
 import { cleanBiography, registerPlayerBiographies } from './player-biography.js';
 import { playerFilters } from '../shared/player-list.js';
+import { registerPersonNetwork } from './person-network.js';
 
 const idParams = z.object({ id: z.string().uuid() });
 const entityParams = z.object({ type: z.enum(entityTypes), id: z.string().uuid() });
@@ -47,6 +48,7 @@ export async function registerRoutes(app: FastifyInstance, db: PrismaClient) {
   await registerPlayerSuitability(app, db);
   await registerPlayerCards(app, db);
   await registerPlayerBiographies(app, db);
+  await registerPersonNetwork(app, db);
   app.get('/api/me', async req => ({ id: 'owner', csrfToken: csrfToken(req.cookies[sessionCookie]!) }));
   app.get('/api/settings', async () => masked(await db.userSettings.upsert({ where: { ownerId: 'owner' }, create: { ownerId: 'owner' }, update: {} })));
   app.patch('/api/settings', async req => {
@@ -100,13 +102,22 @@ export async function registerRoutes(app: FastifyInstance, db: PrismaClient) {
   app.get('/api/people', async req => {
     const { page, q } = listQuery.parse(req.query);
     const where = { ...live, searchName: { contains: normalizeSearch(q) } };
-    return { items: (await db.person.findMany({ where, skip: (page - 1) * 50, take: 50, orderBy: { name: 'asc' } })).map(masked), total: await db.person.count({ where }), page };
+    const [people, total] = await db.$transaction([
+      db.person.findMany({ where, skip: (page - 1) * 50, take: 50, orderBy: [{ name: 'asc' }, { id: 'asc' }] }),
+      db.person.count({ where }),
+    ], { isolationLevel: 'RepeatableRead' });
+    return { items: people.map(masked), total, page };
   });
   app.post('/api/people', async (req, reply) => {
     const data = personInput.parse(req.body);
     const row = await db.$transaction(async tx => {
-      const row = await tx.person.create({ data: { ...data, fieldProvenance: provenanceFor(data), searchName: normalizeSearch(data.name) } });
-      await logEvent(tx, { entityType: 'Person', entityId: row.id, name: row.name, action: 'create' }); return row;
+      const row = await tx.person.create({ data: {
+        ...data, fieldProvenance: provenanceFor(data), searchName: normalizeSearch(data.name),
+        birthDate: data.birthDate ? encrypt(data.birthDate, 'Person.birthDate') : null,
+        birthDateIndex: data.birthDate ? blindIndex(data.birthDate) : null,
+      } });
+      await logEvent(tx, { entityType: 'Person', entityId: row.id, name: row.name, action: 'create', diffs: { new: data } });
+      return row;
     });
     return reply.code(201).send(masked(row));
   });
@@ -155,7 +166,10 @@ export async function registerRoutes(app: FastifyInstance, db: PrismaClient) {
         const requesterId = 'requesterId' in input && input.requesterId ? input.requesterId : 'requesterId' in before ? before.requesterId : undefined;
         if (!clubId || !requesterId || !await tx.relation.findFirst({ where: { ...live, fromType: 'Person', fromId: requesterId, toType: 'Club', toId: clubId, endDate: null, relation: { in: ['memberOf', 'contactOf'] } } })) throw new AppError('PERSON_NOT_AT_CLUB');
       }
-      if ('birthDate' in input && input.birthDate) { data.birthDate = encrypt(input.birthDate, `${type}.birthDate`); data.birthDateIndex = blindIndex(input.birthDate); }
+      if ('birthDate' in input && input.birthDate !== undefined) {
+        data.birthDate = input.birthDate ? encrypt(input.birthDate, `${type}.birthDate`) : null;
+        data.birthDateIndex = input.birthDate ? blindIndex(input.birthDate) : null;
+      }
       if ('name' in input && input.name && type !== 'Request') data.searchName = normalizeSearch(input.name);
       if ('deadline' in input && input.deadline) data.deadline = new Date(input.deadline);
       const where = { ...live, id, version };
@@ -202,7 +216,11 @@ export async function registerRoutes(app: FastifyInstance, db: PrismaClient) {
       const row = await requireEntity(tx, type, id);
       await logEvent(tx, { entityType: type, entityId: id, action: 'reveal', name: row.name, diffs: { field }, isExample: row.isExample });
       const value = field in row ? (row as unknown as Record<string, unknown>)[field] : null;
-      return { value: typeof value === 'string' ? decrypt(value, `${type}.${field}`) : null, expiresIn: 60 };
+      const decoded = typeof value === 'string' ? decrypt(value, `${type}.${field}`) : null;
+      if (field === 'birthDate' && 'hideBirthYear' in row && row.hideBirthYear) {
+        return { value: decoded?.slice(5) ?? null, format: 'monthDay', expiresIn: 60 };
+      }
+      return { value: decoded, expiresIn: 60 };
     });
   });
   app.delete('/api/records/:type/:id', async req => {

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import { NavLink, Link, Routes, Route, useNavigate, useParams } from 'react-router-dom';
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
@@ -25,10 +25,12 @@ import { PlayerPhotoPanel } from './player-photo';
 import { LeagueTiersPanel, PlayerFit } from './player-suitability';
 import { PlayerBiography } from './player-biography';
 import { PlayerCardPanel } from './player-card';
+import { PersonProfile } from './person-profile';
+import { PersonNetwork } from './person-network';
 import { hasCoordinates, type ClubFilters } from '../shared/club-network';
 import type { PrivacyState } from '../shared/privacy';
-import type { ClubRecord, List, RecordRow, RecordType, Overview, Timeline } from './types';
-import { clubInput, playerInput, personInput, requestInput, positions, statuses, relationTypes, relationInput, suggestionInput } from '../shared/domain';
+import type { ClubRecord, List, PersonRecord, RecordRow, RecordType, Overview, Timeline } from './types';
+import { clubInput, playerInput, personInput, personRoles, requestInput, positions, statuses, relationTypes, relationInput, suggestionInput } from '../shared/domain';
 
 const pages = [
   { path: '/', key: 'dashboard', icon: LayoutDashboard }, { path: '/clubs', key: 'clubs', icon: Building2 },
@@ -157,7 +159,7 @@ function CreateRecord({ type, onClose }: { type: RecordType; onClose: () => void
     <label className="field">{t('name')}<input {...register('name')} autoFocus /></label>
     {type === 'Club' && <><label className="field">{t('city')}<input {...register('city')} /></label><label className="field">{t('relationStatus')}<select aria-label={t('relationStatus')} {...register('relationStatus')}>{['NEW', 'WARM', 'ACTIVE', 'COLD'].map(s => <option key={s} value={s}>{t(s)}</option>)}</select></label><label className="field">{t('tracked')}<input type="checkbox" {...register('isTracked')} /></label></>}
     {type === 'Player' && <><label className="field">{t('position')}<select aria-label={t('position')} {...register('primaryPosition')}>{positions.map(s => <option key={s} value={s}>{t(s)}</option>)}</select></label><label className="field">{t('status')}<select aria-label={t('status')} {...register('status')}>{statuses.map(s => <option key={s} value={s}>{t(s)}</option>)}</select></label><label className="field">{t('club')}<select aria-label={t('club')} {...register('currentClubId', { setValueAs: (v: string) => v || undefined })}><option value="">{t('select')}</option>{clubs.data?.items.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select></label><label className="field">{t('birthDate')}<input type="date" {...register('birthDate', { setValueAs: (v: string) => v || undefined })} /></label></>}
-    {type === 'Person' && <label className="field">{t('role')}<select aria-label={t('role')} {...register('role')}>{['OTHER', 'OFFICIAL', 'HEAD_COACH', 'ASSISTANT', 'GOALKEEPER_COACH', 'YOUTH_COORDINATOR', 'SCOUT'].map(s => <option key={s} value={s}>{t(s)}</option>)}</select></label>}
+    {type === 'Person' && <label className="field">{t('role')}<select aria-label={t('role')} {...register('role')}>{personRoles.map(role => <option key={role} value={role}>{t(role)}</option>)}</select></label>}
     {type === 'Request' && <><label className="field">{t('club')}<select aria-label={t('club')} {...register('clubId')}><option value="">{t('select')}</option>{clubs.data?.items.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select></label><label className="field">{t('person')}<select aria-label={t('person')} {...register('requesterId')}><option value="">{t('select')}</option>{people.data?.items.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select></label><label className="field">{t('position')}<select aria-label={t('position')} {...register('position')}>{positions.map(p => <option key={p} value={p}>{t(p)}</option>)}</select></label></>}
     {!!Object.keys(errors).length && <p role="alert" className="error">{t('invalid')}</p>}{mutation.isError && <ErrorMessage />}<div className="form-footer"><button className="secondary" type="button" onClick={onClose}>{t('cancel')}</button><button className="primary" disabled={mutation.isPending}>{t('create')}</button></div>
   </form></Modal>;
@@ -176,7 +178,9 @@ function Detail() {
   const timelinePanel = <section className="panel"><div className="panel-header"><h2>{t('timeline')}</h2><ArrowLeftRight size={15} /></div><div className="panel-body">{!timeline.data?.length ? <Empty /> : timeline.data.map(e => <div key={e.id} className="list-line"><span className="activity-dot" /><div><div>{i18n.language === 'tr' ? e.summaryTr : e.summaryEn}</div><p className="muted text-[10px] mt-2">{date(e.createdAt)}</p></div></div>)}</div></section>;
   const overview = <>
     {type === 'Player' && <PlayerCardPanel key={row.id} id={row.id} version={row.version} />}
-    <div className="detail-grid"><div className="space-y-5"><section className="panel"><div className="panel-header"><h2>{t('overview')}</h2><Badge value="unverified" /></div><div className="panel-body">{(type === 'Player' ? ['primaryPosition', 'status'] : type === 'Person' ? ['role'] : ['city']).map(key => <div className="detail-field" key={key}><span className="muted">{t(key === 'primaryPosition' ? 'position' : key)}</span><span>{t(String(row[key as keyof RecordRow] || 'empty'))}</span></div>)}{(type === 'Player' || type === 'Person') && <Sensitive type={type} id={row.id} field="birthDate" />}<div className="detail-field"><span className="muted">{t('version')}</span><span>{row.version}</span></div><p className="muted text-[10px] mt-5">{t('noSensitiveExports')}</p></div></section><section className="panel"><div className="panel-header"><h2>{t('relations')}</h2><Link2 size={15} /></div><div className="panel-body">{['outgoing', 'incoming'].map(direction => <div key={direction}><h3 className="muted text-xs my-4">{t(direction)}</h3>{!links.data?.filter(l => l.direction === direction).length ? <p className="muted text-xs">{t('empty')}</p> : links.data.filter(l => l.direction === direction).map(l => <div key={l.id} className="list-line"><span className="muted">{t(l.relation)}</span>{l.available ? <Link className="ml-auto text-accent" to={`/record/${l.targetType}/${l.targetId}`}>{l.label}</Link> : <span className="ml-auto muted">{t('trash')}</span>}</div>)}</div>)}</div></section></div>{timelinePanel}</div>
+    {type === 'Person' && <PersonProfile key={`profile:${row.id}`} person={row as PersonRecord} />}
+    {type === 'Person' && <PersonNetwork key={`network:${row.id}`} id={row.id} />}
+    <div className="detail-grid"><div className="space-y-5"><section className="panel"><div className="panel-header"><h2>{t('overview')}</h2><Badge value="unverified" /></div><div className="panel-body">{(type === 'Player' ? ['primaryPosition', 'status'] : type === 'Person' ? ['role'] : ['city']).map(key => <div className="detail-field" key={key}><span className="muted">{t(key === 'primaryPosition' ? 'position' : key)}</span><span>{t(String(row[key as keyof RecordRow] || 'empty'))}</span></div>)}{(type === 'Player' || type === 'Person') && <Sensitive key={`${type}:${row.id}:${row.version}`} type={type} id={row.id} field="birthDate" />}<div className="detail-field"><span className="muted">{t('version')}</span><span>{row.version}</span></div><p className="muted text-[10px] mt-5">{t('noSensitiveExports')}</p></div></section><section className="panel"><div className="panel-header"><h2>{t('relations')}</h2><Link2 size={15} /></div><div className="panel-body">{['outgoing', 'incoming'].map(direction => <div key={direction}><h3 className="muted text-xs my-4">{t(direction)}</h3>{!links.data?.filter(l => l.direction === direction).length ? <p className="muted text-xs">{t('empty')}</p> : links.data.filter(l => l.direction === direction).map(l => <div key={l.id} className="list-line"><span className="muted">{t(l.relation)}</span>{l.available ? <Link className="ml-auto text-accent" to={`/record/${l.targetType}/${l.targetId}`}>{l.label}</Link> : <span className="ml-auto muted">{t('trash')}</span>}</div>)}</div>)}</div></section></div>{timelinePanel}</div>
     <FieldEvidence sources={row.fieldProvenance ?? {}} />
     {type === 'Player' && <><PlayerPhotoPanel key={row.id} row={row} /><PlayerScoringPanel id={row.id} />
       <section className="panel panel-body mt-5"><h2 className="mb-3">{t('playerFit')}</h2><PlayerFit key={`${row.id}:${row.version}`} id={row.id} name={row.name} /></section>
@@ -191,10 +195,28 @@ function Detail() {
   </>;
 }
 function Sensitive({ type, id, field }: { type: RecordType; id: string; field: string }) {
-  const { t } = useTranslation(); const date = useDate(); const [value, setValue] = useState<string | null>(); const timer = useRef<ReturnType<typeof setTimeout>>();
-  useEffect(() => { setValue(undefined); return () => clearTimeout(timer.current); }, [id]);
-  const reveal = useMutation({ mutationFn: () => api<{ value: string | null }>(`/api/records/${type}/${id}/reveal`, { method: 'POST', body: body({ field }) }), onSuccess: row => { setValue(row.value); timer.current = setTimeout(() => setValue(undefined), 60000); } });
-  return <div className="detail-field"><span className="muted">{t(field)}</span>{value === undefined ? <button className="text-accent flex gap-2 items-center text-[11px]" onClick={() => reveal.mutate()}><Eye size={13} />{t('reveal')}</button> : <span className="flex gap-3 items-center"><span>{value ? field === 'birthDate' ? date(value) : value : t('empty')}</span><button className="icon-button" onClick={() => setValue(undefined)} aria-label={t('hide')}><Eye size={13} /></button></span>}{reveal.isError && <ErrorMessage />}</div>;
+  const { t, i18n } = useTranslation();
+  const date = useDate();
+  const { data, isError, isPending, mutate, reset } = useMutation({
+    mutationFn: () => api<{ value: string | null; format?: 'monthDay'; expiresIn: number }>(`/api/records/${type}/${id}/reveal`, { method: 'POST', body: body({ field }) }),
+    gcTime: 0,
+  });
+  useEffect(() => {
+    if (!data) return;
+    const timer = window.setTimeout(reset, data.expiresIn * 1000);
+    return () => window.clearTimeout(timer);
+  }, [data, reset]);
+  let displayed = data?.value;
+  if (displayed && field === 'birthDate') {
+    if (data?.format !== 'monthDay') displayed = date(displayed);
+    else if (i18n.language === 'tr') displayed = `${displayed.slice(3)}.${displayed.slice(0, 2)}`;
+    else displayed = new Intl.DateTimeFormat('en-GB', { day: '2-digit', month: 'short', timeZone: 'UTC' })
+      .format(new Date(`2000-${displayed}T00:00:00Z`));
+  }
+  return <div className="detail-field"><span className="muted">{t(field)}</span>{!data
+    ? <button className="text-accent flex gap-2 items-center text-[11px]" disabled={isPending} onClick={() => mutate()}><Eye size={13} />{t('reveal')}</button>
+    : <span className="flex gap-3 items-center"><span>{displayed || t('empty')}</span><button className="icon-button" onClick={() => reset()} aria-label={t('hide')}><Eye size={13} /></button></span>}
+    {isError && <ErrorMessage />}</div>;
 }
 function AddRelation({ type, id, onClose }: { type: RecordType; id: string; onClose: () => void }) {
   const { t } = useTranslation(); const [target, setTarget] = useState<RecordType>('Club'); const records = useRecords(target); const refresh = useRefresh();

@@ -12,6 +12,7 @@ import { photoSelection, playerImageMimes } from './player-photo.js';
 import { leagueTiers } from './player-suitability.js';
 import { playerCardWrite, privateCardInput } from './player-card.js';
 import { biographyWrite } from './player-biography.js';
+import { ageParams, personNetworkQuery, tenureCreate, tenureParams, tenureUpdate } from './person-network.js';
 import { acknowledgePrivacy, incidentContactInput } from './privacy.js';
 import { retentionPeriods, retentionPreviewInput, retentionPurgeInput } from './retention.js';
 import { clubInput, entityTypes, isoDate, personInput, playerInput, relationInput, requestInput, suggestionInput } from './domain.js';
@@ -47,6 +48,10 @@ export const revealInput = z.object({ field: z.enum(['birthDate', 'phone', 'emai
 export const patchInput = versionInput.extend({ changes: z.record(z.string(), z.unknown()) });
 export type ApiContract = { method: 'get' | 'post' | 'patch' | 'delete'; path: string; query?: z.ZodType; params?: z.ZodType; body?: z.ZodType; success?: number; public?: boolean; testOnly?: boolean; csv?: boolean; multipart?: boolean; download?: readonly string[] };
 export const apiContracts: ApiContract[] = [
+  { method: 'get', path: '/api/people/:id/network', params: idParams, query: personNetworkQuery },
+  { method: 'post', path: '/api/people/:id/tenures', params: idParams, body: tenureCreate, success: 201 },
+  { method: 'patch', path: '/api/people/:id/tenures/:relationId', params: tenureParams, body: tenureUpdate },
+  { method: 'post', path: '/api/records/:type/:id/age', params: ageParams },
   { method: 'patch', path: '/api/players/:id/biography', params: idParams, body: biographyWrite },
   { method: 'get', path: '/api/players/:id/card', params: idParams },
   { method: 'patch', path: '/api/players/:id/card', params: idParams, body: playerCardWrite },

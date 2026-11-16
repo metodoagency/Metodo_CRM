@@ -1,7 +1,7 @@
 import { useState, type FormEvent, type ReactNode } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { api, ApiError, body } from './api';
 import { Badge, Empty, ErrorMessage, Modal } from './components';
 import { geographyKey } from './club-explorer';
@@ -20,11 +20,18 @@ type Tab = keyof typeof sections;
 
 export function ClubWorkspace({ club, overview }: { club: ClubRecord; overview: ReactNode }) {
   const { t } = useTranslation();
-  const [tab, setTab] = useState<Tab>('overview');
+  const [params, setParams] = useSearchParams();
+  const requested = params.get('tab');
+  const tab: Tab = requested && Object.hasOwn(sections, requested) ? requested as Tab : 'overview';
   return <div className="mt-5">
     <nav className="club-tabs" aria-label={t('clubDetails')}>
       {(Object.keys(sections) as Tab[]).map(key => <button key={key} className="secondary"
-        aria-pressed={tab === key} onClick={() => setTab(key)}>{t(sections[key])}</button>)}
+        aria-pressed={tab === key} onClick={() => {
+          const next = new URLSearchParams(params);
+          if (key === 'overview') next.delete('tab');
+          else next.set('tab', key);
+          setParams(next);
+        }}>{t(sections[key])}</button>)}
     </nav>
     {tab === 'overview' ? <><ClubLocation club={club} />{overview}</> : <ClubSectionPanel key={tab} section={tab} club={club} />}
   </div>;

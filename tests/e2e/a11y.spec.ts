@@ -22,10 +22,11 @@ for (const language of ['tr', 'en']) test(`main routes have no serious or critic
   const headers = { origin: 'http://localhost:5173', 'x-csrf-token': me.csrfToken };
   const clubResponse = await page.request.post('/api/clubs', { headers, data: { name: `Örnek Erişilebilirlik ${language}` } });
   const playerResponse = await page.request.post('/api/players', { headers, data: { name: `Örnek Oyuncu Erişilebilirlik ${language}`, primaryPosition: 'CM' } });
-  expect(clubResponse.status()).toBe(201); expect(playerResponse.status()).toBe(201);
-  const club = await clubResponse.json(); const player = await playerResponse.json();
+  const personResponse = await page.request.post('/api/people', { headers, data: { name: `Örnek Kişi Erişilebilirlik ${language}` } });
+  expect(clubResponse.status()).toBe(201); expect(playerResponse.status()).toBe(201); expect(personResponse.status()).toBe(201);
+  const club = await clubResponse.json(); const player = await playerResponse.json(); const person = await personResponse.json();
   const paths = ['/', '/clubs', '/players', '/people', '/requests', '/proposals', '/sources', '/trash', '/settings', '/privacy', '/incident',
-    `/record/Club/${club.id}`, `/record/Player/${player.id}`];
+    `/record/Club/${club.id}`, `/record/Person/${person.id}`, `/record/Player/${player.id}`];
   for (const path of paths) {
     await page.goto(path); await expect(page.locator('main h1'), `${language} ${path}`).toBeVisible();
     if (path === '/clubs') await expect(page.locator('.club-map')).toBeVisible();
@@ -34,6 +35,9 @@ for (const language of ['tr', 'en']) test(`main routes have no serious or critic
     })).toBeEnabled();
     if (path.startsWith('/record/Player/')) await expect(page.getByRole('button', {
       name: language === 'tr' ? 'Piyasa değeri kaydet' : 'Record market value', exact: true,
+    })).toBeEnabled();
+    if (path.startsWith('/record/Person/')) await expect(page.getByRole('button', {
+      name: language === 'tr' ? 'Kişi profilini düzenle' : 'Edit person profile', exact: true,
     })).toBeEnabled();
     const result = await new AxeBuilder({ page }).analyze();
     expect(result.violations.filter(v => v.impact === 'serious' || v.impact === 'critical'), `${language} ${path}`).toEqual([]);

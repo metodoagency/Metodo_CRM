@@ -1,6 +1,6 @@
 # Metodo CRM progress
 
-Updated 2026-11-11, Europe/Istanbul. SPEC.md and docs/REQUIREMENTS.md define the scope. See the [session plan](SESSION_PLAN.md) and [100-row acceptance matrix](docs/acceptance-matrix.md) for the current records. Earlier checkpoints are available in Git history.
+Updated 2026-11-16, Europe/Istanbul. SPEC.md and docs/REQUIREMENTS.md define the scope. See the [session plan](SESSION_PLAN.md) and [100-row acceptance matrix](docs/acceptance-matrix.md) for the current records. Earlier checkpoints are available in Git history.
 
 ## Current state
 
@@ -38,6 +38,8 @@ Updated 2026-11-11, Europe/Istanbul. SPEC.md and docs/REQUIREMENTS.md define the
 - Application commit b7533b2 passed both PostgreSQL 16 and 17 CI jobs. Codex Security reviewed 26 changed files in the matching local tree 868a708 and sealed scan aec58185-7dde-4a74-9400-e64496db093f with zero reportable findings. The review identified a conditional print compatibility defect. The follow-up scopes print styling to the mounted card, checks the class is cleared on navigation, and localizes the provenance labels. The follow-up requires its own CI evidence. [Application CI](https://github.com/metodoagency/Metodo_CRM/actions/runs/42917660579)
 
 - Package10 DONE on 2026-11-11. The final code commit a77391e passed PostgreSQL 16/17 CI and all 12 local browser scenarios. The follow-up verifies that print media hides the CRM screen, the actual Chromium PDF includes only the card, and navigation removes the print class. Both language scans cover the print and biography dialogs. Lint, TypeScript and 699 bilingual keys passed locally. Milestone B is in progress and project acceptance is 10%. [Final code CI](https://github.com/metodoagency/Metodo_CRM/actions/runs/42919677655)
+
+- Package11 person directory checkpoint on 2026-11-16. Owners can update person role, country, relationship status, manual profile links and date-of-birth display. Birth dates are encrypted and the blind index is cleared on removal. Explicit age reveal uses the Istanbul date, shows minor status for 60 seconds and logs the field name. Person-to-club memberships support versioned editing, manual evidence and grouped Person and Club timeline entries. Worked-together results and overlapping roles use dated live records, exclude the departure day and link directly to the club Staff tab. Undated tenures are visible in history. No schema migration. Package11 remains open for birthdays, recurring reminders, significant dates and yearly greeting notes. Project acceptance is 10%.
 
 ## Milestone gates
 
@@ -87,7 +89,7 @@ Existing update validation:2 acquisition-policy tests and1 real PostgreSQL reten
 
 ## Next actions and verification boundaries
 
-Start package11 with versioned person profiles and dated club tenures from existing Person and Relation records. Preserve the people-list response used by proposal selectors. Derive overlapping stints from active records, show unknown dates without inferring an overlap, and keep profile links manual. Reuse the Istanbul age helpers for a logged 60-second reveal. For M15, add the focused schema support for agent birthdays, significant dates and yearly greeting state. Keep reminders internal and deduplicated per threshold and occurrence. Preserve the B draft until the acceptance criteria and security review pass.
+Continue package11 with M15. Add encrypted agent birth dates and optional year hiding where needed. Add owner-scoped significant dates and yearly greeting state with retention and example cleanup. Reuse the existing Notification model with birthday-specific 30/7/0 thresholds and occurrence-level deduplication. Verify year rollover, leap-day behavior, retry and the missed-run catch-up. Build the owner calendar using explicit, audited date access. Keep greetings as notes with a manual sent marker. Preserve the B draft until the acceptance criteria and security review pass.
 
 Finish package02 with the approved OAuth client, Render configuration, HTTPS health and real owner login. Verify package05 with a private Supabase bucket, server-side S3 configuration and an example-file upload/download/delete smoke. Apply migration008 when live storage is ready and its release review is complete. Finish M4 with a tracked-club TFF check after obtaining representative anonymized markup. Require explicit owner action and robots permission, a strict HTTPS host allowlist and CSV fallback on denial or failure. Keep the working CSV path usable independently. The local PostgreSQL launcher reuses a live process and allows up to three minutes for startup/recovery. The Windows browser cache is configured in the ignored local environment. PostgreSQL 16/17 CI artifacts have distinct names.
 
