@@ -187,6 +187,30 @@ describe('sensitive paths: birthday calendar', () => {
 });
 
 describe('sensitive paths: people and club network', () => {
+  it('projects explicit, stable CSV columns without free text or private evidence', async () => {
+    const typePaths = ['/api/export/Club', '/api/export/Person', '/api/export/Request'] as const;
+    const headers = await Promise.all(typePaths.map(async path => (await request('GET', path)).body.split('\r\n')[0]));
+    const privateNote = 'Örnek gizli not 15550000000';
+    const privateEmail = 'calendar-private@example.com';
+    const privateBirth = '1996-11-16';
+    const parent = await db.club.create({ data: { name: '  =Örnek Kulüp', searchName: 'ornek kulup', notes: privateNote, fieldProvenance: { notes: { sourceUrl: `https://example.com/?email=${privateEmail}` } } } });
+    await db.person.create({ data: { name: 'Örnek Kişi', searchName: 'ornek kisi', notes: privateNote, email: encrypt(privateEmail, 'Person.email'), birthDate: encrypt(privateBirth, 'Person.birthDate'), tffProfileUrl: `https://example.com/?email=${privateEmail}` } });
+    await db.request.create({ data: { name: 'Örnek Talep', clubId: parent.id, position: 'CM', profileText: privateNote, salaryMax: '12345.12', sourceUrl: `https://example.com/?email=${privateEmail}` } });
+    for (const [index, path] of typePaths.entries()) {
+      const csv = await request('GET', path);
+      expect(csv.statusCode).toBe(200);
+      expect(csv.body.split('\r\n')[0]).toBe(headers[index]);
+      expect(csv.body).not.toMatch(/gizli not|private@example|1996-11-16|fieldProvenance|birthDate|phoneIndex|emailIndex|notes|example\.com|profileText|salaryMax|12345\.12/);
+    }
+    expect((await request('GET', typePaths[0])).body).toContain(`"'  =Örnek Kulüp"`);
+    expect((await request('GET', typePaths[1])).body).toContain('Örnek Kişi');
+    expect((await request('GET', typePaths[2])).body).toContain('Örnek Talep');
+    const logs = await db.auditLog.findMany({ where: { action: 'export' } });
+    expect(logs).toHaveLength(9);
+    expect(logs.map(row => row.diffs)).toContainEqual({ table: 'Request', count: 1, sensitive: false });
+    expect(JSON.stringify(logs)).not.toContain(privateNote);
+  });
+
   it('keeps dates encrypted, supports day-month view and clears the corresponding blind index', async () => {
     const birthDate = '2000-02-29';
     const payload = { name: 'Örnek Kişi Profili', role: 'MEDIA', birthDate, hideBirthYear: true, transfermarktUrl: 'https://example.com/profile' };
@@ -842,7 +866,7 @@ describe('club staff approval', () => {
 
 describe('security baseline', () => {
   it('exports a versioned English profile with provenance and excludes sensitive data', async () => {
-    const source = { sourceUrl: 'https://example.com/profile-source', sourceType: 'OFFICIAL', retrievedAt: '2026-11-02T00:00:00Z', verificationStatus: 'VERIFIED' };
+    const source = { sourceUrl: 'https://example.com/profile-source', sourceType: 'OFFICIAL', retrievedAt: '2026-11-02T00:00:00Z', verificationStatus: 'UNVERIFIED' };
     const player = (await request('POST', '/api/players', {
       name: 'Örnek ŞĞİ Profili', primaryPosition: 'CM', birthDate: '2000-02-01', fieldProvenance: { name: source },
     })).json();
@@ -1069,12 +1093,26 @@ describe('foundation acceptance gaps', () => {
     expect((await request('PATCH', `/api/records/Request/${exampleId('request')}`, { version: 2, changes: { clubId: exampleId('club-1') } })).statusCode).toBe(400);
     expect((await db.request.findUniqueOrThrow({ where: { id: exampleId('request') } })).clubId).toBe(exampleId('club-0'));
   });
-  it('keeps field evidence, resets changed manual fields and preserves unrelated values', async () => {
-    const source = { sourceUrl: 'https://example.com/official', sourceType: 'OFFICIAL', retrievedAt: '2026-11-02T00:00:00Z', verificationStatus: 'VERIFIED' };
-    const created = await request('POST', '/api/clubs', { name: 'Örnek Kaynak', city: 'Örnek Şehir', isTracked: true, fieldProvenance: { city: source } });
+  it('requires separate versioned owner verification and resets evidence when its field changes', async () => {
+    const source = { sourceUrl: 'https://example.com/official', sourceType: 'OFFICIAL', retrievedAt: '2026-11-02T00:00:00Z', verificationStatus: 'UNVERIFIED' };
+    const fields = { name: 'Örnek Kaynak', city: 'Örnek Şehir', isTracked: true, fieldProvenance: { city: source } };
+    const verifiedSource = { ...source, verificationStatus: 'VERIFIED' };
+    expect((await request('POST', '/api/clubs', { ...fields, fieldProvenance: { city: verifiedSource } })).statusCode).toBe(400);
+    expect((await request('POST', '/api/clubs', { ...fields, fieldProvenance: { city: { ...source, sourceUrl: 'https://example:example@example.com/source' } } })).statusCode).toBe(400);
+    const created = await request('POST', '/api/clubs', fields);
     expect(created.statusCode).toBe(201); const row = created.json();
     expect(row.fieldProvenance.city).toEqual(source); expect(row.fieldProvenance.name.sourceType).toBe('MANUAL');
-    const edited = await request('PATCH', `/api/records/Club/${row.id}`, { version: 1, changes: { city: 'Örnek Yeni Şehir' } });
+    const path = `/api/records/Club/${row.id}`;
+    const input = { field: 'city', version: row.version, sourceUrl: source.sourceUrl };
+    expect((await request('PATCH', path, { version: row.version, changes: { city: fields.city, fieldProvenance: { city: verifiedSource } } })).statusCode).toBe(400);
+    expect((await app.inject({ method: 'POST', url: `${path}/verify-field`, headers: { cookie, origin }, payload: input })).statusCode).toBe(403);
+    expect((await request('POST', `${path}/verify-field`, { ...input, field: 'name' })).statusCode).toBe(400);
+    expect((await request('POST', `${path}/verify-field`, { ...input, sourceUrl: 'https://example.com/changed' })).statusCode).toBe(409);
+    expect((await request('POST', `${path}/verify-field`, input)).json()).toEqual({ version: row.version + 1, verificationStatus: 'VERIFIED' });
+    expect((await request('POST', `${path}/verify-field`, input)).statusCode).toBe(409);
+    expect((await request('GET', path)).json().fieldProvenance).toMatchObject({ city: verifiedSource, name: row.fieldProvenance.name });
+    expect(await db.auditLog.count({ where: { action: 'verify', entityId: row.id } })).toBe(1);
+    const edited = await request('PATCH', path, { version: row.version + 1, changes: { city: 'Örnek Yeni Şehir' } });
     expect(edited.statusCode).toBe(200); expect(edited.json().isTracked).toBe(true);
     expect(edited.json().fieldProvenance.city.verificationStatus).toBe('UNVERIFIED'); expect(edited.json().fieldProvenance.name).toEqual(row.fieldProvenance.name);
     expect((await request('POST', '/api/clubs', { name: 'Örnek', fieldProvenance: { city: source } })).statusCode).toBe(400);

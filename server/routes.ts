@@ -1,17 +1,17 @@
 import type { FastifyInstance } from 'fastify';
 import type { PrismaClient } from '@prisma/client';
 import { z } from 'zod';
-import { clubInput, playerInput, personInput, requestInput, suggestionInput, relationInput, entityTypes, sensitiveKeys, maskSensitive, normalizeSearch } from '../shared/domain.js';
+import { clubInput, playerInput, personInput, requestInput, suggestionInput, relationInput, entityTypes, maskSensitive, normalizeSearch } from '../shared/domain.js';
 import { AppError, live, logEvent, requireEntity, softDelete } from './core.js';
 import { createSuggestion } from './suggestions.js';
 import { encrypt, decrypt, blindIndex, csrfToken } from './crypto.js';
 import { sessionCookie } from './auth.js';
 import { tr, en } from '../shared/locales.js';
-import { provenanceFor } from '../shared/provenance.js';
+import { fieldSource, provenanceFor } from '../shared/provenance.js';
 import { cleanupExamples, deletionPreview, examplePreview, listTrash, purgeTrash, restoreTrash } from './lifecycle.js';
 import { createClubUpdate, createStaffProposal, proposalContext, reviewProposal } from './proposals.js';
 import { clubUpdateInput } from '../shared/club-updates.js';
-import { clubListQuery, reviewInput, settingsInput, staffProposalInput } from '../shared/contracts.js';
+import { clubListQuery, fieldVerification, reviewInput, settingsInput, staffProposalInput } from '../shared/contracts.js';
 import { registerPrivacy } from './privacy.js';
 import { registerRetention } from './retention.js';
 import { validateRetentionPeriods } from './lifecycle.js';
@@ -29,6 +29,7 @@ import { playerFilters } from '../shared/player-list.js';
 import { registerPersonNetwork } from './person-network.js';
 import { registerCalendar } from './calendar.js';
 import { birthdayRule } from './birthdays.js';
+import { csvCell } from './csv.js';
 
 const idParams = z.object({ id: z.string().uuid() });
 const entityParams = z.object({ type: z.enum(entityTypes), id: z.string().uuid() });
@@ -36,6 +37,9 @@ const listQuery = z.object({ page: z.coerce.number().int().min(1).default(1), q:
 const masked = (row: unknown) => maskSensitive(row);
 const maskedRecord = (row: Awaited<ReturnType<typeof requireEntity>>) => masked('bio' in row ? { ...row, bio: cleanBiography(row.bio) } : row);
 const trashWrite = z.object({ version: z.number().int().positive(), recordVersion: z.number().int().positive() }).strict();
+const clubCsvFields = { id: true, name: true, shortName: true, countryId: true, regionId: true, city: true, lat: true, lng: true, stadium: true, foundedYear: true, relationStatus: true, isTracked: true, verificationStatus: true, isExample: true } as const;
+const personCsvFields = { id: true, name: true, role: true, country: true, relationStatus: true, verificationStatus: true, isExample: true } as const;
+const requestCsvFields = { id: true, name: true, clubId: true, requesterId: true, position: true, ageMin: true, ageMax: true, preferredFoot: true, euRequired: true, priority: true, deadline: true, status: true, isExample: true } as const;
 
 export async function registerRoutes(app: FastifyInstance, db: PrismaClient) {
   await registerPrivacy(app, db);
@@ -212,6 +216,30 @@ export async function registerRoutes(app: FastifyInstance, db: PrismaClient) {
     const { page } = listQuery.parse(req.query);
     return db.timelineEvent.findMany({ where: { ...live, entityType: type, entityId: id }, orderBy: { createdAt: 'desc' }, skip: (page - 1) * 50, take: 50 });
   });
+  app.post('/api/records/:type/:id/verify-field', async req => {
+    const { type, id } = entityParams.parse(req.params);
+    const { field, version, sourceUrl } = fieldVerification.parse(req.body);
+    return db.$transaction(async tx => {
+      const row = await requireEntity(tx, type, id);
+      if (row.version !== version) throw new AppError('STALE_VERSION', 409);
+      const sources = z.record(z.string(), fieldSource).parse(row.fieldProvenance);
+      const source = Object.hasOwn(sources, field) && Object.hasOwn(row, field) ? sources[field] : undefined;
+      if (!source?.sourceUrl) throw new AppError('SOURCE_REQUIRED');
+      if (source.sourceUrl !== sourceUrl) throw new AppError('STALE_PREVIEW', 409);
+      if (source.verificationStatus === 'VERIFIED') return { version, verificationStatus: 'VERIFIED' };
+      const where = { ...live, id, version };
+      const approved = { ...source, verificationStatus: 'VERIFIED' as const };
+      const data = { fieldProvenance: { ...sources, [field]: approved }, version: { increment: 1 } };
+      if (type === 'Club') await tx.club.update({ where, data });
+      else if (type === 'Player') await tx.player.update({ where, data });
+      else if (type === 'Person') await tx.person.update({ where, data });
+      else await tx.request.update({ where, data });
+      await logEvent(tx, { entityType: type, entityId: id, action: 'verify', name: row.name, isExample: row.isExample, diffs: {
+        field, old: source.verificationStatus, new: approved.verificationStatus,
+      } });
+      return { version: version + 1, verificationStatus: approved.verificationStatus };
+    });
+  });
   app.post('/api/records/:type/:id/reveal', async req => {
     const { type, id } = entityParams.parse(req.params);
     const { field } = z.object({ field: z.enum(['birthDate', 'phone', 'email', 'healthNotes', 'injuryNotes']) }).strict().parse(req.body);
@@ -258,11 +286,18 @@ export async function registerRoutes(app: FastifyInstance, db: PrismaClient) {
   });
   app.get('/api/export/:type', async (req, reply) => {
     const { type } = z.object({ type: z.enum(entityTypes) }).parse(req.params);
-    if (type === 'Player') return reply.header('content-type', 'text/csv; charset=utf-8').header('content-disposition', 'attachment; filename="Player.csv"').send(await exportPlayers(db, playerFilters.parse({})));
-    const rows = type === 'Club' ? await db.club.findMany({ where: live }) : type === 'Person' ? await db.person.findMany({ where: live }) : await db.request.findMany({ where: live });
-    const keys = Object.keys(rows[0] ?? { id: '', name: '' }).filter(key => !sensitiveKeys.has(key));
-    const cell = (v: unknown) => '"' + String(v ?? '').replace(/^[=+@\-\t\r]/, "'$&").replaceAll('"', '""') + '"';
-    const csv = [keys.join(','), ...rows.map(row => keys.map(k => cell((row as unknown as Record<string, unknown>)[k])).join(','))].join('\r\n');
+    const csv = type === 'Player' ? await exportPlayers(db, playerFilters.parse({})) : await db.$transaction(async tx => {
+      const query = { where: live, orderBy: { id: 'asc' as const } };
+      const rows: Record<string, unknown>[] = type === 'Club' ? await tx.club.findMany({ ...query, select: clubCsvFields })
+        : type === 'Person' ? await tx.person.findMany({ ...query, select: personCsvFields })
+        : await tx.request.findMany({ ...query, select: requestCsvFields });
+      const keys = Object.keys(type === 'Club' ? clubCsvFields : type === 'Person' ? personCsvFields : requestCsvFields);
+      await logEvent(tx, { entityType: 'Owner', entityId: 'owner', action: 'export', name: type, diffs: { table: type, count: rows.length, sensitive: false } });
+      return [keys.join(','), ...rows.map(row => keys.map(key => {
+        const value = row[key];
+        return csvCell(value instanceof Date ? value.toISOString().slice(0, 10) : String(value ?? ''));
+      }).join(','))].join('\r\n');
+    }, { isolationLevel: 'RepeatableRead' });
     return reply.header('content-type', 'text/csv; charset=utf-8').header('content-disposition', `attachment; filename="${type}.csv"`).send(csv);
   });
   app.get('/api/proposals', async req => {

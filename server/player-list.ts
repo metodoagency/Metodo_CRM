@@ -8,6 +8,7 @@ import { normalizeSearch } from '../shared/domain.js';
 import { provenanceFor } from '../shared/provenance.js';
 import { retentionPeriods } from '../shared/retention.js';
 import { AppError, live, logEvent } from './core.js';
+import { csvCell } from './csv.js';
 
 const listFields = {
   id: true, name: true, version: true, isExample: true, status: true, primaryPosition: true, tags: true, birthDate: true,
@@ -63,10 +64,9 @@ export async function exportPlayers(db: PrismaClient, filters: PlayerFilters) {
     // An explicit allowlist excludes free text, sensitive values, blind indexes
     // and field provenance from both the legacy and filtered export entry points.
     const columns = ['id', 'name', 'primaryPosition', 'status', 'club', 'league', 'levelScore', 'marketValue', 'currency', 'contractEndDate', 'availability', 'tags'];
-    const cell = (value: string) => '"' + value.replace(/^[\s]*[=+@\-\t\r]/u, "'$&").replaceAll('"', '""') + '"';
     const rows = items.map(listed).map(row => [row.id, row.name, row.primaryPosition, row.status, row.currentClub?.name ?? '', row.currentLeague?.name ?? '', row.levelScore ?? '', row.marketValue ?? '', row.marketValueCurrency ?? '', row.contractEndDate ?? '', row.availability, row.tags.join(' | ')]);
     await logEvent(tx, { entityType: 'Owner', entityId: 'owner', action: 'export', name: 'Player', diffs: { table: 'Player', count: items.length, sensitive: false } });
-    return [columns.map(cell).join(','), ...rows.map(row => row.map(cell).join(','))].join('\r\n');
+    return [columns.map(csvCell).join(','), ...rows.map(row => row.map(csvCell).join(','))].join('\r\n');
   }, { isolationLevel: 'RepeatableRead' });
 }
 

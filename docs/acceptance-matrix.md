@@ -20,7 +20,7 @@ Live commercial/provider implementation is explicitly deferred by SPEC update1. 
 | M12 | Sunum matrisi | 13 | PARTIAL | Foundation API tests; full baseline subsection remains pending |
 | M13 | Menajer ağı | 19 | NOT_DONE | — |
 | M14 | Kişiler/çakışan görevler | 11 | DONE | Versioned person profiles, dated club tenures, overlapping roles and colleagues, direct links to Staff, and manual profile URLs under SPEC update 1. [API](../tests/api.test.ts), [browser](../tests/e2e/person-network.ts) and [PostgreSQL 16/17 CI](https://github.com/metodoagency/Metodo_CRM/actions/runs/43910888820) passed. |
-| M15 | Doğum/önemli gün | 11 | PARTIAL | Calendar, preferences, annual greetings and significant dates implemented. [Seven local PostgreSQL calendar tests passed](../tests/api.test.ts). Full-suite and exact-head CI review pending. |
+| M15 | Doğum/önemli gün | 11 | DONE | Owner calendar, 60-second date access, configurable internal reminders, encrypted annual greetings and versioned significant dates. [API](../tests/api.test.ts), [browser](../tests/e2e/core.spec.ts) and [PostgreSQL 16/17 CI for a53a344](https://github.com/metodoagency/Metodo_CRM/actions/runs/43933505387) passed. |
 | M16 | Araçlar | 20 | NOT_DONE | — |
 | M17 | Operasyon/muhasebe | 20,21 | NOT_DONE | — |
 | M18 | Etkinlikler | 22 | NOT_DONE | — |
@@ -54,9 +54,9 @@ Live commercial/provider implementation is explicitly deferred by SPEC update1. 
 | R1 | Coach departure | 08 | DONE | [PostgreSQL regression](../tests/api.test.ts) covers explicit person, unrelated staff, follow-up and batched timeline. [PostgreSQL16/17 CI passed for f3f00c5](https://github.com/metodoagency/Metodo_CRM/actions/runs/42044968007). |
 | R2 | Coach appointment | 08 | DONE | [PostgreSQL regression](../tests/api.test.ts) covers no predecessor, stale predecessor and selected-role-only closure. [Browser test](../tests/e2e/core.spec.ts) verifies pending through preview and write on approval. [PostgreSQL16/17 CI passed for f3f00c5](https://github.com/metodoagency/Metodo_CRM/actions/runs/42044968007). |
 | R3 | Suggestion transaction | 13 | PARTIAL | tests/api.test.ts, tests/domain.test.ts, tests/acquisition-policy.test.ts; full milestone behavior still requires acceptance |
-| R4 | Notification dedupe | 11,15,44 | PARTIAL | Birthday rule covers configurable thresholds, repeated/concurrent runs, Istanbul midnight, cross-year targets and leap days in [integration tests](../tests/api.test.ts). Remaining rules and notification center are pending. |
-| R5 | Verification source | 08,10 | PARTIAL | tests/api.test.ts, tests/domain.test.ts, tests/acquisition-policy.test.ts; full milestone behavior still requires acceptance |
-| R6 | Sensitive masking | 04,06,40,52 | PARTIAL | tests/api.test.ts, tests/domain.test.ts, tests/acquisition-policy.test.ts; full milestone behavior still requires acceptance |
+| R4 | Notification dedupe | 11,15,44 | PARTIAL | Birthday thresholds, repeated/concurrent runs, Istanbul midnight, cross-year targets and leap days passed [integration tests](../tests/api.test.ts) and [PostgreSQL 16/17 CI](https://github.com/metodoagency/Metodo_CRM/actions/runs/43933505387). Other date rules and notification center are pending. |
+| R5 | Verification source | 08,10 | PARTIAL | Club update approval and an explicit, versioned field-source confirmation enforce a matching URL. Generic writes reject self-assigned VERIFIED status. [API](../tests/api.test.ts) and [browser](../tests/e2e/core.spec.ts) passed locally. Exact-head CI and later modules remain in scope. |
+| R6 | Sensitive masking | 04,06,40,52 | PARTIAL | Player CSV and profile documents plus explicit Club, Person, and Request CSV columns. [API tests](../tests/api.test.ts) confirm private fields, free text and evidence are excluded and export logs contain counts only. Exact-head CI and later sensitive modules remain in scope. |
 | R7 | Missing-data matching | 12 | NOT_DONE | — |
 | R8 | Istanbul age/minor | 11 | DONE | Explicit audited age and minor status from the Istanbul calendar. [API](../tests/api.test.ts), [date and leap-year tests](../tests/domain.test.ts), [timed reveal](../tests/e2e/person-network.ts) and [PostgreSQL 16/17 CI](https://github.com/metodoagency/Metodo_CRM/actions/runs/43910888820) passed. |
 | R9 | TFF-only fixtures | 16 | NOT_DONE | — |

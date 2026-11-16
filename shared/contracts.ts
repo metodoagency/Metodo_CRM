@@ -23,6 +23,7 @@ export const entityParams = z.object({ type: z.enum(entityTypes), id: z.uuid() }
 export const listQuery = z.object({ page: z.coerce.number().int().min(1).default(1), q: z.string().max(100).default(''), status: z.enum(['OWN', 'TARGET', 'INTERMEDIARY', 'MANDATED']).optional() }).strict();
 export const clubListQuery = listQuery.extend(clubFilters.shape);
 export const versionInput = z.object({ version: z.number().int().positive() }).strict();
+export const fieldVerification = versionInput.extend({ field: z.string().regex(/^[a-zA-Z][a-zA-Z0-9]{0,63}$/), sourceUrl: manualSourceUrl });
 export const trashWrite = versionInput.extend({ recordVersion: z.number().int().positive() });
 export const previewConfirmation = z.object({ previewToken: z.string().regex(/^[a-f0-9]{64}$/) }).strict();
 export const settingsInput = versionInput.extend({ language: z.enum(['tr', 'en']).optional(), theme: z.enum(['dark', 'light']).optional(), retentionDays: retentionPeriods.optional(), levelWeights: positionWeights.optional(), leagueTiers: leagueTiers.optional(), birthdayThresholds: birthdayThresholds.optional() });
@@ -131,6 +132,7 @@ export const apiContracts: ApiContract[] = [
   { method: 'get', path: '/api/records/:type/:id/timeline', params: entityParams, query: listQuery },
   { method: 'get', path: '/api/records/:type/:id/delete-preview', params: entityParams },
   { method: 'post', path: '/api/records/:type/:id/reveal', params: entityParams, body: revealInput },
+  { method: 'post', path: '/api/records/:type/:id/verify-field', params: entityParams, body: fieldVerification },
   { method: 'get', path: '/api/trash' },
   { method: 'get', path: '/api/trash/:id/preview', params: idParams },
   { method: 'post', path: '/api/trash/:id/restore', params: idParams, body: trashWrite },

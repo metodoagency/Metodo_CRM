@@ -307,11 +307,17 @@ test('owner sees field evidence and safely restores and purges a record', async 
   const me = await (await page.request.get('/api/me')).json();
   const headers = { origin: 'http://localhost:5173', 'x-csrf-token': me.csrfToken };
   const name = `Örnek Yaşam Döngüsü ${Date.now()}`;
-  const response = await page.request.post('/api/clubs', { headers, data: { name, city: 'Örnek Şehir', fieldProvenance: { city: { sourceUrl: 'https://example.com/city-source', sourceType: 'OFFICIAL', retrievedAt: '2026-11-02T00:00:00Z', verificationStatus: 'VERIFIED' } } } });
+  const response = await page.request.post('/api/clubs', { headers, data: { name, city: 'Örnek Şehir', fieldProvenance: { city: { sourceUrl: 'https://example.com/city-source', sourceType: 'OFFICIAL', retrievedAt: '2026-11-02T00:00:00Z', verificationStatus: 'UNVERIFIED' } } } });
   expect(response.status()).toBe(201); const record = await response.json();
   await page.goto(`/record/Club/${record.id}`);
   await expect(page.getByRole('heading', { name: 'Alanların kaynak bilgileri' })).toBeVisible();
   await expect(page.locator('a[href="https://example.com/city-source"]')).toBeVisible();
+  await page.getByRole('button', { name: 'Alan kaynağını doğrula', exact: true }).click();
+  const verify = page.getByRole('dialog', { name: 'Alan kaynağını doğrula', exact: true });
+  await expect(verify.getByRole('link', { name: 'https://example.com/city-source', exact: true })).toBeVisible();
+  await verify.getByRole('button', { name: 'Alan kaynağını doğrula', exact: true }).click();
+  await expect(verify).toBeHidden();
+  await expect(page.getByText('Doğrulanmış', { exact: true })).toBeVisible();
   for (const action of ['restore', 'purge']) {
     await page.getByRole('button', { name: 'Çöp kutusuna taşı', exact: true }).click();
     await expect(page.getByRole('dialog').getByRole('heading', { name: 'Bağlantılı kayıtlar' })).toBeVisible();

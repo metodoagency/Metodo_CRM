@@ -3,16 +3,40 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { api, body } from './api';
 import { ErrorMessage, Modal } from './components';
-import type { FieldSource } from '../shared/provenance';
+import { manualSourceUrl, type FieldSource } from '../shared/provenance';
+import type { RecordType } from './types';
 
 export type Impact = { total: number; counts: Record<string, number>; previewToken: string; canPurge?: boolean };
 export function ImpactList({ plan }: { plan: Impact }) {
   const { t } = useTranslation();
   return <section aria-label={t('dependencyPreview')}><h2 className="mt-5">{t('dependencyPreview')}</h2><p className="subtitle">{t('dependencyTotal', { count: plan.total })}</p><dl>{Object.entries(plan.counts).map(([type, count]) => <div className="detail-field" key={type}><dt>{t(`model${type}`)}</dt><dd>{count}</dd></div>)}</dl>{plan.canPurge === false && <p className="notice">{t('purgeBlocked')}</p>}</section>;
 }
-export function FieldEvidence({ sources }: { sources: Record<string, FieldSource> }) {
+export function FieldEvidence({ sources, record }: { sources: Record<string, FieldSource>; record: { type: RecordType; id: string; version: number } }) {
   const { t, i18n } = useTranslation();
-  return <section className="panel"><div className="panel-header"><h2>{t('fieldEvidence')}</h2></div><div className="panel-body">{Object.entries(sources).map(([field, source]) => <div className="list-line" key={field}><div className="flex-1"><strong>{t(`field_${field}`)}</strong><p className="muted mt-2">{t(source.verificationStatus === 'VERIFIED' ? 'sourceVerified' : source.verificationStatus === 'PARTIAL' ? 'sourcePartial' : 'sourceUnverified')}</p><p className="muted mt-2">{t('retrieved')} · {new Intl.DateTimeFormat(i18n.language === 'tr' ? 'tr-TR' : 'en-GB', { timeZone: 'Europe/Istanbul', dateStyle: 'medium' }).format(new Date(source.retrievedAt))}</p></div>{source.sourceUrl ? <a className="text-accent" href={source.sourceUrl} target="_blank" rel="noopener noreferrer">{t('source')}</a> : <span className="muted">{t('manualSource')}</span>}</div>)}</div></section>;
+  const cache = useQueryClient();
+  const [review, setReview] = useState<{ field: string; sourceUrl: string; version: number }>();
+  const verify = useMutation({
+    mutationFn: (input: NonNullable<typeof review>) => api(`/api/records/${record.type}/${record.id}/verify-field`, { method: 'POST', body: body(input) }),
+    onSuccess: async () => { await cache.invalidateQueries(); setReview(undefined); },
+  });
+  return <section className="panel"><div className="panel-header"><h2>{t('fieldEvidence')}</h2></div><div className="panel-body">
+    {Object.entries(sources).map(([field, source]) => {
+      const url = manualSourceUrl.safeParse(source.sourceUrl);
+      return <div className="list-line flex-wrap" key={field}>
+      <div className="flex-1"><strong>{t(`field_${field}`)}</strong><p className="muted mt-2">{t(source.verificationStatus === 'VERIFIED' ? 'sourceVerified' : source.verificationStatus === 'PARTIAL' ? 'sourcePartial' : 'sourceUnverified')}</p><p className="muted mt-2">{t('retrieved')} · {new Intl.DateTimeFormat(i18n.language === 'tr' ? 'tr-TR' : 'en-GB', { timeZone: 'Europe/Istanbul', dateStyle: 'medium' }).format(new Date(source.retrievedAt))}</p></div>
+      {url.success ? <a className="text-accent" href={url.data} target="_blank" rel="noopener noreferrer">{t('source')}</a> : <span className="muted">{t(source.sourceUrl ? 'invalidEvidenceUrl' : 'manualSource')}</span>}
+      {url.success && source.verificationStatus !== 'VERIFIED' && <button className="secondary" onClick={() => { verify.reset(); setReview({ field, sourceUrl: url.data, version: record.version }); }}>{t('verifyField')}</button>}
+    </div>;
+    })}
+  </div>
+    {review && <Modal title={t('verifyField')} onClose={() => setReview(undefined)}>
+      <p className="subtitle">{t('verifyFieldHint')}</p>
+      <p className="mt-3"><strong>{t(`field_${review.field}`)}</strong> · {t('sourceVerified')}</p>
+      <a className="text-accent break-all" href={review.sourceUrl} target="_blank" rel="noopener noreferrer">{review.sourceUrl}</a>
+      {verify.isError && <ErrorMessage />}
+      <div className="form-footer"><button className="primary" disabled={verify.isPending} onClick={() => verify.mutate(review)}>{t('verifyField')}</button></div>
+    </Modal>}
+  </section>;
 }
 export function AdminControls() {
   const { t } = useTranslation(); const client = useQueryClient(); const [confirming, setConfirming] = useState(false); const [agreed, setAgreed] = useState(false);

@@ -1,12 +1,8 @@
 import { z } from 'zod';
-import { sourceTypes } from './provenance.js';
+import { manualSourceUrl, sourceTypes } from './provenance.js';
+export { manualSourceUrl } from './provenance.js';
 
 export const sourceTrustLevels = ['OFFICIAL', 'MEDIA', 'SOCIAL_VERIFIED'] as const;
-export const manualSourceUrl = z.url({ protocol: /^https?$/ }).max(2048).refine(value => {
-  if (!URL.canParse(value)) return false;
-  const url = new URL(value);
-  return !url.username && !url.password;
-}, 'INVALID_SOURCE');
 export const clubSourceInput = z.object({
   name: z.string().trim().min(1).max(160),
   type: z.enum(sourceTypes),
