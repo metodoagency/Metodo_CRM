@@ -120,6 +120,41 @@ test('owner views a private birthday and records a yearly greeting and significa
   await page.getByRole('button', { name: 'Tarihleri göster', exact: true }).click();
   await expect(row).toContainText('30, 7, 0');
 });
+
+test('record navigation closes the previous profile greeting editor', { tag: '@club-workspace' }, async ({ page }) => {
+  await signIn(page);
+  const me = await (await page.request.get('/api/me')).json();
+  const headers = { origin: 'http://localhost:5173', 'x-csrf-token': me.csrfToken };
+  const firstName = 'Örnek İlk Tebrik Profili';
+  const secondName = 'Örnek Sonraki Tebrik Profili';
+  const first = await page.request.post('/api/people', { headers, data: { name: firstName } });
+  const second = await page.request.post('/api/people', { headers, data: { name: secondName } });
+  expect(first.status()).toBe(201);
+  expect(second.status()).toBe(201);
+  const [a, b] = await Promise.all([first.json(), second.json()]);
+  const linked = await page.request.post('/api/relations', { headers, data: { fromType: 'Person', fromId: a.id, toType: 'Person', toId: b.id, relation: 'worksWith' } });
+  expect(linked.status()).toBe(201);
+  const year = istanbulToday().slice(0, 4);
+  const secondNote = 'Örnek Sonraki Profil Notu';
+  const saved = await page.request.patch(`/api/calendar/greetings/Person/${b.id}/${year}`, { headers, data: { version: null, greetingNote: secondNote, sent: false } });
+  expect(saved.status()).toBe(200);
+  await page.goto(`/record/Person/${a.id}`);
+  await page.getByRole('link', { name: secondName, exact: true }).click();
+  await expect(page.getByRole('heading', { name: secondName, exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Yıllık tebrik notu', exact: true }).click();
+  const dialog = page.getByRole('dialog', { name: 'Yıllık tebrik notu', exact: true });
+  const loadNote = dialog.getByRole('button', { name: 'Bu yılın notunu aç', exact: true });
+  const note = dialog.getByRole('textbox', { name: 'Tebrik notu', exact: true });
+  await loadNote.click();
+  await expect(note).toHaveValue(secondNote);
+  await page.goBack();
+  await expect(page.getByRole('heading', { name: firstName, exact: true })).toBeVisible();
+  await expect(dialog).toBeHidden();
+  await page.getByRole('button', { name: 'Yıllık tebrik notu', exact: true }).click();
+  await loadNote.click();
+  await expect(note).toHaveValue('');
+});
+
 test('owner creates club and player, suggests a player and reads the shared timeline', async ({ page }) => {
   test.setTimeout(75_000);
   await signIn(page);

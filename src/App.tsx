@@ -93,7 +93,7 @@ export function App() {
       <Route path="/players" element={<PlayerDatabase onCreate={() => setCreate('Player')} />} />
       <Route path="/people" element={<Records type="Person" onCreate={() => setCreate('Person')} />} />
       <Route path="/requests" element={<Records type="Request" onCreate={() => setCreate('Request')} />} />
-      <Route path="/record/:type/:id" element={<Detail />} />
+      <Route path="/record/:type/:id" element={<RecordDetailRoute />} />
       <Route path="/trash" element={<Trash />} /><Route path="/proposals" element={<Proposals />} />
       <Route path="/sources" element={<ClubSourceRegistry />} />
       <Route path="/birthdays" element={<BirthdayCalendar />} />
@@ -169,6 +169,11 @@ function CreateRecord({ type, onClose }: { type: RecordType; onClose: () => void
 }
 
 type RelationRow = { id: string; direction: string; relation: string; targetType: RecordType; targetId: string; label: string; available: boolean };
+function RecordDetailRoute() {
+  const { type, id } = useParams();
+  return <Detail key={`${type}:${id}`} />;
+}
+
 function Detail() {
   const { type: raw, id } = useParams(); const type = raw as RecordType; const { t, i18n } = useTranslation(); const date = useDate(); const refresh = useRefresh(); const navigate = useNavigate();
   const [modal, setModal] = useState<'relation' | 'delete' | 'suggest' | 'birthday' | 'greeting'>();

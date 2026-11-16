@@ -1,12 +1,12 @@
 # Metodo CRM progress
 
-Updated 2026-11-16, Europe/Istanbul. SPEC.md and docs/REQUIREMENTS.md define the scope. See the [session plan](SESSION_PLAN.md) and [100-row acceptance matrix](docs/acceptance-matrix.md) for the current records. Earlier checkpoints are available in Git history.
+Updated 2026-11-17, Europe/Istanbul. SPEC.md and docs/REQUIREMENTS.md define the scope. See the [session plan](SESSION_PLAN.md) and [100-row acceptance matrix](docs/acceptance-matrix.md) for the current records. Earlier checkpoints are available in Git history.
 
 ## Current state
 
-- Accepted milestone progress: **10%** (A complete out of A–J). This is an equal-gate count, not effort. No partial code/schema/resource is counted complete.
+- Accepted milestone progress: **10%** (A complete out of A–J). Work packages: **7 of 54 complete**, 4 in progress and 43 pending. B has 6 of its 7 feature modules accepted. These counts describe the delivered scope and release gates.
 - A merged in PR #1 as db76f90 after exact-head CI: 67 tests,17 security tests,6 browser/axe scenarios. Completed security review plus rate-control corrections; no X-Frame-Options and required Google CSP retained.
-- B remains draft PR #2 on milestone/b-clubs. File checkpoint f2a5ed9 passed PostgreSQL16/17 CI in run41841269760. The complete B UI and feature acceptance remain scheduled for package11.
+- B remains draft PR #2 on milestone/b-clubs. M1, M3, M5, M6, M14 and M15 are accepted. M4 still requires the live, owner-triggered TFF staff check. R5/R6 checks for the current B application passed on PostgreSQL 16 and 17. [CI for 2d4cd8d](https://github.com/metodoagency/Metodo_CRM/actions/runs/43935533778)
 - 54-package plan approved by owner:29 core pilot,54 final delivery. One writer/current checkout; no new worktree.
 - Package01 DONE: plan saved, all45 M modules/26 R rules/15 G additions/14 innovations mapped, stale current-state summaries reconciled, PostgreSQL17 target and16/17 CI matrix verified at42bc0b5.
 - Package02 IN_PROGRESS: free Render service exists. Both restricted database roles now connect over verified TLS to the existing PostgreSQL17 session pooler. Seven Prisma migrations deployed without example seeding; all64 public tables (63 CRM plus migration metadata) have RLS. OAuth client creation/Render secret configuration and real HTTPS login remain pending. Owner explicitly approved creating the prepared OAuth web client, saving credentials only to Render, and preserving the two new role passwords while aligning SCRAM to4096 iterations. Do not request these approvals again.
@@ -50,6 +50,10 @@ Updated 2026-11-16, Europe/Istanbul. SPEC.md and docs/REQUIREMENTS.md define the
 - M15 accepted on 2026-11-16. Local PostgreSQL 16.13 passed 120/120 tests and Playwright passed 13/13 scenarios, including Turkish and English axe scans across 15 routes. The full browser run passed after fixing sidebar scrolling at short viewport heights. Lint, TypeScript, production build, 761 bilingual keys and compliance structure passed. Both PostgreSQL 16 and 17 jobs passed for a53a344, including the security gate. R4 remains partial for its other date rules. Migration010 has been verified in local and CI databases. [Calendar CI](https://github.com/metodoagency/Metodo_CRM/actions/runs/43933505387)
 
 - B acceptance follow-up on 2026-11-16. Normal record writes reject a direct VERIFIED status. The field source dialog confirms the exact source URL and version, changes only that field's provenance status, and writes a value-free audit event. Approved proposal behavior and historic evidence remain supported. Club, Person and Request CSV use stable allowlists and the same cell escaping as Player CSV. They exclude free-text notes, private evidence and budgets and log exported table and count. Three focused PostgreSQL tests, the browser approval and Trash scenario, lint, TypeScript and 765 bilingual keys passed. This checkpoint requires its exact-head CI result before closing B-scoped R5/R6.
+
+- Acceptance evidence reviewed on 2026-11-17. PostgreSQL 16 and 17 CI passed for 2d4cd8d. Each ran the 121-test application suite, 46 selected security tests and 13 browser scenarios. The production dependency audit reported zero vulnerabilities. B-scoped R5 and R6 are verified. Future verification and masking paths stay tracked in the matrix. [B CI](https://github.com/metodoagency/Metodo_CRM/actions/runs/43935533778)
+
+- Codex Security reviewed the 25 changed source files between b02dbb7 and 2d4cd8d and sealed scan a98be25f-bb50-426f-a00e-3d1c63177b98 with zero reportable vulnerabilities. It deferred checking whether backup and subject-export paths protect the derived birthday occurrence metadata in Notification, for package25. The review also identified a same-owner record integrity defect. Profile navigation now discards the prior record's editor and temporary reveal state. Explicitly hiding age resets the UI's mutation result. The focused Chromium navigation regression, TypeScript and lint passed locally. The post-review correction requires its own CI.
 
 ## Milestone gates
 
@@ -99,7 +103,7 @@ Existing update validation:2 acquisition-policy tests and1 real PostgreSQL reten
 
 ## Next actions and verification boundaries
 
-Close the remaining B-scoped R5/R6 acceptance checks and run the milestone security review. The owner-triggered, robots-gated staff check remains pending under Owner input needed. Preserve the B draft until its acceptance criteria pass. Continue independent package12 transfer request and matching work when B is waiting for the live staff-check input.
+Finish the B security review and the owner-triggered, robots-gated staff check recorded under Owner input needed. Preserve the B draft until its acceptance criteria pass. Start independent package12 transfer request and matching work with the pure scorer and R7 tests.
 
 Finish package02 with the approved OAuth client, Render configuration, HTTPS health and real owner login. Verify package05 with a private Supabase bucket, server-side S3 configuration and an example-file upload/download/delete smoke. Apply migration008 when live storage is ready and its release review is complete. Finish M4 with a tracked-club TFF check after obtaining representative anonymized markup. Require explicit owner action and robots permission, a strict HTTPS host allowlist and CSV fallback on denial or failure. Keep the working CSV path usable independently. The local PostgreSQL launcher reuses a live process and allows up to three minutes for startup/recovery. The Windows browser cache is configured in the ignored local environment. PostgreSQL 16/17 CI artifacts have distinct names.
 

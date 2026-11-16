@@ -160,7 +160,7 @@ function PlayerAge({ id }: { id: string }) {
     clearTimeout(timer.current); setAge(result.age ?? undefined); timer.current = setTimeout(() => { setAge(undefined); reveal.reset(); }, result.expiresIn * 1000);
   } });
   return <>{age === undefined ? <button className="text-accent" disabled={reveal.isPending} onClick={() => reveal.mutate()}>{t('playerRevealAge')}</button>
-    : <span>{age} <button className="text-accent" onClick={() => { clearTimeout(timer.current); setAge(undefined); }}>{t('hide')}</button></span>}{reveal.isError && <ErrorMessage />}</>;
+    : <span>{age} <button className="text-accent" onClick={() => { clearTimeout(timer.current); setAge(undefined); reveal.reset(); }}>{t('hide')}</button></span>}{reveal.isError && <ErrorMessage />}</>;
 }
 
 function SavePlayerView({ filters, columns, onClose }: { filters: PlayerFilters; columns: PlayerColumn[]; onClose: () => void }) {
