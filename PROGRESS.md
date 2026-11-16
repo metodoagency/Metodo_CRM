@@ -41,6 +41,8 @@ Updated 2026-11-16, Europe/Istanbul. SPEC.md and docs/REQUIREMENTS.md define the
 
 - Package11 person directory checkpoint on 2026-11-16. Owners can update person role, country, relationship status, manual profile links and date-of-birth display. Birth dates are encrypted and the blind index is cleared on removal. Explicit age reveal uses the Istanbul date, shows minor status for 60 seconds and logs the field name. Person-to-club memberships support versioned editing, manual evidence and grouped Person and Club timeline entries. Worked-together results and overlapping roles use dated live records, exclude the departure day and link directly to the club Staff tab. Undated tenures are visible in history. No schema migration. Package11 remains open for birthdays, recurring reminders, significant dates and yearly greeting notes. Project acceptance is 10%.
 
+- Package11 directory verification. Local PostgreSQL passed 113 tests. The security gate passed 38 tests and reported zero production dependency vulnerabilities. All 12 local browser scenarios passed, including the 14-route TR/EN accessibility checks. Lint, TypeScript, production build and 729 bilingual keys passed. The initial directory commit passed PostgreSQL 16 CI and the PostgreSQL 17 server tests. The PostgreSQL 17 browser run exhausted the shared test server's API quota. The test runner now starts a separate server for the two club workspace scenarios and retains their report alongside the Chromium and accessibility reports. [Initial directory CI](https://github.com/metodoagency/Metodo_CRM/actions/runs/43909421086)
+
 ## Milestone gates
 
 | Stage | Status | Gate |

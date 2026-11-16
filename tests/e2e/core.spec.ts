@@ -141,7 +141,7 @@ test('owner creates club and player, suggests a player and reads the shared time
   await expect(page.getByText(/Örnek SK A kulübüne önerildi/)).toBeVisible();
   await exercisePlayerList(page, playerName);
 });
-test('owner manages club geography and downloads a private file with logged access', async ({ page }) => {
+test('owner manages club geography and downloads a private file with logged access', { tag: '@club-workspace' }, async ({ page }) => {
   test.setTimeout(75_000);
   await signIn(page); const me = await (await page.request.get('/api/me')).json();
   const response = await page.request.post('/api/clubs', { headers: { origin: 'http://localhost:5173', 'x-csrf-token': me.csrfToken }, data: { name: `Örnek Dosya Kulübü ${Date.now()}` } });
@@ -163,7 +163,7 @@ test('owner manages club geography and downloads a private file with logged acce
   await exercisePersonNetwork(page, club, headers);
 });
 
-test('club sources and updates use explicit review, including CSV proposals', async ({ page }) => {
+test('club sources and updates use explicit review, including CSV proposals', { tag: '@club-workspace' }, async ({ page }) => {
   await signIn(page);
   const me = await (await page.request.get('/api/me')).json();
   const headers = { origin: 'http://localhost:5173', 'x-csrf-token': me.csrfToken };
