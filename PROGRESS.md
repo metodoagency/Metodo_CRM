@@ -43,6 +43,8 @@ Updated 2026-11-16, Europe/Istanbul. SPEC.md and docs/REQUIREMENTS.md define the
 
 - Package11 directory verification. Local PostgreSQL passed 113 tests. The security gate passed 38 tests and reported zero production dependency vulnerabilities. All 12 local browser scenarios passed, including the 14-route TR/EN accessibility checks. Lint, TypeScript, production build and 729 bilingual keys passed. The initial directory commit passed PostgreSQL 16 CI and the PostgreSQL 17 server tests. The PostgreSQL 17 browser run exhausted the shared test server's API quota. The test runner now starts a separate server for the two club workspace scenarios and retains their report alongside the Chromium and accessibility reports. [Initial directory CI](https://github.com/metodoagency/Metodo_CRM/actions/runs/43909421086)
 
+- M14 and R8 accepted on 2026-11-16. PostgreSQL 16 and 17 CI passed for bda07a9 after splitting the browser groups. All 12 browser scenarios also passed locally with the same split. Package11 remains in progress for M15. [Directory CI](https://github.com/metodoagency/Metodo_CRM/actions/runs/43910888820)
+
 ## Milestone gates
 
 | Stage | Status | Gate |

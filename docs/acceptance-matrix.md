@@ -19,7 +19,7 @@ Live commercial/provider implementation is explicitly deferred by SPEC update1. 
 | M11 | Satış listesi | 13 | PARTIAL | Foundation API tests; full baseline subsection remains pending |
 | M12 | Sunum matrisi | 13 | PARTIAL | Foundation API tests; full baseline subsection remains pending |
 | M13 | Menajer ağı | 19 | NOT_DONE | — |
-| M14 | Kişiler/çakışan görevler | 11 | PARTIAL | Versioned person profiles, dated club tenures, overlapping roles and colleagues, direct links to Staff, and manual profile URLs under SPEC update 1. [API coverage](../tests/api.test.ts) and [browser coverage](../tests/e2e/person-network.ts). Acceptance awaits the current application commit's CI. |
+| M14 | Kişiler/çakışan görevler | 11 | DONE | Versioned person profiles, dated club tenures, overlapping roles and colleagues, direct links to Staff, and manual profile URLs under SPEC update 1. [API](../tests/api.test.ts), [browser](../tests/e2e/person-network.ts) and [PostgreSQL 16/17 CI](https://github.com/metodoagency/Metodo_CRM/actions/runs/43910888820) passed. |
 | M15 | Doğum/önemli gün | 11 | NOT_DONE | — |
 | M16 | Araçlar | 20 | NOT_DONE | — |
 | M17 | Operasyon/muhasebe | 20,21 | NOT_DONE | — |
@@ -58,7 +58,7 @@ Live commercial/provider implementation is explicitly deferred by SPEC update1. 
 | R5 | Verification source | 08,10 | PARTIAL | tests/api.test.ts, tests/domain.test.ts, tests/acquisition-policy.test.ts; full milestone behavior still requires acceptance |
 | R6 | Sensitive masking | 04,06,40,52 | PARTIAL | tests/api.test.ts, tests/domain.test.ts, tests/acquisition-policy.test.ts; full milestone behavior still requires acceptance |
 | R7 | Missing-data matching | 12 | NOT_DONE | — |
-| R8 | Istanbul age/minor | 11 | PARTIAL | Explicit audited age and minor status from the Istanbul calendar. [API](../tests/api.test.ts), [date and leap-year tests](../tests/domain.test.ts) and [timed reveal](../tests/e2e/person-network.ts). Acceptance awaits the current application commit's CI. |
+| R8 | Istanbul age/minor | 11 | DONE | Explicit audited age and minor status from the Istanbul calendar. [API](../tests/api.test.ts), [date and leap-year tests](../tests/domain.test.ts), [timed reveal](../tests/e2e/person-network.ts) and [PostgreSQL 16/17 CI](https://github.com/metodoagency/Metodo_CRM/actions/runs/43910888820) passed. |
 | R9 | TFF-only fixtures | 16 | NOT_DONE | — |
 | R10 | CV defaults | 06,18 | NOT_DONE | — |
 | R11 | Example cleanup | 01,25 | PARTIAL | tests/api.test.ts, tests/domain.test.ts, tests/acquisition-policy.test.ts; full milestone behavior still requires acceptance |
