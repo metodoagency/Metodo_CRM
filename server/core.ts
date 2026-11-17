@@ -1,12 +1,21 @@
 import { randomUUID } from 'node:crypto';
 import { Prisma, type PrismaClient } from '@prisma/client';
-import { maskSensitive, type entityTypes } from '../shared/domain.js';
+import { istanbulToday, maskSensitive, type entityTypes } from '../shared/domain.js';
 import { tr, en } from '../shared/locales.js';
 import { z } from 'zod';
 
 export type EntityType = typeof entityTypes[number];
 export type Tx = Prisma.TransactionClient;
 export const live = { ownerId: 'owner', deletedAt: null };
+export function clubContacts(clubId: string, day = new Date(`${istanbulToday()}T00:00:00Z`)): Prisma.RelationWhereInput {
+  return {
+    ...live, fromType: 'Person', toType: 'Club', toId: clubId, relation: { in: ['memberOf', 'contactOf'] },
+    AND: [
+      { OR: [{ startDate: null }, { startDate: { lte: day } }] },
+      { OR: [{ endDate: null }, { endDate: { gt: day } }] },
+    ],
+  };
+}
 export class AppError extends Error { constructor(public code: string, public status = 400) { super(code); } }
 export function delegate(db: Tx, type: EntityType) {
   // Common operations have the same primary-key/owner/soft-delete contract.

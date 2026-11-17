@@ -1,7 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 import type { PrismaClient } from '@prisma/client';
 import { z } from 'zod';
-import { clubInput, playerInput, personInput, requestInput, suggestionInput, relationInput, entityTypes, maskSensitive, normalizeSearch } from '../shared/domain.js';
+import { clubInput, playerInput, personInput, suggestionInput, relationInput, entityTypes, maskSensitive, normalizeSearch } from '../shared/domain.js';
 import { AppError, live, logEvent, requireEntity, softDelete } from './core.js';
 import { createSuggestion } from './suggestions.js';
 import { encrypt, decrypt, blindIndex, csrfToken } from './crypto.js';
@@ -30,6 +30,7 @@ import { registerPersonNetwork } from './person-network.js';
 import { registerCalendar } from './calendar.js';
 import { birthdayRule } from './birthdays.js';
 import { csvCell } from './csv.js';
+import { getTransferRequest, registerTransferRequests, updateTransferRequest } from './transfer-requests.js';
 
 const idParams = z.object({ id: z.string().uuid() });
 const entityParams = z.object({ type: z.enum(entityTypes), id: z.string().uuid() });
@@ -56,6 +57,7 @@ export async function registerRoutes(app: FastifyInstance, db: PrismaClient) {
   await registerPlayerBiographies(app, db);
   await registerPersonNetwork(app, db);
   await registerCalendar(app, db);
+  await registerTransferRequests(app, db);
   app.get('/api/me', async req => ({ id: 'owner', csrfToken: csrfToken(req.cookies[sessionCookie]!) }));
   app.get('/api/settings', async () => masked(await db.userSettings.upsert({ where: { ownerId: 'owner' }, create: { ownerId: 'owner' }, update: {} })));
   app.patch('/api/settings', async req => {
@@ -128,29 +130,17 @@ export async function registerRoutes(app: FastifyInstance, db: PrismaClient) {
     });
     return reply.code(201).send(masked(row));
   });
-  app.get('/api/requests', async req => {
-    const { page } = listQuery.parse(req.query);
-    return { items: (await db.request.findMany({ where: live, include: { club: true, requester: true }, orderBy: { createdAt: 'desc' }, skip: (page - 1) * 50, take: 50 })).map(masked), total: await db.request.count({ where: live }), page };
-  });
-  app.post('/api/requests', async (req, reply) => {
-    const input = requestInput.parse(req.body);
-    const row = await db.$transaction(async tx => {
-      await requireEntity(tx, 'Club', input.clubId); await requireEntity(tx, 'Person', input.requesterId);
-      if (!await tx.relation.findFirst({ where: { ...live, fromType: 'Person', fromId: input.requesterId, toType: 'Club', toId: input.clubId, endDate: null, relation: { in: ['memberOf', 'contactOf'] } } })) throw new AppError('PERSON_NOT_AT_CLUB');
-      const row = await tx.request.create({ data: { ...input, fieldProvenance: provenanceFor(input), deadline: input.deadline ? new Date(input.deadline) : undefined } });
-      await logEvent(tx, { entityType: 'Request', entityId: row.id, name: row.name, action: 'create' }); return row;
-    });
-    return reply.code(201).send(row);
-  });
   app.post('/api/suggestions', async (req, reply) => reply.code(201).send(await createSuggestion(db, suggestionInput.parse(req.body))));
   app.get('/api/records/:type/:id', async req => {
     const { type, id } = entityParams.parse(req.params);
+    if (type === 'Request') return getTransferRequest(db, id);
     return maskedRecord(await requireEntity(db, type, id));
   });
   app.patch('/api/records/:type/:id', async req => {
     const { type, id } = entityParams.parse(req.params);
-    const schema = type === 'Club' ? clubInput.partial() : type === 'Player' ? playerInput.partial() : type === 'Person' ? personInput.partial() : requestInput.partial();
     const { version, changes } = z.object({ version: z.number().int().positive(), changes: z.record(z.string(), z.unknown()) }).strict().parse(req.body);
+    if (type === 'Request') return updateTransferRequest(db, id, version, changes);
+    const schema = type === 'Club' ? clubInput.partial() : type === 'Player' ? playerInput.partial() : personInput.partial();
     const parsed = schema.parse(changes);
     // Optional partial fields must not re-apply create-time defaults.
     const input = Object.fromEntries(Object.entries(parsed).filter(([key]) => key in changes)) as typeof parsed;
@@ -166,21 +156,13 @@ export async function registerRoutes(app: FastifyInstance, db: PrismaClient) {
       const changesToSave = changedPosition ? { ...input, levelScore: null, levelSubscores: {}, ...(secondaryPositions ? { secondaryPositions } : {}) } : input;
       const data: Record<string, unknown> = { ...changesToSave, fieldProvenance: provenanceFor(changesToSave, before.fieldProvenance), version: { increment: 1 } };
       if ('currentClubId' in input && input.currentClubId) await requireEntity(tx, 'Club', input.currentClubId);
-      if ('clubId' in input && input.clubId) await requireEntity(tx, 'Club', input.clubId);
-      if ('requesterId' in input && input.requesterId) await requireEntity(tx, 'Person', input.requesterId);
-      if (type === 'Request') {
-        const clubId = 'clubId' in input && input.clubId ? input.clubId : 'clubId' in before ? before.clubId : undefined;
-        const requesterId = 'requesterId' in input && input.requesterId ? input.requesterId : 'requesterId' in before ? before.requesterId : undefined;
-        if (!clubId || !requesterId || !await tx.relation.findFirst({ where: { ...live, fromType: 'Person', fromId: requesterId, toType: 'Club', toId: clubId, endDate: null, relation: { in: ['memberOf', 'contactOf'] } } })) throw new AppError('PERSON_NOT_AT_CLUB');
-      }
       if ('birthDate' in input && input.birthDate !== undefined) {
         data.birthDate = input.birthDate ? encrypt(input.birthDate, `${type}.birthDate`) : null;
         data.birthDateIndex = input.birthDate ? blindIndex(input.birthDate) : null;
       }
-      if ('name' in input && input.name && type !== 'Request') data.searchName = normalizeSearch(input.name);
-      if ('deadline' in input && input.deadline) data.deadline = new Date(input.deadline);
+      if ('name' in input && input.name) data.searchName = normalizeSearch(input.name);
       const where = { ...live, id, version };
-      const after = type === 'Club' ? await tx.club.update({ where, data }) : type === 'Player' ? await tx.player.update({ where, data }) : type === 'Person' ? await tx.person.update({ where, data }) : await tx.request.update({ where, data });
+      const after = type === 'Club' ? await tx.club.update({ where, data }) : type === 'Player' ? await tx.player.update({ where, data }) : await tx.person.update({ where, data });
       const old = Object.fromEntries(Object.keys(changesToSave).map(key => [key, before[key as keyof typeof before]]));
       await logEvent(tx, { entityType: type, entityId: id, name: before.name, action: 'update', diffs: { old, new: changesToSave }, isExample: before.isExample });
       return maskedRecord(after);

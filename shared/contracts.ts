@@ -15,7 +15,9 @@ import { biographyWrite } from './player-biography.js';
 import { ageParams, personNetworkQuery, tenureCreate, tenureParams, tenureUpdate } from './person-network.js';
 import { acknowledgePrivacy, incidentContactInput } from './privacy.js';
 import { retentionPeriods, retentionPreviewInput, retentionPurgeInput } from './retention.js';
-import { clubInput, entityTypes, isoDate, personInput, playerInput, relationInput, requestInput, suggestionInput } from './domain.js';
+import { clubInput, entityTypes, isoDate, personInput, playerInput, relationInput, suggestionInput } from './domain.js';
+import { requestContactsQuery, requestInput, requestListQuery, requestPageQuery } from './transfer-requests.js';
+import { matchingSettings, matchQuery } from './transfer-matching.js';
 import { agentBirthdayCreate, agentBirthdayQuery, birthdayChange, birthdayPage, birthdaySubject, birthdayThresholds, calendarPage, greetingSubject, greetingWrite, significantDateChange, significantDateWrite } from './calendar.js';
 
 export const idParams = z.object({ id: z.uuid() }).strict();
@@ -26,7 +28,7 @@ export const versionInput = z.object({ version: z.number().int().positive() }).s
 export const fieldVerification = versionInput.extend({ field: z.string().regex(/^[a-zA-Z][a-zA-Z0-9]{0,63}$/), sourceUrl: manualSourceUrl });
 export const trashWrite = versionInput.extend({ recordVersion: z.number().int().positive() });
 export const previewConfirmation = z.object({ previewToken: z.string().regex(/^[a-f0-9]{64}$/) }).strict();
-export const settingsInput = versionInput.extend({ language: z.enum(['tr', 'en']).optional(), theme: z.enum(['dark', 'light']).optional(), retentionDays: retentionPeriods.optional(), levelWeights: positionWeights.optional(), leagueTiers: leagueTiers.optional(), birthdayThresholds: birthdayThresholds.optional() });
+export const settingsInput = versionInput.extend({ language: z.enum(['tr', 'en']).optional(), theme: z.enum(['dark', 'light']).optional(), retentionDays: retentionPeriods.optional(), levelWeights: positionWeights.optional(), leagueTiers: leagueTiers.optional(), birthdayThresholds: birthdayThresholds.optional(), matchingWeights: matchingSettings.optional() });
 export { staffRoles } from './staff-import.js';
 const recordVersion = z.number().int().positive();
 const tenureDigest = z.string().regex(/^[a-f0-9]{64}$/);
@@ -120,9 +122,14 @@ export const apiContracts: ApiContract[] = [
   { method: 'post', path: '/api/admin/retention/purge', body: retentionPurgeInput },
   { method: 'get', path: '/api/admin/access-log', query: listQuery },
   { method: 'get', path: '/api/overview' }, { method: 'get', path: '/api/docs' },
-  ...([['clubs', clubInput], ['players', playerInput], ['people', personInput], ['requests', requestInput]] as const).flatMap(([path, schema]): ApiContract[] => [
+  ...([['clubs', clubInput], ['players', playerInput], ['people', personInput]] as const).flatMap(([path, schema]): ApiContract[] => [
     { method: 'get', path: `/api/${path}`, query: path === 'clubs' ? clubListQuery : path === 'players' ? playerListQuery : listQuery }, { method: 'post', path: `/api/${path}`, body: schema, success: 201 },
   ]),
+  { method: 'get', path: '/api/requests', query: requestListQuery },
+  { method: 'post', path: '/api/requests', body: requestInput, success: 201 },
+  { method: 'get', path: '/api/requests/contacts', query: requestContactsQuery },
+  { method: 'get', path: '/api/requests/:id/suggestions', params: idParams, query: requestPageQuery },
+  { method: 'post', path: '/api/requests/:id/matches', params: idParams, body: matchQuery },
   { method: 'post', path: '/api/suggestions', body: suggestionInput, success: 201 },
   { method: 'post', path: '/api/relations', body: relationInput, success: 201 },
   { method: 'get', path: '/api/records/:type/:id', params: entityParams },

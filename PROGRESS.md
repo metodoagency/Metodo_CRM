@@ -4,9 +4,10 @@ Updated 2026-11-17, Europe/Istanbul. SPEC.md and docs/REQUIREMENTS.md define the
 
 ## Current state
 
-- Accepted milestone progress: **10%** (A complete out of A–J). Work packages: **7 of 54 complete**, 4 in progress and 43 pending. B has 6 of its 7 feature modules accepted. These counts describe the delivered scope and release gates.
+- Accepted milestone progress: **10%** (A complete out of A–J). Work packages: **7 of 54 complete**, 5 in progress and 42 pending. B has 6 of its 7 feature modules accepted. These counts describe the delivered scope and release gates.
 - A merged in PR #1 as db76f90 after exact-head CI: 67 tests,17 security tests,6 browser/axe scenarios. Completed security review plus rate-control corrections; no X-Frame-Options and required Google CSP retained.
 - B remains draft PR #2 on milestone/b-clubs. M1, M3, M5, M6, M14 and M15 are accepted. M4 has the staff CSV workflow and still requires the owner-triggered TFF implementation and live verification. R5/R6 checks for the current B application passed on PostgreSQL 16 and 17. [CI for fc7d0eb](https://github.com/metodoagency/Metodo_CRM/actions/runs/43971815199)
+- C started on milestone/c-requests from the verified B checkpoint f5eb5a8. Package12 implements transfer requests and matching. Package13 covers the recommendation dossier, presentation matrix and authorized sales list.
 - 54-package plan approved by owner:29 core pilot,54 final delivery. One writer/current checkout; no new worktree.
 - Package01 DONE: plan saved, all45 M modules/26 R rules/15 G additions/14 innovations mapped, stale current-state summaries reconciled, PostgreSQL17 target and16/17 CI matrix verified at42bc0b5.
 - Package02 IN_PROGRESS: free Render service exists. Both restricted database roles now connect over verified TLS to the existing PostgreSQL17 session pooler. Seven Prisma migrations deployed without example seeding; all64 public tables (63 CRM plus migration metadata) have RLS. OAuth client creation/Render secret configuration and real HTTPS login remain pending. Owner explicitly approved creating the prepared OAuth web client, saving credentials only to Render, and preserving the two new role passwords while aligning SCRAM to4096 iterations. Do not request these approvals again.
@@ -55,13 +56,15 @@ Updated 2026-11-17, Europe/Istanbul. SPEC.md and docs/REQUIREMENTS.md define the
 
 - Codex Security reviewed 25 changed source files between b02dbb7 and 2d4cd8d and sealed scan a98be25f-bb50-426f-a00e-3d1c63177b98 with zero reportable vulnerabilities. It deferred checking whether backup and subject-export paths protect derived birthday occurrence metadata in Notification, for package25. The review also identified a same-owner record integrity defect. Profile navigation now discards the prior record's editor and temporary reveal state. Explicitly hiding age resets the UI's mutation result. All 14 local browser scenarios passed, including the navigation regression and both 15-route accessibility scans. TypeScript and lint passed locally. Both PostgreSQL 16 and 17 CI jobs passed for the corrected application commit fc7d0eb. [Post-review CI](https://github.com/metodoagency/Metodo_CRM/actions/runs/43971815199)
 
+- Package12 checkpoint on 2026-11-17. The owner can create, edit and move transfer requests in the bilingual Kanban or list, choose a current club contact, open linked suggestions and run weighted matching on demand. Known mismatches count toward the score. Missing evidence and incomparable currencies reduce coverage. Salary uses one current employment contract with a gross annual amount. Transfer fee uses one open sales listing for the current club. Settings control the criterion weights and optional minimum level. The 60-second match view contains results and explanations; it excludes raw salary and birth dates. Access logs record field names for all candidates evaluated with sensitive evidence, including candidates outside the current results page. No migration. Local PostgreSQL 16, Playwright, the GitHub connector and Codex Security are available for C. No external data plugin is needed for matching.
+
 ## Milestone gates
 
 | Stage | Status | Gate |
 |---|---|---|
 | A | DONE | PR1 merged; historical exact-head checks passed |
 | B | IN_PROGRESS | package11; no merge until full scope/tests/review |
-| C | NOT_DONE | package15 |
+| C | IN_PROGRESS | packages12–15 |
 | D | NOT_DONE | package18 |
 | E | NOT_DONE | package24 |
 | F | NOT_DONE | package29/pilot |
@@ -103,7 +106,7 @@ Existing update validation:2 acquisition-policy tests and1 real PostgreSQL reten
 
 ## Next actions and verification boundaries
 
-Finish the B security review and the owner-triggered, robots-gated staff check recorded under Owner input needed. Preserve the B draft until its acceptance criteria pass. Start independent package12 transfer request and matching work with the pure scorer and R7 tests.
+Finish package12 verification on the C branch, then build the package13 recommendation dossier, presentation matrix and authorized sales list. Complete the owner-triggered, robots-gated staff check and final B security review when the staff-page input is available. Preserve both milestone drafts through their remaining acceptance checks.
 
 Finish package02 with the approved OAuth client, Render configuration, HTTPS health and real owner login. Verify package05 with a private Supabase bucket, server-side S3 configuration and an example-file upload/download/delete smoke. Apply migration008 when live storage is ready and its release review is complete. Finish M4 with a tracked-club TFF check after obtaining representative anonymized markup. Require explicit owner action and robots permission, a strict HTTPS host allowlist and CSV fallback on denial or failure. Keep the working CSV path usable independently. The local PostgreSQL launcher reuses a live process and allows up to three minutes for startup/recovery. The Windows browser cache is configured in the ignored local environment. PostgreSQL 16/17 CI artifacts have distinct names.
 

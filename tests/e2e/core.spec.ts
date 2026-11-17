@@ -8,6 +8,56 @@ import { exercisePersonNetwork } from './person-network';
 import { istanbulToday } from '../../shared/domain';
 import pg from 'pg';
 
+test('owner manages a transfer request and reviews ranked players', { tag: '@club-workspace' }, async ({ page }) => {
+  await signIn(page);
+  const name = `Örnek E2E ŞİLE Talebi ${Date.now()}`;
+  await page.goto('/requests');
+  await page.getByRole('button', { name: 'Yeni kayıt', exact: true }).click();
+  const editor = page.getByRole('dialog');
+  await editor.getByRole('textbox', { name: 'Ad', exact: true }).fill(name);
+  await editor.getByRole('textbox', { name: 'Kulüp ara', exact: true }).fill('ornek sk a');
+  await editor.getByRole('textbox', { name: 'Kulüp ara', exact: true }).press('Enter');
+  await editor.getByRole('combobox', { name: 'Kulüp', exact: true }).selectOption({ label: 'Örnek SK A' });
+  const contact = editor.getByRole('combobox', { name: 'Talep eden kişi', exact: true });
+  await contact.selectOption({ label: 'Örnek Yetkili 1 2' });
+  await expect(contact.getByRole('option', { name: 'Örnek Yetkili 2 2', exact: true })).toHaveCount(0);
+  await editor.getByRole('combobox', { name: 'Pozisyon', exact: true }).selectOption('CM');
+  await editor.getByRole('spinbutton', { name: 'En düşük yaş' }).fill('20');
+  await editor.getByRole('spinbutton', { name: 'En yüksek yaş' }).fill('32');
+  await editor.getByRole('button', { name: 'Oluştur', exact: true }).click();
+  await expect(page.getByRole('heading', { name, exact: true })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Örnek Yetkili 1 2', exact: true })).toBeVisible();
+  await page.clock.install();
+  await page.getByRole('button', { name: 'Oyuncuları değerlendir', exact: true }).click();
+  const matches = page.getByRole('dialog', { name: 'Oyuncu eşleştirme' });
+  const playerSearch = matches.getByRole('textbox', { name: 'Oyuncu adına göre ara' });
+  await playerSearch.fill('ornek oyuncu 1');
+  await playerSearch.press('Enter');
+  await expect(matches.getByRole('link', { name: 'Örnek Oyuncu 1', exact: true })).toBeVisible();
+  await expect(matches.getByText(/Kapsam %/).first()).toBeVisible();
+  await matches.getByRole('combobox', { name: 'Sonuç sırası' }).selectOption('coverage');
+  await expect(matches.getByRole('link', { name: 'Örnek Oyuncu 1', exact: true })).toBeVisible();
+  await page.clock.fastForward(60001);
+  await expect(matches).toBeHidden();
+  await page.clock.resume();
+
+  await page.goto('/requests');
+  await page.getByRole('textbox', { name: 'Kayıt arama', exact: true }).fill('sile');
+  await page.getByRole('textbox', { name: 'Kayıt arama', exact: true }).press('Enter');
+  const open = page.getByRole('region', { name: 'Açık', exact: true });
+  await open.getByRole('combobox', { name: `Talep durumunu değiştir · ${name}`, exact: true }).selectOption('MATCHED');
+  await expect(page.getByRole('region', { name: 'Eşleştirildi', exact: true }).getByRole('link', { name, exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Liste', exact: true }).click();
+  await expect(page.getByRole('row').filter({ has: page.getByRole('link', { name, exact: true }) })).toContainText('Örnek SK A');
+  await page.getByRole('link', { name, exact: true }).click();
+  await page.getByRole('button', { name: 'Talebi düzenle', exact: true }).click();
+  await editor.getByRole('spinbutton', { name: 'En yüksek yaş' }).fill('35');
+  await editor.getByRole('button', { name: 'Kaydet', exact: true }).click();
+  await expect(editor).toBeHidden();
+  await expect(page.getByText('35', { exact: true })).toBeVisible();
+});
+
+
 for (const language of ['tr', 'en']) test(`privacy notice is shown on first login and acknowledged (${language})`, async ({ page }) => {
   const url = new URL(process.env.DATABASE_URL!);
   if (!['127.0.0.1', 'localhost'].includes(url.hostname) || url.pathname !== '/metodo_e2e') throw new Error('Unsafe E2E database');

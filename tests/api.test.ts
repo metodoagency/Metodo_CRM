@@ -1053,6 +1053,104 @@ describe('records and persistence', () => {
   });
 });
 
+describe('transfer request workspace', () => {
+  it('validates request criteria, scopes contacts, lists statuses and preserves historical requesters', async () => {
+    await seedExamples(db);
+    const clubId = exampleId('club-0');
+    const requesterId = exampleId('person-0-1');
+    const outsideContact = await db.person.create({ data: { name: 'Örnek Bağlantısız Kişi', searchName: 'ornek baglantisiz kisi', isExample: true } });
+    await db.relation.create({ data: {
+      fromType: 'Person', fromId: outsideContact.id, toType: 'Club', toId: clubId,
+      relation: 'memberOf', startDate: new Date('2098-01-01'), isExample: true,
+    } });
+    await db.relation.updateMany({ where: { fromId: requesterId, toId: clubId }, data: { endDate: new Date('2098-01-01') } });
+    const contacts = await request('GET', `/api/requests/contacts?clubId=${clubId}`);
+    expect(contacts.statusCode).toBe(200);
+    expect(contacts.json()).toEqual(expect.arrayContaining([expect.objectContaining({ id: requesterId })]));
+    expect(contacts.body).not.toContain(outsideContact.id);
+    const data = {
+      name: 'Örnek ŞİLE Orta Saha', clubId, requesterId, position: 'CM', ageMin: 20, ageMax: 28,
+      salaryMax: '0.00', salaryCurrency: 'EUR', preferredLeagues: ['Örnek Lig'],
+      profileText: 'Örnek profil', deadline: '2031-06-01',
+    };
+    expect((await request('POST', '/api/requests', { ...data, requesterId: outsideContact.id })).statusCode).toBe(400);
+    expect((await request('POST', '/api/requests', { ...data, salaryCurrency: null })).statusCode).toBe(400);
+    const response = await request('POST', '/api/requests', data);
+    expect(response.statusCode).toBe(201);
+    const row = response.json();
+    const path = `/api/records/Request/${row.id}`;
+    expect((await request('GET', '/api/requests?status=OPEN&q=sile')).json().items)
+      .toEqual([expect.objectContaining({ id: row.id, requester: { id: requesterId, name: expect.any(String) }, salaryMax: '0' })]);
+    expect((await request('GET', `/api/requests/${exampleId('request')}/suggestions`)).json().items[0])
+      .toMatchObject({ player: expect.objectContaining({ id: exampleId('player-0') }) });
+    expect((await request('PATCH', path, { version: row.version, changes: { ageMin: 29 } })).statusCode).toBe(400);
+    expect((await request('PATCH', path, { version: row.version, changes: { salaryMax: null } })).statusCode).toBe(400);
+    expect((await request('POST', '/api/suggestions', {
+      requestId: row.id, requestVersion: row.version + 1, personId: requesterId, playerId: exampleId('player-0'), whyGoodTransfer: 'Örnek eşleşme',
+    })).statusCode).toBe(409);
+    await db.relation.updateMany({ where: { fromId: requesterId, toId: clubId }, data: { endDate: new Date(istanbulToday()) } });
+    const moved = await request('PATCH', path, { version: row.version, changes: { status: 'MATCHED', deadline: null } });
+    expect(moved.statusCode).toBe(200);
+    expect(moved.json()).toMatchObject({ status: 'MATCHED', deadline: null, ageMin: 20, ageMax: 28 });
+    expect((await request('PATCH', path, { version: row.version, changes: { status: 'CLOSED' } })).statusCode).toBe(409);
+    expect((await request('GET', '/api/requests?status=MATCHED&q=sile')).json().total).toBe(1);
+    expect(await db.timelineEvent.count({ where: { entityId: row.id, action: 'update' } })).toBe(1);
+  });
+});
+
+describe('sensitive paths: transfer matching', () => {
+  it('uses valid private evidence, masks the response and audit, and recalculates with saved weights', async () => {
+    await seedExamples(db);
+    const clubId = exampleId('club-0');
+    const row = await db.request.update({
+      where: { id: exampleId('request') },
+      data: { ageMin: 20, ageMax: 40, preferredFoot: 'LEFT', salaryMax: '13000', salaryCurrency: 'EUR', feeMax: '1000', feeCurrency: 'EUR' },
+    });
+    const player = await db.player.create({ data: {
+      name: 'Örnek Eşleşme Oyuncusu', searchName: 'ornek eslesme oyuncusu', isExample: true,
+      primaryPosition: 'CM', preferredFoot: 'RIGHT', birthDate: encrypt('2000-01-01', 'Player.birthDate'),
+      currentClubId: clubId, marketValue: '125.00', marketValueCurrency: 'EUR',
+    } });
+    const contract = await db.contract.create({ data: {
+      name: 'Örnek Eşleşme Sözleşmesi', isExample: true, playerId: player.id, clubId, type: 'EMPLOYMENT',
+      startDate: new Date('2020-01-01'), endDate: new Date('2098-01-01'),
+      salaryAmount: encrypt('12345.67', 'Contract.salaryAmount'), salaryCurrency: 'EUR', salaryBasis: 'GROSS', salaryPeriod: 'YEAR',
+    } });
+    const path = `/api/requests/${row.id}/matches`;
+    const query = { q: 'eslesme', sort: 'score', page: 1 };
+    expect((await app.inject({ method: 'POST', url: path, headers: { origin }, payload: query })).statusCode).toBe(401);
+    expect((await app.inject({ method: 'POST', url: path, headers: { origin, cookie }, payload: query })).statusCode).toBe(403);
+    const first = await request('POST', path, query);
+    expect(first.statusCode).toBe(200);
+    expect(first.headers['cache-control']).toBe('no-store');
+    expect(first.json().items).toEqual([expect.objectContaining({ id: player.id, score: 75, coverage: 67 })]);
+    expect(first.json().items[0].criteria).toContainEqual({ criterion: 'fee', points: null, reason: 'missing' });
+    expect(first.body).not.toMatch(/12345|2000-01-01|salaryAmount|birthDate|125\.00/);
+    const audits = await db.auditLog.findMany({ where: { action: 'reveal', entityId: { in: [player.id, contract.id] } }, select: { diffs: true } });
+    expect(audits).toEqual(expect.arrayContaining([{ diffs: { field: 'birthDate' } }, { diffs: { field: 'salaryAmount' } }]));
+    expect((await request('POST', path, { ...query, page: 2 })).json().items).toEqual([]);
+    expect(await db.auditLog.count({ where: { action: 'reveal', entityId: { in: [player.id, contract.id] } } })).toBe(4);
+    await db.salesListing.create({ data: {
+      name: 'Örnek Bonservis İlanı', isExample: true, playerId: player.id, clubId,
+      status: 'OPEN', scope: 'OWNER', askingAmount: '876.54', currency: 'EUR',
+    } });
+    const prefs = (await request('GET', '/api/settings')).json();
+    const updated = await request('PATCH', '/api/settings', { version: prefs.version, matchingWeights: {
+      weights: { position: 1, age: 1, foot: 0, passport: 1, salary: 1, fee: 1, level: 1, availability: 1 }, levelMinimum: null,
+    } });
+    expect(updated.statusCode).toBe(200);
+    const second = await request('POST', path, query);
+    expect(second.json().items).toEqual([expect.objectContaining({ id: player.id, score: 100, coverage: 80 })]);
+    expect(second.body).not.toContain('876.54');
+    await db.contract.update({ where: { id: contract.id }, data: { salaryPeriod: null } });
+    const final = await request('POST', path, query);
+    expect(final.json().items[0].criteria).toContainEqual({ criterion: 'salary', points: null, reason: 'missing' });
+    expect((await db.request.findUniqueOrThrow({ where: { id: row.id } })).version).toBe(row.version);
+    expect(await db.suggestion.count()).toBe(1);
+  });
+});
+
+
 describe('example seed and suggestion transaction', () => {
   it('is repeatable, labeled and encrypted', async () => {
     await seedExamples(db); await seedExamples(db);

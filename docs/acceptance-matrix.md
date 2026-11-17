@@ -14,8 +14,8 @@ Live commercial/provider implementation is explicitly deferred by SPEC update1. 
 | M6 | Oyuncu kartı/profil | 06,10 | DONE | Versioned TR/EN profile PDF/DOCX, position-weighted scoring, source-backed manual value history, configurable league suitability, private portrait, editable print card and sanitized biography. [API](../tests/api.test.ts) and [browser](../tests/e2e/player-evidence.ts) regression tests cover the projection and explicit timed private fields. [PostgreSQL 16/17 CI for a77391e](https://github.com/metodoagency/Metodo_CRM/actions/runs/42919677655) passed. |
 | M7 | Sözleşmeler | 14 | NOT_DONE | — |
 | M8 | Performans/GPS/CV | 17,18 | NOT_DONE | — |
-| M9 | Talepler | 12 | PARTIAL | Foundation API tests; full baseline subsection remains pending |
-| M10 | Eşleştirme/öneri | 12,13 | PARTIAL | Foundation API tests; full baseline subsection remains pending |
+| M9 | Talepler | 12 | PARTIAL | Transfer request workspace in tests/api.test.ts and tests/e2e/core.spec.ts; exact-head verification pending |
+| M10 | Eşleştirme/öneri | 12,13 | PARTIAL | tests/transfer-matching.test.ts and sensitive matching API regression; recommendation dossier pending in package13 |
 | M11 | Satış listesi | 13 | PARTIAL | Foundation API tests; full baseline subsection remains pending |
 | M12 | Sunum matrisi | 13 | PARTIAL | Foundation API tests; full baseline subsection remains pending |
 | M13 | Menajer ağı | 19 | NOT_DONE | — |
@@ -57,7 +57,7 @@ Live commercial/provider implementation is explicitly deferred by SPEC update1. 
 | R4 | Notification dedupe | 11,15,44 | PARTIAL | Birthday thresholds, repeated/concurrent runs, Istanbul midnight, cross-year targets and leap days passed [integration tests](../tests/api.test.ts) and [PostgreSQL 16/17 CI](https://github.com/metodoagency/Metodo_CRM/actions/runs/43933505387). Other date rules and notification center are pending. |
 | R5 | Verification source | 08,10 | PARTIAL | Current B paths verified. Club update approval and separate, versioned field confirmation enforce a matching URL. [PostgreSQL 16/17 CI for 2d4cd8d](https://github.com/metodoagency/Metodo_CRM/actions/runs/43935533778) passed. Later modules remain in scope. |
 | R6 | Sensitive masking | 04,06,40,52 | PARTIAL | Current B paths verified. Player CSV and profile documents plus allowlisted Club, Person and Request CSV omit private values. [PostgreSQL 16/17 CI for 2d4cd8d](https://github.com/metodoagency/Metodo_CRM/actions/runs/43935533778) passed. Later medical and sharing paths remain in scope. |
-| R7 | Missing-data matching | 12 | NOT_DONE | — |
+| R7 | Missing-data matching | 12 | PARTIAL | tests/transfer-matching.test.ts and matching API regression; exact-head verification pending |
 | R8 | Istanbul age/minor | 11 | DONE | Explicit audited age and minor status from the Istanbul calendar. [API](../tests/api.test.ts), [date and leap-year tests](../tests/domain.test.ts), [timed reveal](../tests/e2e/person-network.ts) and [PostgreSQL 16/17 CI](https://github.com/metodoagency/Metodo_CRM/actions/runs/43910888820) passed. |
 | R9 | TFF-only fixtures | 16 | NOT_DONE | — |
 | R10 | CV defaults | 06,18 | NOT_DONE | — |
@@ -101,7 +101,7 @@ Live commercial/provider implementation is explicitly deferred by SPEC update1. 
 | N7 | Player Value Index | 51 | NOT_DONE | — |
 | N8 | Comparable Transfers Book | 51 | NOT_DONE | — |
 | N9 | Contract Timing Advisor | 14,51 | NOT_DONE | — |
-| N10 | Match narratives | 12 | NOT_DONE | — |
+| N10 | Match narratives | 12 | PARTIAL | Bilingual per-criterion results and missing-data explanations; exact-head verification pending |
 | N11 | Meeting debrief | 34 | NOT_DONE | — |
 | N12 | Portfolio health | 50 | NOT_DONE | — |
 | N13 | Extended next actions | 50 | NOT_DONE | — |
