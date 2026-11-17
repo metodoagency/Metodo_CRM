@@ -29,14 +29,15 @@ const processingCalls: ProcessingPreview['payload'][] = [];
 const processor: DocumentProcessor = { id: 'example-processor', revision: '1', location: 'external', destination: 'https://example.com/process', process: async payload => { processingCalls.push(payload); return { candidates: [{ salary: '100', excerpt: payload.text }] }; } };
 
 const origin = 'http://localhost:5173';
-let app: FastifyInstance; let cookie = ''; let csrf = ''; let loginIp = 1;
+let app: FastifyInstance; let cookie = ''; let csrf = ''; let loginIp = 1; let clientIp = '127.1.0.1';
 async function login(email = 'owner@example.com') {
-  const res = await app.inject({ method: 'POST', url: '/auth/test', remoteAddress: `127.1.0.${loginIp++}`, headers: { origin }, payload: { email } });
+  clientIp = `127.1.0.${loginIp++}`;
+  const res = await app.inject({ method: 'POST', url: '/auth/test', remoteAddress: clientIp, headers: { origin }, payload: { email } });
   cookie = String(res.headers['set-cookie']).split(';')[0];
-  if (res.statusCode === 200) csrf = (await app.inject({ url: '/api/me', headers: { cookie } })).json().csrfToken;
+  if (res.statusCode === 200) csrf = (await app.inject({ url: '/api/me', remoteAddress: clientIp, headers: { cookie } })).json().csrfToken;
   return res;
 }
-function request(method: 'GET' | 'POST' | 'PATCH' | 'DELETE', url: string, payload?: Record<string, unknown>) { return app.inject({ method, url, headers: { cookie, origin, 'x-csrf-token': csrf }, ...(payload === undefined ? {} : { payload }) }); }
+function request(method: 'GET' | 'POST' | 'PATCH' | 'DELETE', url: string, payload?: Record<string, unknown>) { return app.inject({ method, url, remoteAddress: clientIp, headers: { cookie, origin, 'x-csrf-token': csrf }, ...(payload === undefined ? {} : { payload }) }); }
 async function club(name = 'Örnek Test Kulübü') { return (await request('POST', '/api/clubs', { name })).json(); }
 beforeAll(async () => { app = await buildApp({ db, storage: fileStorage, processors: [processor], config: readConfig({ ...process.env, NODE_ENV: 'test', APP_ORIGIN: origin, ALLOWED_EMAILS: 'owner@example.com', EXTERNAL_PROCESSING_ENABLED: 'true' }) }); });
 beforeEach(async () => {
@@ -285,7 +286,7 @@ describe('sensitive paths: people and club network', () => {
 function uploadFile(id: string, data = pdfFile, mime = 'application/pdf', extra = '', type: 'Club' | 'Player' | 'Suggestion' = 'Club') {
   const boundary = 'example-boundary';
   const payload = Buffer.concat([Buffer.from(`--${boundary}\r\nContent-Disposition: form-data; name="file"; filename="Örnek belge.pdf"\r\nContent-Type: ${mime}\r\n\r\n`), data, Buffer.from(`\r\n${extra}--${boundary}--\r\n`)]);
-  return app.inject({ method: 'POST', url: `/api/records/${type}/${id}/files`, payload, headers: { cookie, origin, 'x-csrf-token': csrf, 'content-type': `multipart/form-data; boundary=${boundary}` } });
+  return app.inject({ method: 'POST', url: `/api/records/${type}/${id}/files`, remoteAddress: clientIp, payload, headers: { cookie, origin, 'x-csrf-token': csrf, 'content-type': `multipart/form-data; boundary=${boundary}` } });
 }
 describe('sensitive paths: player card evidence', () => {
   async function createPlayer(name: string, birthDate?: string) {
