@@ -28,7 +28,9 @@ async function snapshot(tx: Tx, id: string, version: number, language: DocumentC
     throw new AppError('NOT_FOUND', 404);
   }
   const labels = language === 'tr' ? tr : en;
-  const date = new Intl.DateTimeFormat(language === 'tr' ? 'tr-TR' : 'en-GB', { timeZone: 'Europe/Istanbul', dateStyle: 'medium' });
+  const date = new Intl.DateTimeFormat(language === 'tr' ? 'tr-TR' : 'en-GB', {
+    timeZone: 'Europe/Istanbul', day: '2-digit', month: language === 'tr' ? '2-digit' : 'short', year: 'numeric',
+  });
   const score = row.matchScore === null ? labels.requestNoSuggestionScore : new Intl.NumberFormat(language, { maximumFractionDigits: 2 }).format(row.matchScore.toNumber());
   const content: DocumentContent = {
     language, title: player.name, subtitle: labels.recommendationDocument,
