@@ -1,29 +1,42 @@
 import type { FastifyInstance } from 'fastify';
 import type { PrismaClient } from '@prisma/client';
+import type { z } from 'zod';
 import type { Config } from './config.js';
 import { AppError, live, logEvent, requireEntity, type Tx } from './core.js';
-import { entityParams, idParams } from '../shared/contracts.js';
+import { fileParentParams, idParams } from '../shared/contracts.js';
 import { fileVersion, maxFileBytes } from '../shared/files.js';
 import { originalFilename, prepareFile, type MalwareScanner } from './file-validation.js';
 import { drainStorageDeletions, newStorageKey, type FileStorage } from './storage.js';
 
+type FileParentType = z.infer<typeof fileParentParams.shape.type>;
+
+async function requireFileParent(tx: Tx, type: FileParentType, id: string) {
+  if (type !== 'Suggestion') return requireEntity(tx, type, id);
+  const row = await tx.suggestion.findFirst({
+    where: { ...live, id, request: live, player: live, club: live, person: live },
+    select: { name: true, isExample: true },
+  });
+  if (!row) throw new AppError('NOT_FOUND', 404);
+  return row;
+}
+
 export async function requireAttachment(tx: Tx, id: string) {
   const row = await tx.attachment.findFirst({ where: { ...live, id } });
   if (!row) throw new AppError('NOT_FOUND', 404);
-  const type = entityParams.shape.type.safeParse(row.entityType);
+  const type = fileParentParams.shape.type.safeParse(row.entityType);
   if (!type.success) throw new AppError('NOT_FOUND', 404);
-  await requireEntity(tx, type.data, row.entityId);
+  await requireFileParent(tx, type.data, row.entityId);
   return row;
 }
 const metadata = (row: { id: string; name: string; mimeType: string; sizeBytes: number; version: number }) => ({ id: row.id, name: row.name, mimeType: row.mimeType, sizeBytes: row.sizeBytes, version: row.version });
 export async function registerFiles(app: FastifyInstance, db: PrismaClient, config: Config, storage?: FileStorage, scanner?: MalwareScanner) {
   function available(driver?: string) { if (!storage || driver && storage.driver !== driver) throw new AppError('STORAGE_UNAVAILABLE', 503); return storage; }
   app.get('/api/records/:type/:id/files', async req => {
-    const { type, id } = entityParams.parse(req.params); await requireEntity(db, type, id);
+    const { type, id } = fileParentParams.parse(req.params); await requireFileParent(db, type, id);
     return { items: (await db.attachment.findMany({ where: { ...live, entityType: type, entityId: id }, orderBy: { createdAt: 'desc' }, take: 100 })).map(metadata), uploadAvailable: !!storage };
   });
   app.post('/api/records/:type/:id/files', { bodyLimit: maxFileBytes + 65536 }, async (req, reply) => {
-    const { type, id } = entityParams.parse(req.params); const entity = await requireEntity(db, type, id); const target = available();
+    const { type, id } = fileParentParams.parse(req.params); await requireFileParent(db, type, id); const target = available();
     if (config.CLAMAV_ENABLED === 'true' && !scanner) throw new AppError('SCANNER_UNAVAILABLE', 503);
     let input: { data: Buffer; mime: string; name: string } | undefined;
     // Exactly one bounded file part; extra files/fields reject the whole upload.
@@ -39,7 +52,7 @@ export async function registerFiles(app: FastifyInstance, db: PrismaClient, conf
     try {
       await target.put(key, file.data, file.mime);
       const row = await db.$transaction(async tx => {
-        await requireEntity(tx, type, id);
+        const entity = await requireFileParent(tx, type, id);
         const created = await tx.attachment.create({ data: { name: input.name, entityType: type, entityId: id, storageKey: key, storageDriver: target.driver,
           contentHash: file.sha256, mimeType: file.mime, sizeBytes: file.data.length, isExample: entity.isExample, sourceType: 'DOCUMENT' } });
         await tx.storageDeletion.delete({ where: { id: cleanup.id } });

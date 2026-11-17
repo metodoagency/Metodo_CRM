@@ -9,6 +9,7 @@ import {
 import { matchingSettingsFor, matchQuery, scoreTransferMatch, type MatchPage } from '../shared/transfer-matching.js';
 import { AppError, clubContacts, live, logEvent, type Tx } from './core.js';
 import { decrypt } from './crypto.js';
+import { currentMandate } from './sales.js';
 
 const named = { id: true, name: true, ownerId: true, deletedAt: true } as const;
 const linked = { club: { select: named }, requester: { select: named } } as const;
@@ -113,6 +114,7 @@ async function matchPlayers(db: PrismaClient, id: string, input: ReturnType<type
         id: true, name: true, isExample: true, primaryPosition: true, secondaryPositions: true,
         preferredFoot: true, euPassport: true, levelScore: true, contractEndDate: true, currentClubId: true,
         birthDate: useAge,
+        mandateLinks: useFee ? { where: currentMandate(today), select: { clubId: true } } : false,
         contracts: useSalary ? {
           where: { ...live, isActive: true, type: 'EMPLOYMENT', startDate: { lte: asDate(today) }, endDate: { gte: asDate(today) } },
           select: { id: true, isExample: true, salaryBasis: true, salaryPeriod: true, salaryAmount: true, salaryCurrency: true },
@@ -137,7 +139,8 @@ async function matchPlayers(db: PrismaClient, id: string, input: ReturnType<type
       const contract = player.contracts?.length === 1 ? player.contracts[0] : null;
       const annualGrossSalary = contract?.salaryBasis === 'GROSS' && contract.salaryPeriod === 'YEAR' && contract.salaryAmount && contract.salaryCurrency
         ? { amount: decrypt(contract.salaryAmount, 'Contract.salaryAmount'), currency: contract.salaryCurrency } : null;
-      const listings = player.salesListings?.filter(row => row.clubId === player.currentClubId) ?? [];
+      const listings = player.salesListings?.filter(row => row.clubId === player.currentClubId
+        && player.mandateLinks?.some(mandate => mandate.clubId === row.clubId)) ?? [];
       const askingFee = listings.length === 1 ? { amount: listings[0].askingAmount.toFixed(2), currency: listings[0].currency } : null;
       const birthDate = player.birthDate ? decrypt(player.birthDate, 'Player.birthDate') : null;
       if (birthDate !== null) access.push({
@@ -204,7 +207,7 @@ export async function registerTransferRequests(app: FastifyInstance, db: PrismaC
       const rows = await tx.suggestion.findMany({
         where: { ...live, requestId: id }, orderBy: [{ date: 'desc' }, { id: 'asc' }], take: listSize + 1, skip: (page - 1) * listSize,
         select: {
-          id: true, date: true, whyGoodTransfer: true, matchScore: true,
+          id: true, version: true, date: true, whyGoodTransfer: true, matchScore: true,
           player: { select: named }, person: { select: named }, club: { select: named },
         },
       });

@@ -30,10 +30,11 @@ import { PersonNetwork } from './person-network';
 import { BirthdayCalendar, BirthdayEditor, GreetingEditor } from './birthday-calendar';
 import { RequestSummary, TransferRequests, useRequestContacts } from './transfer-requests';
 import { MatchingSettingsPanel, RequestMatches } from './transfer-matching';
+import { Presentations, PresentationResult, RecordPicker } from './presentations';
 import { hasCoordinates, type ClubFilters } from '../shared/club-network';
 import type { PrivacyState } from '../shared/privacy';
 import type { ClubRecord, List, PersonRecord, RecordRow, RecordType, Overview, Timeline } from './types';
-import { clubInput, playerInput, personInput, personRoles, positions, statuses, relationTypes, relationInput, suggestionInput } from '../shared/domain';
+import { clubInput, playerInput, personInput, personRoles, positions, statuses, relationTypes, relationInput, presentationChannels, suggestionInput } from '../shared/domain';
 import type { RequestRecord } from '../shared/transfer-requests';
 
 const pages = [
@@ -42,6 +43,7 @@ const pages = [
   { path: '/requests', key: 'requests', icon: ArrowLeftRight }, { path: '/proposals', key: 'proposals', icon: ShieldCheck },
   { path: '/sources', key: 'sourceRegistry', icon: Link2 },
   { path: '/birthdays', key: 'birthdayCalendar', icon: CalendarDays },
+  { path: '/presentations', key: 'presentations', icon: ArrowLeftRight },
 ];
 const endpoints = { Club: 'clubs', Player: 'players', Person: 'people', Request: 'requests' };
 function useDate() { const { i18n } = useTranslation(); return (value: string) => new Intl.DateTimeFormat(i18n.language === 'tr' ? 'tr-TR' : 'en-GB', { timeZone: 'Europe/Istanbul', day: '2-digit', month: i18n.language === 'tr' ? '2-digit' : 'short', year: 'numeric' }).format(new Date(value)); }
@@ -100,6 +102,7 @@ export function App() {
       <Route path="/trash" element={<Trash />} /><Route path="/proposals" element={<Proposals />} />
       <Route path="/sources" element={<ClubSourceRegistry />} />
       <Route path="/birthdays" element={<BirthdayCalendar />} />
+      <Route path="/presentations" element={<Presentations />} />
       <Route path="/settings" element={<Preferences />} />
       <Route path="/privacy" element={<PrivacyNotice state={privacy.data} />} /><Route path="/incident" element={<IncidentChecklist />} />
     </Routes><p className="footer-note">{t('foundation')} · {t('foundationNote')}</p></main></div>
@@ -131,6 +134,13 @@ function Dashboard({ onCreate }: { onCreate: () => void }) {
       <h2>{t('proposals')}</h2>
       {d.pendingUpdates.map(row => <Link key={row.id} className="list-line" to={`/proposals?proposal=${row.id}`}>
         <span>{row.type === 'injury' ? t('clubUpdate_injury') : row.name}</span><ChevronRight size={14} className="ml-auto muted" />
+      </Link>)}
+    </section>}
+    {!!d?.followUps?.length && <section className="panel panel-body mb-6">
+      <div className="flex flex-wrap justify-between gap-2"><h2>{t('presentationOverdue')}</h2><Link className="text-accent" to="/presentations?overdue=true">{t('allRecords')}</Link></div>
+      {d.followUps.map(item => <Link key={item.id} className="list-line" to={`/presentations?presentation=${item.id}`}>
+        <span className="flex-1">{item.name}<small className="muted block mt-1">{date(item.followUpDate)}</small></span>
+        <PresentationResult value={item.result} />
       </Link>)}
     </section>}
     <div className="dashboard-columns"><div className="space-y-6"><section className="panel"><div className="panel-header"><h2>{t('agenda')}</h2><CalendarDays size={16} className="muted" /></div><div className="panel-body">{!d?.meetings.length ? <Empty /> : d.meetings.map(m => <div className="meeting" key={m.id}><div className="date-box">{new Date(m.date).getUTCDate()}<small>{new Intl.DateTimeFormat(i18n.language, { month: 'short', timeZone: 'Europe/Istanbul' }).format(new Date(m.date))}</small></div><div><div className="text-[13px] font-medium mb-2">{m.name}</div><div className="muted text-[11px]">{m.time} · {m.locationOrUrl}</div></div><ChevronRight size={15} className="muted ml-auto" /></div>)}</div></section><section className="panel"><div className="panel-header"><h2>{t('activity')}</h2><ArrowLeftRight size={16} className="muted" /></div><div className="panel-body">{!d?.recent.length ? <Empty /> : d.recent.map(e => <Link to={['Club', 'Player', 'Person', 'Request'].includes(e.entityType) ? `/record/${e.entityType}/${e.entityId}` : '/settings'} key={e.id} className="list-line"><span className="activity-dot" /><div className="flex-1"><div>{i18n.language === 'tr' ? e.summaryTr : e.summaryEn}</div><div className="muted text-[10px] mt-2">{date(e.createdAt)}</div></div><ArrowUpRight size={14} className="muted" /></Link>)}</div></section></div>
@@ -242,21 +252,38 @@ function AddRelation({ type, id, onClose }: { type: RecordType; id: string; onCl
   return <Modal title={t('addRelation')} onClose={onClose}><form onSubmit={submit}><label className="field">{t('targetType')}<select aria-label={t('targetType')} value={target} onChange={e => setTarget(e.target.value as RecordType)}>{['Club', 'Person', 'Player', 'Request'].map(v => <option key={v} value={v}>{t(v)}</option>)}</select></label><label className="field">{t('target')}<select aria-label={t('target')} required name="toId">{records.data?.items.filter(row => row.id !== id).map(row => <option key={row.id} value={row.id}>{row.name}</option>)}</select></label><label className="field">{t('relation')}<select aria-label={t('relation')} name="relation">{relationTypes.map(v => <option key={v} value={v}>{t(v)}</option>)}</select></label>{mutation.isError && <ErrorMessage />}<div className="form-footer"><button className="primary" disabled={mutation.isPending}>{t('save')}</button></div></form></Modal>;
 }
 function Suggest({ request: initial, onClose }: { request: RecordRow; onClose: () => void }) {
-  const { t } = useTranslation(); const players = useRecords('Player'); const refresh = useRefresh();
+  const { t } = useTranslation(); const refresh = useRefresh();
+  const [player, setPlayer] = useState<{ id: string; name: string }>();
   const [request] = useState(initial);
   const contacts = useRequestContacts(request.clubId ?? '');
   const [contact, setContact] = useState(request.requesterId ?? '');
   const selectedContact = contacts.data?.some(person => person.id === contact) ? contact : '';
   const mutation = useMutation({ mutationFn: (data: z.infer<typeof suggestionInput>) => api('/api/suggestions', { method: 'POST', body: body(data) }), onSuccess: () => { refresh(); onClose(); } });
   const [invalid, setInvalid] = useState(false);
-  function submit(event: FormEvent<HTMLFormElement>) { event.preventDefault(); const form = Object.fromEntries(new FormData(event.currentTarget)); const parsed = suggestionInput.safeParse({ requestId: request.id, requestVersion: request.version, personId: selectedContact, ...form, matchScore: form.matchScore ? Number(form.matchScore) : null }); setInvalid(!parsed.success); if (parsed.success) mutation.mutate(parsed.data); }
+  function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const form = Object.fromEntries(new FormData(event.currentTarget));
+    const parsed = suggestionInput.safeParse({
+      ...form, playerId: player?.id, requestId: request.id, requestVersion: request.version, personId: selectedContact,
+      matchScore: form.matchScore ? Number(form.matchScore) : null, followUpDate: form.followUpDate || undefined,
+    });
+    setInvalid(!parsed.success);
+    if (parsed.success) mutation.mutate(parsed.data);
+  }
   return <Modal title={t('suggest')} onClose={onClose}><form onSubmit={submit}>
     {request.club && <p className="muted mb-3">{t('club')} · {request.club.name}</p>}
-    <label className="field">{t('player')}<select aria-label={t('player')} name="playerId" required>{players.data?.items.map(row => <option key={row.id} value={row.id}>{row.name}</option>)}</select></label>
+    <RecordPicker type="Player" value={player} onChange={setPlayer} />
     <label className="field">{t('requestContact')}<select value={selectedContact} required onChange={event => setContact(event.target.value)}>
       <option value="">{t('select')}</option>{contacts.data?.map(person => <option key={person.id} value={person.id}>{person.name}</option>)}
     </select></label>
     <label className="field">{t('why')}<textarea name="whyGoodTransfer" required minLength={3} /></label>
+    <div className="grid sm:grid-cols-2 gap-3">
+      <label className="field">{t('presentationChannel')}<select name="channel" defaultValue="EMAIL">
+        {presentationChannels.map(channel => <option key={channel} value={channel}>{t(`presentationChannel_${channel}`)}</option>)}
+      </select></label>
+      <label className="field">{t('presentationFollowUp')}<input type="date" name="followUpDate" aria-describedby="suggestion-follow-up-default" /></label>
+    </div>
+    <p className="muted text-xs" id="suggestion-follow-up-default">{t('presentationFollowUpDefault')}</p>
     <label className="field">{t('score')}<input name="matchScore" type="number" min={0} max={100} step={0.01} /></label>
     <p className="notice">{t('missingScore')}</p>
     {invalid && <p className="error" role="alert">{t('invalid')}</p>}

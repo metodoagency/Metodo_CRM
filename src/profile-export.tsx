@@ -4,22 +4,26 @@ import { apiBlob, body } from './api';
 import { ErrorMessage } from './components';
 import type { DocumentInput } from '../shared/documents';
 
+export async function downloadDocument(path: string, input: DocumentInput, filename: string) {
+  const file = await apiBlob(path, { method: 'POST', body: body(input) });
+  const url = URL.createObjectURL(file);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
 export function ProfileExport({ id, version }: { id: string; version: number }) {
   const { t, i18n } = useTranslation();
   const client = useQueryClient();
   const language = i18n.language === 'en' ? 'en' : 'tr';
   const download = useMutation({
-    mutationFn: async (format: DocumentInput['format']) => {
-      const file = await apiBlob(`/api/documents/profile/${id}`, { method: 'POST', body: body({ format, language, version }) });
-      const url = URL.createObjectURL(file);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `metodo-profile-${language}.${format}`;
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      setTimeout(() => URL.revokeObjectURL(url), 1000);
-    },
+    mutationFn: (format: DocumentInput['format']) => downloadDocument(
+      `/api/documents/profile/${id}`, { format, language, version }, `metodo-profile-${language}.${format}`,
+    ),
     onSuccess: () => { void client.invalidateQueries({ queryKey: ['timeline', 'Player', id] }); },
   });
   return <section className="panel panel-body mt-5">

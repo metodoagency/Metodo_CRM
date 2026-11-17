@@ -32,8 +32,8 @@ Owner-approved 2026-11-03. An oturum is a verified work package, not a message c
 | 09 | Oyuncu veritabanı | M5: dört panel, arama/sıralama/filtre, kayıtlı görünüm, toplu etiket, güvenli CSV, fotoğraf ve süreli lig uygunluğu. | DONE |
 | 10 | Oyuncu kartı | M6: puan geçmişi, lig uygunluğu, kaynaklı piyasa değeri, güvenli biyografi, yazdırılabilir kart ve TR/EN profil çıktısı. | DONE |
 | 11 | Kişiler ve doğum günleri | M14, M15 ve R8 doğrulandı. B kabulünde M4 ve güvenlik incelemesi açık. | IN_PROGRESS |
-| 12 | Talepler ve eşleştirme | M9/M10 R7: Kanban, eksik veri normalizasyonu, kapsam ve açıklamalar. | IN_PROGRESS |
-| 13 | Öneri ve sunumlar | M10–M12 R3: atomik öneri, sunum matrisi, yetkili satış listesi, temel kulüp yetkisi ve öneri dosyası. | NOT_STARTED |
+| 12 | Talepler ve eşleştirme | M9/M10 R7: Kanban, eksik veri normalizasyonu, kapsam ve açıklamalar. [PostgreSQL 16/17 CI](https://github.com/metodoagency/Metodo_CRM/actions/runs/44106365479). | DONE |
+| 13 | Öneri ve sunumlar | M10–M12 R3: atomik öneri, sunum matrisi, yetkili satış listesi, temel kulüp yetkisi ve öneri dosyası. | IN_PROGRESS |
 | 14 | Sözleşmeler | M7: manuel kaynaklı tarihler/yöntem, şifreli maaş, nötr kontrol listesi ve süre takibi. | NOT_STARTED |
 | 15 | Ajanda ve bildirimler | M2 ajanda M24 R4: ICS, görev, dashboard, okuma/erteleme/dedupe; C kabul. | NOT_STARTED |
 | 16 | Fikstürler | M2 R9: anonim TFF HTML testleri, robots ve CSV fallback, hiçbir planlı fetch yok. | NOT_STARTED |

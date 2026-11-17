@@ -17,11 +17,14 @@ import { acknowledgePrivacy, incidentContactInput } from './privacy.js';
 import { retentionPeriods, retentionPreviewInput, retentionPurgeInput } from './retention.js';
 import { clubInput, entityTypes, isoDate, personInput, playerInput, relationInput, suggestionInput } from './domain.js';
 import { requestContactsQuery, requestInput, requestListQuery, requestPageQuery } from './transfer-requests.js';
+import { matrixQuery, presentationCreate, presentationQuery, presentationUpdate } from './presentations.js';
+import { mandateCreate, mandateUpdate, saleCreate, salesQuery, saleUpdate } from './sales.js';
 import { matchingSettings, matchQuery } from './transfer-matching.js';
 import { agentBirthdayCreate, agentBirthdayQuery, birthdayChange, birthdayPage, birthdaySubject, birthdayThresholds, calendarPage, greetingSubject, greetingWrite, significantDateChange, significantDateWrite } from './calendar.js';
 
 export const idParams = z.object({ id: z.uuid() }).strict();
 export const entityParams = z.object({ type: z.enum(entityTypes), id: z.uuid() }).strict();
+export const fileParentParams = entityParams.extend({ type: z.enum([...entityTypes, 'Suggestion']) });
 export const listQuery = z.object({ page: z.coerce.number().int().min(1).default(1), q: z.string().max(100).default(''), status: z.enum(['OWN', 'TARGET', 'INTERMEDIARY', 'MANDATED']).optional() }).strict();
 export const clubListQuery = listQuery.extend(clubFilters.shape);
 export const versionInput = z.object({ version: z.number().int().positive() }).strict();
@@ -96,8 +99,9 @@ export const apiContracts: ApiContract[] = [
   { method: 'get', path: '/api/clubs/:id/sections/:section', params: clubSectionParams, query: clubSectionQuery },
   { method: 'post', path: '/api/clubs/:id/notes', params: idParams, body: clubNoteInput, success: 201 },
   { method: 'post', path: '/api/documents/profile/:id', params: idParams, body: documentInput, download: Object.values(documentMime) },
-  { method: 'get', path: '/api/records/:type/:id/files', params: entityParams },
-  { method: 'post', path: '/api/records/:type/:id/files', params: entityParams, multipart: true, success: 201 },
+  { method: 'post', path: '/api/documents/recommendation/:id', params: idParams, body: documentInput, download: Object.values(documentMime) },
+  { method: 'get', path: '/api/records/:type/:id/files', params: fileParentParams },
+  { method: 'post', path: '/api/records/:type/:id/files', params: fileParentParams, multipart: true, success: 201 },
   { method: 'post', path: '/api/files/:id/download', params: idParams, body: fileVersion },
   { method: 'get', path: '/api/files/:id/content', params: idParams },
   { method: 'post', path: '/api/admin/files/cleanup' },
@@ -131,6 +135,17 @@ export const apiContracts: ApiContract[] = [
   { method: 'get', path: '/api/requests/:id/suggestions', params: idParams, query: requestPageQuery },
   { method: 'post', path: '/api/requests/:id/matches', params: idParams, body: matchQuery },
   { method: 'post', path: '/api/suggestions', body: suggestionInput, success: 201 },
+  { method: 'get', path: '/api/presentations', query: presentationQuery },
+  { method: 'get', path: '/api/presentations/:id', params: idParams },
+  { method: 'post', path: '/api/presentations', body: presentationCreate, success: 201 },
+  { method: 'patch', path: '/api/presentations/:id', params: idParams, body: presentationUpdate },
+  { method: 'get', path: '/api/presentation-matrix', query: matrixQuery },
+  { method: 'get', path: '/api/clubs/:id/mandates', params: idParams, query: salesQuery },
+  { method: 'post', path: '/api/clubs/:id/mandates', params: idParams, body: mandateCreate, success: 201 },
+  { method: 'patch', path: '/api/mandates/:id', params: idParams, body: mandateUpdate },
+  { method: 'get', path: '/api/clubs/:id/sales', params: idParams, query: salesQuery },
+  { method: 'post', path: '/api/clubs/:id/sales', params: idParams, body: saleCreate, success: 201 },
+  { method: 'patch', path: '/api/sales/:id', params: idParams, body: saleUpdate },
   { method: 'post', path: '/api/relations', body: relationInput, success: 201 },
   { method: 'get', path: '/api/records/:type/:id', params: entityParams },
   { method: 'patch', path: '/api/records/:type/:id', params: entityParams, body: patchInput },

@@ -270,11 +270,36 @@ test('owner creates club and player, suggests a player and reads the shared time
   await expect(page.locator('html')).not.toHaveClass(/\bplayer-card-page\b/);
   await page.getByRole('link', { name: /Örnek Orta Saha Talebi/ }).click();
   await page.getByRole('button', { name: 'Oyuncu öner', exact: true }).click();
+  await page.getByRole('textbox', { name: 'Oyuncu ara', exact: true }).fill(playerName);
+  await page.getByRole('textbox', { name: 'Oyuncu ara', exact: true }).press('Enter');
   await page.getByLabel('Oyuncu', { exact: true }).selectOption({ label: playerName });
   await page.getByLabel('Transfer gerekçesi').fill('Örnek oyun profili uyumu');
+  await page.getByRole('combobox', { name: 'Sunum kanalı', exact: true }).selectOption('VIDEO');
+  await page.getByLabel('Takip tarihi', { exact: true }).fill('2098-11-19');
   await page.getByRole('button', { name: 'Kaydet', exact: true }).click();
   await expect(page.getByRole('dialog')).toHaveCount(0);
   await expect(page.getByText(/Örnek SK A kulübüne önerildi/).first()).toBeVisible();
+  const suggestion = page.getByRole('listitem').filter({ has: page.getByRole('link', { name: playerName, exact: true }) });
+  const recommendationDownload = page.waitForEvent('download');
+  await suggestion.getByRole('button', { name: 'Öneri PDF indir', exact: true }).click();
+  const recommendation = await recommendationDownload;
+  expect(recommendation.suggestedFilename()).toBe('metodo-recommendation-tr.pdf');
+  const recommendationStream = await recommendation.createReadStream();
+  const recommendationChunks = [];
+  for await (const chunk of recommendationStream) recommendationChunks.push(Buffer.from(chunk));
+  const pdf = new PDFParse({ data: new Uint8Array(Buffer.concat(recommendationChunks)) });
+  try {
+    const content = (await pdf.getText()).text;
+    expect(content).toContain('Transfer öneri dosyası');
+    expect(content).toContain(playerName);
+    expect(content).not.toContain('01.02.2000');
+  } finally { await pdf.destroy(); }
+  await suggestion.getByRole('button', { name: 'Özel dosyalar', exact: true }).click();
+  await suggestion.getByLabel('Dosya seç', { exact: true }).setInputFiles({
+    name: 'ornek-oneri.pdf', mimeType: 'application/pdf', buffer: Buffer.from('%PDF-1.7\n%%EOF\n'),
+  });
+  await suggestion.getByRole('button', { name: 'Dosyayı yükle', exact: true }).click();
+  await expect(suggestion.getByText('ornek-oneri.pdf', { exact: true })).toBeVisible();
   await page.getByRole('link', { name: 'Oyuncular', exact: true }).click();
   await page.getByPlaceholder('Kayıtlarda ara…').fill(playerName);
   await page.getByRole('link', { name: new RegExp(playerName) }).click();

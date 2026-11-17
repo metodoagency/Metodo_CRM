@@ -1,6 +1,6 @@
-# Foundation threat model
+# Metodo CRM threat model
 
-Scope: the current working-tree foundation, including OIDC, sessions, API writes, encryption, timelines, CSV export, relations, Trash and deployment. This is a developer threat model, **not a completed Codex Security scan**.
+Updated 2026-11-18. Scope includes OIDC, sessions, API writes, encryption, timelines, exports, relations, Trash, private files, transfer matching, recommendations, presentations, club mandates and sales. Completed scans and their reviewed revisions are recorded in PROGRESS.md. This document describes the system boundaries.
 
 ## Assets and boundaries
 
@@ -8,6 +8,9 @@ Scope: the current working-tree foundation, including OIDC, sessions, API writes
 - The owner authenticates through Google OIDC. Browser ↔ app, app ↔ Google, app ↔ PostgreSQL, and app ↔ future S3 storage are separate trust boundaries.
 - Google Sites is an allowed embedding ancestor, not a trusted write origin. Mutations accept only the application origin and a session-bound CSRF token.
 - No automated contact messaging, data scraping or AI calls are implemented.
+- Transfer matching reads private evidence only after an owner action, returns derived scores with a 60-second display and records field access without values. Matching, sales, presentation and dossier routes retain session, origin and CSRF checks.
+- Recommendation documents use an explicit field projection, local offline rendering, linked-record versions and snapshot revalidation before download. Suggestion attachments share the private storage validation and cleanup pipeline and require live linked records. PRIVATE sale fields have no document or CSV projection.
+- Club mandates and sales listings are manually entered. Dated mandates determine whether an open listing is usable in the club sales view and matching. Serializable writes check live owner scope, versions and duplicate-open predicates. Presentation matrix queries use parameterized SQL, bounded axes and stable ordering. Notes and private listing amounts are excluded from value logs.
 
 ## Controls exercised by tests
 
@@ -19,10 +22,10 @@ Scope: the current working-tree foundation, including OIDC, sessions, API writes
 
 ## Open items and release gates
 
-1. **Blocked:** completed Codex Security scan. The skill is visible, but scan tools/terminal helpers are absent and its referenced preflight resource returns `failed to read skill resource`. No sealed report or scan identifier is claimed.
+1. Completed Codex Security scans cover prior application checkpoints, including package12. Package13 requires review of its changed upload, dossier and write paths before acceptance. The source and dependency checks run in CI.
 2. **Blocked:** Google token exchange, real allowlisted login and third-party cookie behavior in a published Google Site require owner OAuth credentials and a public deployment.
 3. **NOT DONE:** full optimistic-lock enforcement on every domain writer and Trash operation; foundation core-record edit/delete/settings paths are covered.
-4. **NOT DONE:** production storage adapter, MIME/magic-byte checks, EXIF stripping, signed downloads and medical-access policies. No upload route is exposed. Do not ingest medical/guardian production data before G.
+4. Private local and S3 storage adapters, MIME/signature checks, photo metadata removal and short-lived signed downloads have local and CI coverage. Production bucket verification and medical-access policies remain pending. Do not ingest medical/guardian production data before H.
 5. **NOT DONE:** owner-reviewed compliance content, complete field-provenance write validation, safe dependent-record purge review, example-data removal, backup/restore, share links and subject export. Unsupported proposal approval fails closed.
 6. **NOT DONE:** full OpenAPI coverage and environment-variable validation for every optional adapter. Production core auth/encryption variables are validated.
 7. Key compromise requires coordinated database/backups rotation. Blind-index-key rotation is not implemented. Keep encryption keys outside snapshots and review the maintenance workflow before production.

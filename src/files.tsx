@@ -27,7 +27,7 @@ export function FileMaintenance() {
     <button className="secondary mt-3" disabled={!status.data?.cleanupAvailable || !status.data.pending || cleanup.isPending} onClick={() => cleanup.mutate()}>{t('fileCleanupRetry')}</button>
     {(status.isError || cleanup.isError) && <ErrorMessage />}</section>;
 }
-export function AttachmentPanel({ type, id }: { type: RecordType; id: string }) {
+export function AttachmentPanel({ type, id }: { type: RecordType | 'Suggestion'; id: string }) {
   const { t } = useTranslation(); const client = useQueryClient(); const form = useRef<HTMLFormElement>(null);
   const query = useQuery({ queryKey: ['files', type, id], queryFn: () => api<{ items: AttachmentInfo[]; uploadAvailable: boolean }>(`/api/records/${type}/${id}/files`) });
   const upload = useMutation({ mutationFn: (data: FormData) => api(`/api/records/${type}/${id}/files`, { method: 'POST', body: data }), onSuccess: () => { form.current?.reset(); void client.invalidateQueries(); } });

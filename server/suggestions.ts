@@ -13,16 +13,17 @@ export async function createSuggestion(db: PrismaClient, input: z.infer<typeof s
     const club = await requireEntity(tx, 'Club', request.clubId);
     const person = await requireEntity(tx, 'Person', input.personId);
     const player = await requireEntity(tx, 'Player', input.playerId);
-    const date = new Date(`${istanbulToday()}T00:00:00Z`);
+    const today = istanbulToday();
+    const date = new Date(`${today}T00:00:00Z`);
     if (!await tx.relation.findFirst({ where: { ...clubContacts(club.id, date), fromId: person.id } })) throw new AppError('PERSON_NOT_AT_CLUB');
     const batchId = randomUUID();
     const followUpDate = input.followUpDate ? new Date(`${input.followUpDate}T00:00:00Z`) : new Date(date.getTime() + 5 * 86400_000);
     const name = `${isExample ? 'Örnek ' : ''}${player.name} → ${club.name}`;
     const suggestion = await tx.suggestion.create({ data: { name, requestId: request.id, playerId: player.id, personId: person.id, clubId: club.id, date, matchScore: input.matchScore, fitReasons: [], missingCriteria: input.matchScore === null ? ['matchScore'] : [], whyGoodTransfer: input.whyGoodTransfer, batchId, isExample } });
-    await tx.relation.create({ data: { fromType: 'Player', fromId: player.id, toType: 'Club', toId: club.id, relation: 'suggestedTo', startDate: date, note: `${person.name} · ${request.name} · ${istanbulToday()}`, isExample } });
-    await tx.presentation.create({ data: { name, date, clubId: club.id, playerId: player.id, personId: person.id, requestId: request.id, followUpDate, note: input.whyGoodTransfer, isExample } });
+    await tx.relation.create({ data: { fromType: 'Player', fromId: player.id, toType: 'Club', toId: club.id, relation: 'suggestedTo', startDate: date, note: `${person.name} · ${request.name} · ${today}`, isExample } });
+    await tx.presentation.create({ data: { name, date, clubId: club.id, playerId: player.id, personId: person.id, requestId: request.id, channel: input.channel, followUpDate, note: input.whyGoodTransfer, isExample } });
     await tx.request.update({ where: { id: request.id, version: request.version }, data: { status: 'SUGGESTED', version: { increment: 1 } } });
-    const values: Record<string, string> = { club: club.name, person: person.name, request: request.name, date: istanbulToday() };
+    const values: Record<string, string> = { club: club.name, person: person.name, request: request.name, date: today };
     const summaries = { tr: tr.suggestionSummary.replace(/\{(\w+)\}/g, (_, key: string) => values[key]), en: en.suggestionSummary.replace(/\{(\w+)\}/g, (_, key: string) => values[key]) };
     for (const [entityType, entity] of [['Player', player], ['Club', club], ['Person', person], ['Request', request]] as const) {
       await logEvent(tx, { entityType, entityId: entity.id, name: entity.name, action: 'suggestion', diffs: { old: { status: request.status }, new: { status: 'SUGGESTED', suggestionId: suggestion.id } }, batchId, isExample, summaries });

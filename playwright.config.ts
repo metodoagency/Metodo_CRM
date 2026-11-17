@@ -13,6 +13,7 @@ export default defineConfig({
   projects: [
     { name: 'chromium', testMatch: '**/core.spec.ts', grepInvert: /@club-workspace/ },
     { name: 'club-workspace', testMatch: '**/core.spec.ts', grep: /@club-workspace/ },
+    { name: 'transfer-workspace', testMatch: '**/transfers.spec.ts' },
     { name: 'a11y', testMatch: '**/a11y.spec.ts' },
   ],
 });

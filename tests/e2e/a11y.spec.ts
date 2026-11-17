@@ -12,7 +12,7 @@ test.beforeAll(async ({ request }) => {
 });
 
 for (const language of ['tr', 'en']) test(`main routes have no serious or critical accessibility violations (${language})`, async ({ page }) => {
-  test.setTimeout(90_000); // This scenario scans every main route.
+  test.setTimeout(120_000); // This scenario scans every main route and its main dialogs.
   await page.context().addCookies(cookies);
   await prepareSignedInPage(page);
   await expect(page.locator('main')).toBeVisible();
@@ -34,7 +34,7 @@ for (const language of ['tr', 'en']) test(`main routes have no serious or critic
   } });
   expect(request.status()).toBe(201);
   const requestPath = `/record/Request/${(await request.json()).id}`;
-  const paths = ['/', '/clubs', '/players', '/people', '/requests', '/proposals', '/sources', '/birthdays', '/trash', '/settings', '/privacy', '/incident',
+  const paths = ['/', '/clubs', '/players', '/people', '/requests', '/proposals', '/sources', '/birthdays', '/presentations', '/trash', '/settings', '/privacy', '/incident',
     requestPath, `/record/Club/${club.id}`, `/record/Person/${person.id}`, `/record/Player/${player.id}`];
   for (const path of paths) {
     await page.goto(path); await expect(page.locator('main h1'), `${language} ${path}`).toBeVisible();
@@ -54,6 +54,26 @@ for (const language of ['tr', 'en']) test(`main routes have no serious or critic
     })).toBeEnabled();
     const result = await new AxeBuilder({ page }).analyze();
     expect(result.violations.filter(v => v.impact === 'serious' || v.impact === 'critical'), `${language} ${path}`).toEqual([]);
+    if (path === '/presentations') {
+      for (const title of language === 'tr' ? ['Kulüp × oyuncu', 'Kişi × oyuncu'] : ['Club × player', 'Person × player']) {
+        await page.getByRole('button', { name: title, exact: true }).click();
+        await expect(page.getByRole('textbox', { name: language === 'tr' ? 'Oyuncu adına göre ara' : 'Search by player name' })).toBeVisible();
+        const matrix = await new AxeBuilder({ page }).analyze();
+        expect(matrix.violations.filter(v => v.impact === 'serious' || v.impact === 'critical'), `${language} ${title}`).toEqual([]);
+      }
+      await page.getByRole('button', { name: language === 'tr' ? 'Sunum kaydet' : 'Log presentation', exact: true }).click();
+      const dialog = page.getByRole('dialog');
+      await expect(dialog.getByLabel(language === 'tr' ? 'Takip tarihi' : 'Follow-up date', { exact: true })).toBeVisible();
+      const form = await new AxeBuilder({ page }).include('[role="dialog"]').analyze();
+      expect(form.violations.filter(v => v.impact === 'serious' || v.impact === 'critical'), `${language} presentation editor`).toEqual([]);
+      await dialog.getByRole('button', { name: language === 'tr' ? 'Kapat' : 'Close', exact: true }).click();
+    }
+    if (path.startsWith('/record/Club/')) {
+      await page.goto(`${path}?tab=players`);
+      await expect(page.getByRole('button', { name: language === 'tr' ? 'Satış kaydı ekle' : 'Add sales listing', exact: true })).toBeVisible();
+      const sales = await new AxeBuilder({ page }).analyze();
+      expect(sales.violations.filter(v => v.impact === 'serious' || v.impact === 'critical'), `${language} club sales`).toEqual([]);
+    }
     if (path === requestPath) {
       await page.getByRole('button', { name: language === 'tr' ? 'Oyuncuları değerlendir' : 'Evaluate players', exact: true }).click();
       const dialog = page.getByRole('dialog', { name: language === 'tr' ? 'Oyuncu eşleştirme' : 'Player matching', exact: true });

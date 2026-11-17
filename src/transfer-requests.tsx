@@ -4,6 +4,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { Download, Plus } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { positions } from '../shared/domain';
+import type { DocumentInput } from '../shared/documents';
 import { formatMarketAmount, marketCurrencies } from '../shared/player-market';
 import {
   footOptions, requestChanges, requestConstraintFields, requestInput, requestPriorities, requestStatuses, validRequestConstraints,
@@ -12,6 +13,8 @@ import {
 import { api, ApiError, body } from './api';
 import { Badge, Empty, ErrorMessage, Modal } from './components';
 import { footLabels } from './player-card-editor';
+import { downloadDocument } from './profile-export';
+import { AttachmentPanel } from './files';
 
 type RequestPage = { items: RequestRecord[]; page: number; total: number };
 const requestPageSize = 50;
@@ -298,6 +301,7 @@ export function RequestSummary({ request }: { request: RequestRecord }) {
       <p className="flex flex-wrap gap-3"><RecordLink kind="Player" record={item.player} /><RecordLink kind="Club" record={item.club} /><RecordLink kind="Person" record={item.person} /></p>
       <p className="muted text-sm mt-1">{requestDay(item.date, i18n.language)} · {item.matchScore === null ? t('requestNoSuggestionScore') : t('matchScoreValue', { score: item.matchScore })}</p>
       <p className="whitespace-pre-wrap break-words mt-1">{item.whyGoodTransfer}</p>
+      {item.player && item.club && item.person && <RecommendationDownload suggestion={item} requestId={request.id} />}
     </li>)}</ul> : <p className="muted">{t('empty')}</p>)}
     {(page > 1 || suggestions.data?.more) && <div className="flex gap-2">
       <button className="secondary" disabled={page === 1} onClick={() => setPage(page - 1)}>{t('previous')}</button>
@@ -305,4 +309,28 @@ export function RequestSummary({ request }: { request: RequestRecord }) {
     </div>}
     {edit && <RequestEditor request={request} onClose={() => setEdit(false)} />}
   </section>;
+}
+
+function RecommendationDownload({ suggestion, requestId }: { suggestion: RequestSuggestion; requestId: string }) {
+  const { t, i18n } = useTranslation();
+  const client = useQueryClient();
+  const [filesOpen, setFilesOpen] = useState(false);
+  const language = i18n.language === 'en' ? 'en' : 'tr';
+  const download = useMutation({
+    mutationFn: (format: DocumentInput['format']) => downloadDocument(
+      `/api/documents/recommendation/${suggestion.id}`, { format, language, version: suggestion.version },
+      `metodo-recommendation-${language}.${format}`,
+    ),
+    onSuccess: () => { void client.invalidateQueries({ queryKey: ['timeline', 'Request', requestId] }); },
+    onError: () => { void client.invalidateQueries({ queryKey: ['request-suggestions', requestId] }); },
+  });
+  return <>
+    <div className="flex flex-wrap gap-2 mt-3">
+      <button className="secondary" disabled={download.isPending} onClick={() => download.mutate('pdf')}>{t('recommendationPdf')}</button>
+      <button className="secondary" disabled={download.isPending} onClick={() => download.mutate('docx')}>{t('recommendationDocx')}</button>
+      <button type="button" className="secondary" aria-expanded={filesOpen} onClick={() => setFilesOpen(open => !open)}>{t('filesTitle')}</button>
+    </div>
+    {download.isError && <RequestError error={download.error} />}
+    {filesOpen && <AttachmentPanel type="Suggestion" id={suggestion.id} />}
+  </>;
 }

@@ -49,7 +49,7 @@ export type RequestRecord = Omit<RequestInput, 'requesterId' | 'fieldProvenance'
   club: NamedRecord | null; requester: NamedRecord | null;
 };
 export type RequestSuggestion = {
-  id: string; date: string; whyGoodTransfer: string; matchScore: string | null;
+  id: string; version: number; date: string; whyGoodTransfer: string; matchScore: string | null;
   player: NamedRecord | null; person: NamedRecord | null; club: NamedRecord | null;
 };
 export const requestConstraintFields = ['ageMin', 'ageMax', 'salaryMax', 'salaryCurrency', 'feeMax', 'feeCurrency'] as const;
