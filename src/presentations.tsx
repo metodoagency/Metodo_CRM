@@ -107,9 +107,9 @@ function PresentationMatrix({ axis, onEdit }: { axis: 'Club' | 'Person'; onEdit:
         <thead><tr><th>{t(axis)}</th>{data.players.map(player => <th key={player.id}><Link to={`/record/Player/${player.id}`}>{player.name}</Link></th>)}</tr></thead>
         <tbody>{data.rows.map(target => <tr key={target.id}><th scope="row"><Link to={`/record/${axis}/${target.id}`}>{target.name}</Link></th>
           {data.players.map(player => { const cell = cells.get(`${target.id}:${player.id}`); return <td key={player.id}>{cell
-            ? <button className="secondary" disabled={open.isPending} onClick={() => open.mutate(cell.id)}
-              aria-label={`${t(`presentationResult_${cell.result}`)} ${displayDay(cell.date, i18n.language)} · ${target.name} · ${player.name}`}>
+            ? <button className="secondary" disabled={open.isPending} onClick={() => open.mutate(cell.id)}>
               <span className="flex flex-col gap-1"><PresentationResult value={cell.result} /><small>{displayDay(cell.date, i18n.language)}</small></span>
+              <span className="sr-only">{target.name} · {player.name}</span>
             </button> : '—'}</td>; })}
         </tr>)}</tbody>
       </table></div>
