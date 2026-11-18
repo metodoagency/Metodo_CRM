@@ -22,7 +22,7 @@ Updated 2026-11-18. Scope includes OIDC, sessions, API writes, encryption, timel
 
 ## Open items and release gates
 
-1. Completed Codex Security scans cover prior application checkpoints, including package12. Package13 requires review of its changed upload, dossier and write paths before acceptance. The source and dependency checks run in CI.
+1. Completed Codex Security scans cover package12 and package13's frozen upload/dossier/write paths; references are in PROGRESS.md. Date/accessibility and transaction follow-ups received separate source reviews. The supplemental transaction diff scan host could not resolve the Git worktree; no supplemental sealed report is claimed. PostgreSQL16/17 CI passed144 tests,52 security tests and17 browser scenarios. Source/dependency checks run in CI.
 2. **Blocked:** Google token exchange, real allowlisted login and third-party cookie behavior in a published Google Site require owner OAuth credentials and a public deployment.
 3. **NOT DONE:** full optimistic-lock enforcement on every domain writer and Trash operation; foundation core-record edit/delete/settings paths are covered.
 4. Private local and S3 storage adapters, MIME/signature checks, photo metadata removal and short-lived signed downloads have local and CI coverage. Production bucket verification and medical-access policies remain pending. Do not ingest medical/guardian production data before H.
@@ -31,6 +31,8 @@ Updated 2026-11-18. Scope includes OIDC, sessions, API writes, encryption, timel
 7. Key compromise requires coordinated database/backups rotation. Blind-index-key rotation is not implemented. Keep encryption keys outside snapshots and review the maintenance workflow before production.
 8. Browser dependencies and server dependencies must be audited again on every PR. `security:check` blocks high/critical production advisories; developer-tool audit results are recorded in PROGRESS.md.
 9. Only merge after green remote CI, review and a completed milestone. Local passes do not establish GitHub CI status. Never deploy the test stub publicly.
+10. Serializable transactions can fail at COMMIT. RuntimePg cleans up failed boundaries without lowering isolation or retrying business writes. Only confirmed PostgreSQL40001 conflicts become409; uncertain outcomes stay500. A two-connection PostgreSQL regression checks rollback, pool release and shutdown.
+11. Full dependency audit on2026-11-18 reports18 development-chain entries for withdrawn picomatch advisory GHSA-fc5q-39xc-vjpf; production audit is0. Lockfile copies and upstream withdrawal are recorded in PROGRESS.md. No alert was dismissed and no dependency changed. Recheck before dependency changes/final release.
 
 ## Recovery
 

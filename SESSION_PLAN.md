@@ -33,8 +33,8 @@ Owner-approved 2026-11-03. An oturum is a verified work package, not a message c
 | 10 | Oyuncu kartı | M6: puan geçmişi, lig uygunluğu, kaynaklı piyasa değeri, güvenli biyografi, yazdırılabilir kart ve TR/EN profil çıktısı. | DONE |
 | 11 | Kişiler ve doğum günleri | M14, M15 ve R8 doğrulandı. B kabulünde M4 ve güvenlik incelemesi açık. | IN_PROGRESS |
 | 12 | Talepler ve eşleştirme | M9/M10 R7: Kanban, eksik veri normalizasyonu, kapsam ve açıklamalar. [PostgreSQL 16/17 CI](https://github.com/metodoagency/Metodo_CRM/actions/runs/44106365479). | DONE |
-| 13 | Öneri ve sunumlar | M10–M12 R3: atomik öneri, sunum matrisi, yetkili satış listesi, temel kulüp yetkisi ve öneri dosyası. | IN_PROGRESS |
-| 14 | Sözleşmeler | M7: manuel kaynaklı tarihler/yöntem, şifreli maaş, nötr kontrol listesi ve süre takibi. | NOT_STARTED |
+| 13 | Öneri ve sunumlar | M10–M12 R3: atomik öneri, sunum matrisi, yetkili satış listesi, temel kulüp yetkisi ve öneri dosyası. [PostgreSQL16/17 CI](https://github.com/metodoagency/Metodo_CRM/actions/runs/44352395585) passed for8edb823. | DONE |
+| 14 | Sözleşmeler | M7: sekiz testli manuel doğrulama/tarih temeli; ekran, API, migration ve kalıcı hatırlatmalar bekliyor. | IN_PROGRESS |
 | 15 | Ajanda ve bildirimler | M2 ajanda M24 R4: ICS, görev, dashboard, okuma/erteleme/dedupe; C kabul. | NOT_STARTED |
 | 16 | Fikstürler | M2 R9: anonim TFF HTML testleri, robots ve CSV fallback, hiçbir planlı fetch yok. | NOT_STARTED |
 | 17 | GPS ve performans | M8: kolon eşleme, satır hataları, idempotent import, metrik ve anomali kontrolü. | NOT_STARTED |
@@ -87,5 +87,7 @@ Test critical failures: wrong coach/other staff unchanged; rollback on transacti
 Acceptance percentage = accepted milestone gates /10, not effort. A10%; B(session11)20%; C15→30%; D18→40%; E24→50%; F29→60%; G38→70%; H40→80%; I44→90%; J/final54→100%. No public URL is reported until actual successful deployment.
 
 ## Resume
+
+Kalan oturumlar: [docs/NEXT_SESSIONS.md](docs/NEXT_SESSIONS.md). Paket14 devam sınırı: [docs/CONTRACT_IMPLEMENTATION.md](docs/CONTRACT_IMPLEMENTATION.md).
 
 Read AGENTS.md, SPEC.md, this file, PROGRESS.md and acceptance matrix; inspect Git state. Resume the last unfinished package, preserving owner changes. Do independent work while real owner/provider blocks are recorded. Secrets belong only in ignored local configuration/provider secret settings, never chat/source/logs. If interrupted, commit WIP and save the exact next step. Do not recreate finished work.
