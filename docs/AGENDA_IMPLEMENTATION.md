@@ -8,9 +8,19 @@ Contract notification center at `/notifications`, reached through the header bel
 
 The first adapter covers contracts. Birthdays deliberately stay behind the calendar's explicit audited60-second view; generic GET never returns their occurrence dates, thresholds or other derived sensitive metadata. Unknown/future notification types are excluded until an appropriate adapter is implemented. Pending proposals and the protected birthday calendar have visible navigation links. Overview and center share current/unread filtering. Overview meetings now use Istanbul today and deterministic date/time/id order.
 
+## Task workspace checkpoint — 2026-11-19
+
+Dedicated `/tasks` workspace and API implement versioned create/edit/complete/reopen, status/due/search filters, named record links, timeline and reversible Trash. Inputs exclude owner/status/generation internals from general edits. List/detail and overview use explicit projections; link pickers expose only id/name and never contact, birth-date, salary or proposal excerpts. Historical unavailable links survive unrelated edits, while new/copied/restored references require their current owner/live parents. Current proposal links cover the implemented Club-target workflows only.
+
+Migration012 adds nullable unique generationKey, a retained source recurrenceGenerated flag and an owner/live/status/due index. No self-FK or new Data API grants. Completing and creating/logging one successor commit atomically in a serializable transaction; business writes do not retry. Reopening, editing and restoring never reset the consumed flag. Edited/completed/deleted successors remain unchanged; a purged successor stays missing rather than being recreated. Purging an earlier occurrence preserves future independent tasks. Weekly/monthly recurrence uses the original due date, with visible skipped months and an explicit finite-date limit.
+
+The editor and action confirmation freeze their opening record/version. Background refresh preserves dirty fields; navigation clears another record's editor. Completion previews show the exact next date before commit. Dashboard task/activity links open the dedicated record. General Task export/backup restore remains in package25 and must preserve generation keys and consumed flags to retain idempotency.
+
+Local full189/189 unit/integration,79/79 security (110 unrelated skips),5/5 agenda-group browser cases and both22-route TR/EN axe scans passed before the last example-prefix guard. After that guard,18/18 focused date/schema/i18n/PostgreSQL cases and TypeScript/lint/1055 bilingual keys passed; final production build passed. Example tasks are visibly labeled and retain their required name prefix. Independent source review found no actionable issue. Exact-head16/17 CI must verify the final complete snapshot. Migration012 is applied locally to development/test/E2E; production remains007. Package15 stays IN_PROGRESS.
+
 ## Remaining implementation
 
-1. Versioned Task CRUD: priority/due/status, live owner-linked entities, recurrence NONE/WEEKLY/MONTHLY, reversible Trash and masked timeline. Define monthly29–31 behavior explicitly and ensure repeated/concurrent completion creates at most one successor. Do not extend generic entityTypes/delegate (unknown types fall through to Request).
+1. Finish Task checkpoint browser/security/CI verification below; then continue the remaining agenda scope. Do not extend generic entityTypes/delegate (unknown types fall through to Request).
 2. Versioned Meeting CRUD: DATE/time/duration, validated/deduplicated participants with safe label projections, private notes and linked task creation. No automatic invitations or participant email lookup.
 3. Day/week/month agenda with current contract overlays, protected birthday view and supported-module adapters. Future transfer-window/licence/scout overlays remain pending until those modules exist.
 4. RFC5545 ICS: Istanbul VTIMEZONE, stable UID, version SEQUENCE, METHOD:PUBLISH for ordinary export; manually sent invitations alone may use REQUEST. Escape text, fold UTF-8 by octets, validate rollover and preserve all-day dates. Log exports, exclude sensitive fields.
@@ -18,17 +28,17 @@ The first adapter covers contracts. Birthdays deliberately stay behind the calen
 6. Idempotent internal task adapters for meetings, presentations, contract alerts and approvals; blocked transfer steps follow their later module. No outbound messaging and no scheduled TFF request.
 7. Complete applicable fixed-clock R4 tests, TR/EN browser/axe, database16/17 CI and milestone security review. B must also satisfy its independent open gate before any milestone merges.
 
-## Task design review — implementation not yet started
+## Task design decisions — implemented in the checkpoint
 
 Use dedicated strict create/edit schemas with name, priority, due date, recurrence and a nullable typed linked entity. Exclude owner/status/generation controls from general PATCH; complete/reopen are explicit versioned actions, with wrong-state/stale409 and no business-write retry. Completing and creating the next occurrence must commit together with a shared timeline batch.
 
-Preserve an existing successor, including owner edits, completed status and soft deletion; do not regenerate or resurrect it when its source is reopened/completed again. A nullable unique generationKey (`repeat:<source UUID>`) avoids introducing a self-FK: the shared lifecycle deletion sorter correctly rejects type-level FK cycles. However, a key on the successor alone loses protection after explicit hard purge. Implementation must also persist a source-side consumed marker or equivalent retained tombstone before claiming purge-safe idempotency; do not silently accept recreation after purge. Future occurrences are independent tasks, not deletion dependents of earlier occurrences.
+Preserve an existing successor, including owner edits, completed status and soft deletion; do not regenerate or resurrect it when its source is reopened/completed again. A nullable unique generationKey (`repeat:<source UUID>`) avoids introducing a self-FK: the shared lifecycle deletion sorter correctly rejects type-level FK cycles. A key on the successor alone loses protection after explicit hard purge, so the source recurrenceGenerated marker is retained. Future occurrences are independent tasks, not deletion dependents of earlier occurrences.
 
 Validate live owner links when copying them into a new successor, even if the source retained a now-orphaned historical link. Block completion atomically until the owner fixes/clears an invalid link; never silently unlink it. Unrelated source edits may preserve historical links. Add the corresponding polymorphic parent guard to Task restore.
 
 Weekly adds seven calendar days. Monthly skips months lacking the original day (Jan31→Mar31, Jan30→Mar30), without clamping. Late completion creates only the next-from-due-date occurrence, possibly still overdue, rather than a catch-up chain. Accept years0001–9999; bound monthly search to12 candidates and the four-digit year. At exhaustion return explicit RECURRENCE_LIMIT and require the owner to choose NONE before completing; never silently stop repetition.
 
-Tests must cover leap/year limits, late completion, concurrent/stale completion, reopened/edited/deleted/purged successors, invalid linked parents on create/copy/restore, schema bypass rejection, atomic paired timeline rollback and all-table example cleanup/purge ordering. This was a read-only design review; it changes no application behavior and earns no acceptance credit.
+The new tests cover leap/year limits, late completion, concurrent/stale completion, reopened/edited/deleted/purged successors, invalid linked parents on create/copy/restore, schema bypass rejection, atomic paired timeline rollback and all-table example cleanup/purge ordering. The preceding design review itself earned no acceptance credit; runtime evidence is recorded separately.
 
 ## Verification results
 

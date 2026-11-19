@@ -29,7 +29,7 @@ Live commercial/provider implementation is explicitly deferred by SPEC update1. 
 | M21 | Work Log | 21 | NOT_DONE | — |
 | M22 | Asistan | 24 | NOT_DONE | — |
 | M23 | Galeri/klip | 18 | NOT_DONE | — |
-| M24 | Dashboard/görev/bildirim | 15,26,50 | PARTIAL | Current contract notification read/snooze center implemented; [API](../tests/api.test.ts), [fixed-clock states](../tests/notifications.test.ts), [TR/EN browser](../tests/e2e/agenda.spec.ts). [ed71674 PostgreSQL16/17 CI](https://github.com/metodoagency/Metodo_CRM/actions/runs/44501075727) passed171 application,66 security and21 browser scenarios per version. Task/Meeting/agenda/dashboard acceptance remains open. |
+| M24 | Dashboard/görev/bildirim | 15,26,50 | PARTIAL | Notification center accepted at [ed71674 CI](https://github.com/metodoagency/Metodo_CRM/actions/runs/44501075727). Versioned Task CRUD/recurrence/Trash implemented: [API](../tests/tasks-api.test.ts), [dates/schemas](../tests/tasks.test.ts), [TR/EN browser](../tests/e2e/tasks.spec.ts). Local189 unit/integration,79 security,5 agenda flows and both22-route axe scans passed; Task exact-head CI pending. Meeting/agenda/automatic tasks/dashboard acceptance remains open. |
 | M25 | Yedek/yönetim | 04,25,38 | PARTIAL | Foundation API tests; full baseline subsection remains pending |
 | M26 | Deal pipeline | 41 | NOT_DONE | — |
 | M27 | Komisyon/alacak | 42 | NOT_DONE | — |

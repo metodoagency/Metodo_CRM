@@ -964,12 +964,15 @@ model Task {
  dueDate DateTime @db.Date
  status TaskStatus @default(OPEN)
  recurrence Recurrence @default(NONE)
+ generationKey String? @unique
+ recurrenceGenerated Boolean @default(false)
  entityType String?
  entityId String?
  @@index([ownerId, deletedAt])
  @@index([ownerId])
  @@index([entityId])
  @@index([ownerId, dueDate])
+ @@index([ownerId, deletedAt, status, dueDate, id])
 }
 
 model Match {
