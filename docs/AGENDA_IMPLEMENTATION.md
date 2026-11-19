@@ -18,6 +18,18 @@ The first adapter covers contracts. Birthdays deliberately stay behind the calen
 6. Idempotent internal task adapters for meetings, presentations, contract alerts and approvals; blocked transfer steps follow their later module. No outbound messaging and no scheduled TFF request.
 7. Complete applicable fixed-clock R4 tests, TR/EN browser/axe, database16/17 CI and milestone security review. B must also satisfy its independent open gate before any milestone merges.
 
-## Verification
+## Task design review — implementation not yet started
 
-Local results2026-11-19:171/171 full unit/PostgreSQL tests;66/66 security (105 unrelated skips);2/2 TR/EN notification browser flows including populated-page axe;2/2 extended20-route TR/EN axe scans;999 bilingual keys, lint, TypeScript and production build passed. Production dependency audit0 and source scan passed. Independent read-only source review found no actionable issues. Full-browser and PostgreSQL16/17 exact-head CI remain pending for the new checkpoint. No migration, dependency or production change was made for this slice.
+Use dedicated strict create/edit schemas with name, priority, due date, recurrence and a nullable typed linked entity. Exclude owner/status/generation controls from general PATCH; complete/reopen are explicit versioned actions, with wrong-state/stale409 and no business-write retry. Completing and creating the next occurrence must commit together with a shared timeline batch.
+
+Preserve an existing successor, including owner edits, completed status and soft deletion; do not regenerate or resurrect it when its source is reopened/completed again. A nullable unique generationKey (`repeat:<source UUID>`) avoids introducing a self-FK: the shared lifecycle deletion sorter correctly rejects type-level FK cycles. However, a key on the successor alone loses protection after explicit hard purge. Implementation must also persist a source-side consumed marker or equivalent retained tombstone before claiming purge-safe idempotency; do not silently accept recreation after purge. Future occurrences are independent tasks, not deletion dependents of earlier occurrences.
+
+Validate live owner links when copying them into a new successor, even if the source retained a now-orphaned historical link. Block completion atomically until the owner fixes/clears an invalid link; never silently unlink it. Unrelated source edits may preserve historical links. Add the corresponding polymorphic parent guard to Task restore.
+
+Weekly adds seven calendar days. Monthly skips months lacking the original day (Jan31→Mar31, Jan30→Mar30), without clamping. Late completion creates only the next-from-due-date occurrence, possibly still overdue, rather than a catch-up chain. Accept years0001–9999; bound monthly search to12 candidates and the four-digit year. At exhaustion return explicit RECURRENCE_LIMIT and require the owner to choose NONE before completing; never silently stop repetition.
+
+Tests must cover leap/year limits, late completion, concurrent/stale completion, reopened/edited/deleted/purged successors, invalid linked parents on create/copy/restore, schema bypass rejection, atomic paired timeline rollback and all-table example cleanup/purge ordering. This was a read-only design review; it changes no application behavior and earns no acceptance credit.
+
+## Verification results
+
+Local results2026-11-19:171/171 full unit/PostgreSQL tests;66/66 security (105 unrelated skips);2/2 TR/EN notification browser flows including populated-page axe;2/2 extended20-route TR/EN axe scans;999 bilingual keys, lint, TypeScript and production build passed. Production dependency audit0 and source scan passed. Independent read-only source review found no actionable issues. [Full PostgreSQL16/17 CI44501075727 for ed71674](https://github.com/metodoagency/Metodo_CRM/actions/runs/44501075727) passed:171 unit/integration,66 security and21 browser scenarios per version,999 i18n keys and all quality/build gates. The notification slice is accepted; package15 remains incomplete. No migration, dependency or production change was made for this slice.
