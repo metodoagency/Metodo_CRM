@@ -24,7 +24,7 @@ function fields(input: Partial<TaskInput>) {
 function audit(row: Task) {
   return { name: row.name, priority: row.priority, dueDate: date(row.dueDate), status: row.status, recurrence: row.recurrence, entityType: row.entityType, entityId: row.entityId };
 }
-function exampleName(isExample: boolean, name: string) {
+export function requireExampleName(isExample: boolean, name: string) {
   if (isExample && !/^(?:Örnek|ÖRNEK)/u.test(name)) throw new AppError('EXAMPLE_NAME_REQUIRED');
 }
 async function dto(tx: Tx, row: Task): Promise<TaskRecord> {
@@ -51,7 +51,7 @@ async function complete(tx: Tx, id: string, version: number): Promise<TaskAction
   let next = await successor(tx, id); const reused = before.recurrenceGenerated || next !== null;
   let consumed = reused; let created = false; const batchId = randomUUID();
   if (!consumed && before.recurrence !== 'NONE') {
-    exampleName(before.isExample, before.name);
+    requireExampleName(before.isExample, before.name);
     const occurrence = nextTaskOccurrence(date(before.dueDate), before.recurrence);
     if (!occurrence.nextDate) throw new AppError('RECURRENCE_LIMIT', 409);
     // A new occurrence cannot inherit an unavailable historical reference.
@@ -70,6 +70,14 @@ async function complete(tx: Tx, id: string, version: number): Promise<TaskAction
   return { task: await detail(tx, await requireTask(tx, id)), reused };
 }
 
+export async function createTaskRecord(tx: Tx, input: TaskInput, context: { id?: string; isExample?: boolean; batchId?: string; generationKey?: string } = {}) {
+  await requireTaskLink(tx, input.linkedEntity?.type ?? null, input.linkedEntity?.id ?? null);
+  requireExampleName(context.isExample ?? false, input.name);
+  const data = fields(input);
+  const row = await tx.task.create({ data: { ...data, id: context.id, isExample: context.isExample ?? false, generationKey: context.generationKey, name: input.name, dueDate: new Date(input.dueDate), fieldProvenance: provenanceFor(data) } });
+  await logEvent(tx, { entityType: 'Task', entityId: row.id, name: row.name, action: 'create', isExample: row.isExample, batchId: context.batchId, diffs: { new: audit(row) } });
+  return row;
+}
 export async function registerTasks(app: FastifyInstance, db: PrismaClient) {
   app.get('/api/tasks/links', async req => {
     const { type, q, page } = taskLinkQuery.parse(req.query);
@@ -101,9 +109,7 @@ export async function registerTasks(app: FastifyInstance, db: PrismaClient) {
   app.post('/api/tasks', async (req, reply) => {
     const input = taskCreate.parse(req.body);
     const saved = await db.$transaction(async tx => {
-      await requireTaskLink(tx, input.linkedEntity?.type ?? null, input.linkedEntity?.id ?? null);
-      const data = fields(input); const row = await tx.task.create({ data: { ...data, name: input.name, dueDate: new Date(input.dueDate), fieldProvenance: provenanceFor(data) } });
-      await logEvent(tx, { entityType: 'Task', entityId: row.id, name: row.name, action: 'create', diffs: { new: audit(row) } });
+      const row = await createTaskRecord(tx, input);
       return detail(tx, row);
     }, { isolationLevel: 'Serializable' });
     return reply.code(201).send(saved);
@@ -112,7 +118,7 @@ export async function registerTasks(app: FastifyInstance, db: PrismaClient) {
     const { id } = idParams.parse(req.params); const { version, changes } = taskPatch.parse(req.body);
     return db.$transaction(async tx => {
       const before = await requireTask(tx, id); if (before.version !== version) throw new AppError('STALE_VERSION', 409);
-      if (changes.name !== undefined) exampleName(before.isExample, changes.name);
+      if (changes.name !== undefined) requireExampleName(before.isExample, changes.name);
       if (changes.linkedEntity !== undefined) await requireTaskLink(tx, changes.linkedEntity?.type ?? null, changes.linkedEntity?.id ?? null);
       const data = fields(changes);
       const updated = await tx.task.updateMany({ where: { ...live, id, version }, data: { ...data, version: { increment: 1 }, fieldProvenance: provenanceFor(data, before.fieldProvenance) } });

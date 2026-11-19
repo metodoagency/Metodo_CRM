@@ -6,7 +6,7 @@
 
 | Paket | Kalan somut iş |
 |---|---|
-| 02 | Mevcut Cloud projesinin sahibi hesapla onaylanmış OAuth istemcisini oluştur; sırları Render'a kaydet; gerçek sahip girişi, HTTPS sağlık ve yetkisiz erişimi doğrula. Mevcut ajans hesabının projeye erişimi yok; sahibin diğer hesabının kimliği bekleniyor. |
+| 02 | Mevcut Cloud projesinin sahibi hesapla onaylanmış OAuth istemcisini oluştur; sırları Render'a kaydet; gerçek sahip girişi, HTTPS sağlık ve yetkisiz erişimi doğrula. Eski projeID’si her iki açık hesapta erişim reddediyor; erişim düzeltmesinden sonra açılan doğru proje bağlantısı bekleniyor. |
 | 05 | Mevcut güvenli dosya akışını üretimde özel Supabase depolaması, kısa süreli indirme ve silme kuyruğuyla doğrula. |
 | 08 | Personel CSV akışını koru; temsili anonim TFF personel sayfası veya sahibin başlattığı kesin sayfa kontrolüyle robots izinli kontrolü tamamla. Zamanlanmış veya ticari site isteği ekleme. |
 | 11 | M14/M15 tamam. Kalan M4 ve B güvenlik/CI kapısı doğrulandıktan sonra B kabulünü kapat. |

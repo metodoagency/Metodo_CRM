@@ -35,6 +35,7 @@ import { registerSales } from './sales.js';
 import { registerContracts } from './player-contracts.js';
 import { registerNotifications, unreadNotificationCount } from './notifications.js';
 import { registerTasks } from './tasks.js';
+import { registerMeetings } from './meetings.js';
 
 const idParams = z.object({ id: z.string().uuid() });
 const entityParams = z.object({ type: z.enum(entityTypes), id: z.string().uuid() });
@@ -67,6 +68,7 @@ export async function registerRoutes(app: FastifyInstance, db: PrismaClient) {
   await registerContracts(app, db);
   await registerNotifications(app, db);
   await registerTasks(app, db);
+  await registerMeetings(app, db);
   app.get('/api/me', async req => ({ id: 'owner', csrfToken: csrfToken(req.cookies[sessionCookie]!) }));
   app.get('/api/settings', async () => masked(await db.userSettings.upsert({ where: { ownerId: 'owner' }, create: { ownerId: 'owner' }, update: {} })));
   app.patch('/api/settings', async req => {
@@ -86,7 +88,7 @@ export async function registerRoutes(app: FastifyInstance, db: PrismaClient) {
       db.updateProposal.count({ where: { ...live, approvalStatus: 'PENDING' } }),
       db.updateProposal.findMany({ where: { ...live, approvalStatus: 'PENDING' }, take: 5, orderBy: [{ createdAt: 'desc' }, { id: 'asc' }], select: { id: true, name: true, type: true } }),
       db.task.findMany({ where: { ...live, status: 'OPEN' }, orderBy: [{ dueDate: 'asc' }, { id: 'asc' }], take: 5, select: { id: true, name: true, dueDate: true, priority: true } }),
-      db.meeting.findMany({ where: { ...live, date: { gte: new Date(istanbulToday()) } }, orderBy: [{ date: 'asc' }, { time: 'asc' }, { id: 'asc' }], take: 4 }),
+      db.meeting.findMany({ where: { ...live, date: { gte: new Date(istanbulToday()) } }, orderBy: [{ date: 'asc' }, { time: 'asc' }, { id: 'asc' }], take: 4, select: { id: true, name: true, date: true, time: true, durationMin: true } }),
       db.timelineEvent.findMany({ where: live, orderBy: { createdAt: 'desc' }, take: 6 }),
       db.$transaction(tx => unreadNotificationCount(tx), { isolationLevel: 'RepeatableRead' }),
       db.presentation.findMany({

@@ -43,6 +43,7 @@ export function nextTaskOccurrence(dueDate: string, recurrence: TaskInput['recur
 export function taskLinkPath(link: TaskLink): string | null {
   if (['Club', 'Player', 'Person', 'Request'].includes(link.type)) return `/record/${link.type}/${link.id}`;
   if (link.type === 'Contract') return `/contracts/${link.id}`;
+  if (link.type === 'Meeting') return `/agenda?meeting=${link.id}`;
   if (link.type === 'Presentation') return `/presentations?presentation=${link.id}`;
   if (link.type === 'UpdateProposal') return '/proposals';
   if (link.type === 'Suggestion') return '/requests';

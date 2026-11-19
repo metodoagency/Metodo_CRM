@@ -29,6 +29,8 @@ for (const language of ['tr', 'en']) test(`main routes have no serious or critic
     name: `Örnek Erişilebilir Görev ${language}`, priority: 'HIGH', dueDate: '2028-01-31', recurrence: 'MONTHLY', linkedEntity: { type: 'Player', id: player.id },
   } });
   expect(taskResponse.status()).toBe(201); const taskPath = `/tasks?task=${(await taskResponse.json()).id}`;
+  const meetingResponse = await page.request.post('/api/meetings', { headers, data: { name: `Örnek Erişilebilir Görüşme ${language}`, date: '2026-11-19', time: '10:00', durationMin: 60, utcOffsetSeconds: null, participants: [{ type: 'Person', id: person.id }], locationOrUrl: null, agenda: '', notes: '', outcome: null } });
+  expect(meetingResponse.status()).toBe(201); const meetingPath = `/agenda?meeting=${(await meetingResponse.json()).id}`;
   const membership = await page.request.post('/api/relations', { headers, data: {
     fromType: 'Person', fromId: person.id, toType: 'Club', toId: club.id, relation: 'memberOf',
   } });
@@ -39,7 +41,7 @@ for (const language of ['tr', 'en']) test(`main routes have no serious or critic
   expect(request.status()).toBe(201);
   const requestPath = `/record/Request/${(await request.json()).id}`;
   const paths = ['/', '/clubs', '/players', '/people', '/requests', '/proposals', '/sources', '/birthdays', '/presentations', '/trash', '/settings', '/privacy', '/incident',
-    '/contracts', contractPath, '/notifications', '/tasks', taskPath, requestPath, `/record/Club/${club.id}`, `/record/Person/${person.id}`, `/record/Player/${player.id}`];
+    '/contracts', contractPath, '/notifications', '/tasks', taskPath, '/agenda', meetingPath, requestPath, `/record/Club/${club.id}`, `/record/Person/${person.id}`, `/record/Player/${player.id}`];
   for (const path of paths) {
     await page.goto(path); await expect(page.locator('main h1'), `${language} ${path}`).toBeVisible();
     if (path === '/clubs') await expect(page.locator('.club-map')).toBeVisible();

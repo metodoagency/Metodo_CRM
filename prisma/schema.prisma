@@ -933,6 +933,7 @@ model Meeting {
  date DateTime @db.Date
  time String
  durationMin Int @default(60)
+ utcOffsetSeconds Int?
  locationOrUrl String?
  participants Json @default("[]")
  agenda String @default("")
@@ -941,6 +942,7 @@ model Meeting {
  @@index([ownerId, deletedAt])
  @@index([ownerId])
  @@index([ownerId, date])
+ @@index([ownerId, deletedAt, date, time, id])
 }
 
 model Task {

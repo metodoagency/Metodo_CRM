@@ -35,7 +35,7 @@ Owner-approved 2026-11-03. An oturum is a verified work package, not a message c
 | 12 | Talepler ve eşleştirme | M9/M10 R7: Kanban, eksik veri normalizasyonu, kapsam ve açıklamalar. [PostgreSQL 16/17 CI](https://github.com/metodoagency/Metodo_CRM/actions/runs/44106365479). | DONE |
 | 13 | Öneri ve sunumlar | M10–M12 R3: atomik öneri, sunum matrisi, yetkili satış listesi, temel kulüp yetkisi ve öneri dosyası. [PostgreSQL16/17 CI](https://github.com/metodoagency/Metodo_CRM/actions/runs/44352395585) passed for8edb823. | DONE |
 | 14 | Sözleşmeler | M7: kayıt ekranı/API, şifreli maaş, kulüp/menajer tarafı, not/dosya ve hatırlatmalar. [5c516b4 PostgreSQL16/17 CI](https://github.com/metodoagency/Metodo_CRM/actions/runs/44496048310):161 uygulama,60 güvenlik,19 tarayıcı geçti. | DONE |
-| 15 | Ajanda ve bildirimler | Bildirim merkezi doğrulandı. Sürümlü görev/tekrar/Trash uygulandı; kesin CI bekliyor. Toplantı/ajanda/ICS/dashboard ve C kabulü açık. | IN_PROGRESS |
+| 15 | Ajanda ve bildirimler | Bildirim ve görev/tekrar/Trash kesin16/17 CI ile doğrulandı. Toplantı CRUD, onaylı görev ve gün/hafta/ay ajandası/ICS uygulandı; bu yeni parçanın kesin CI ve kalan overlay/dashboard/otomatik görev kabulü açık. | IN_PROGRESS |
 | 16 | Fikstürler | M2 R9: anonim TFF HTML testleri, robots ve CSV fallback, hiçbir planlı fetch yok. | NOT_STARTED |
 | 17 | GPS ve performans | M8: kolon eşleme, satır hataları, idempotent import, metrik ve anomali kontrolü. | NOT_STARTED |
 | 18 | Galeri ve transfer CV | M8/M23 R10: hak notları, klip URL, doğru bölüm sırası, PDF metni/DOCX XML; D kabul. | NOT_STARTED |

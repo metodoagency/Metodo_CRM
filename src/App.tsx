@@ -34,6 +34,7 @@ import { Presentations, PresentationResult, RecordPicker } from './presentations
 import { Contracts, ContractDetail, PlayerContracts } from './player-contracts';
 import { Notifications } from './notifications';
 import { Tasks } from './tasks';
+import { Meetings } from './meetings';
 import { hasCoordinates, type ClubFilters } from '../shared/club-network';
 import type { PrivacyState } from '../shared/privacy';
 import type { ClubRecord, List, PersonRecord, RecordRow, RecordType, Overview, Timeline } from './types';
@@ -49,6 +50,7 @@ const pages = [
   { path: '/presentations', key: 'presentations', icon: ArrowLeftRight },
   { path: '/contracts', key: 'contracts', icon: ShieldCheck },
   { path: '/tasks', key: 'tasks', icon: CheckCircle2 },
+  { path: '/agenda', key: 'meetingWorkspace', icon: CalendarDays },
 ];
 const endpoints = { Club: 'clubs', Player: 'players', Person: 'people', Request: 'requests' };
 function useDate() { const { i18n } = useTranslation(); return (value: string) => new Intl.DateTimeFormat(i18n.language === 'tr' ? 'tr-TR' : 'en-GB', { timeZone: 'Europe/Istanbul', day: '2-digit', month: i18n.language === 'tr' ? '2-digit' : 'short', year: 'numeric' }).format(new Date(value)); }
@@ -111,6 +113,7 @@ export function App() {
       <Route path="/contracts" element={<Contracts />} /><Route path="/contracts/:id" element={<ContractDetail />} />
       <Route path="/notifications" element={<Notifications />} />
       <Route path="/tasks" element={<Tasks />} />
+      <Route path="/agenda" element={<Meetings />} />
       <Route path="/settings" element={<Preferences />} />
       <Route path="/privacy" element={<PrivacyNotice state={privacy.data} />} /><Route path="/incident" element={<IncidentChecklist />} />
     </Routes><p className="footer-note">{t('foundation')} · {t('foundationNote')}</p></main></div>
@@ -151,7 +154,7 @@ function Dashboard({ onCreate }: { onCreate: () => void }) {
         <PresentationResult value={item.result} />
       </Link>)}
     </section>}
-    <div className="dashboard-columns"><div className="space-y-6"><section className="panel"><div className="panel-header"><h2>{t('agenda')}</h2><CalendarDays size={16} className="muted" /></div><div className="panel-body">{!d?.meetings.length ? <Empty /> : d.meetings.map(m => <div className="meeting" key={m.id}><div className="date-box">{new Date(m.date).getUTCDate()}<small>{new Intl.DateTimeFormat(i18n.language, { month: 'short', timeZone: 'Europe/Istanbul' }).format(new Date(m.date))}</small></div><div><div className="text-[13px] font-medium mb-2">{m.name}</div><div className="muted text-[11px]">{m.time} · {m.locationOrUrl}</div></div><ChevronRight size={15} className="muted ml-auto" /></div>)}</div></section><section className="panel"><div className="panel-header"><h2>{t('activity')}</h2><ArrowLeftRight size={16} className="muted" /></div><div className="panel-body">{!d?.recent.length ? <Empty /> : d.recent.map(e => <Link to={e.entityType === 'Task' ? `/tasks?task=${e.entityId}` : e.entityType === 'Contract' ? `/contracts/${e.entityId}` : e.entityType === 'Notification' ? '/notifications' : ['Club', 'Player', 'Person', 'Request'].includes(e.entityType) ? `/record/${e.entityType}/${e.entityId}` : '/settings'} key={e.id} className="list-line"><span className="activity-dot" /><div className="flex-1"><div>{i18n.language === 'tr' ? e.summaryTr : e.summaryEn}</div><div className="muted text-[10px] mt-2">{date(e.createdAt)}</div></div><ArrowUpRight size={14} className="muted" /></Link>)}</div></section></div>
+    <div className="dashboard-columns"><div className="space-y-6"><section className="panel"><div className="panel-header"><h2>{t('agenda')}</h2><CalendarDays size={16} className="muted" /></div><div className="panel-body">{!d?.meetings.length ? <Empty /> : d.meetings.map(m => <div className="meeting" key={m.id}><div className="date-box">{new Date(m.date).getUTCDate()}<small>{new Intl.DateTimeFormat(i18n.language, { month: 'short', timeZone: 'Europe/Istanbul' }).format(new Date(m.date))}</small></div><div><Link className="text-[13px] font-medium mb-2 text-accent block" to={`/agenda?meeting=${m.id}`}>{m.name}</Link><div className="muted text-[11px]">{m.time}</div></div><ChevronRight size={15} className="muted ml-auto" /></div>)}</div></section><section className="panel"><div className="panel-header"><h2>{t('activity')}</h2><ArrowLeftRight size={16} className="muted" /></div><div className="panel-body">{!d?.recent.length ? <Empty /> : d.recent.map(e => <Link to={e.entityType === 'Meeting' ? `/agenda?meeting=${e.entityId}` : e.entityType === 'Task' ? `/tasks?task=${e.entityId}` : e.entityType === 'Contract' ? `/contracts/${e.entityId}` : e.entityType === 'Notification' ? '/notifications' : ['Club', 'Player', 'Person', 'Request'].includes(e.entityType) ? `/record/${e.entityType}/${e.entityId}` : '/settings'} key={e.id} className="list-line"><span className="activity-dot" /><div className="flex-1"><div>{i18n.language === 'tr' ? e.summaryTr : e.summaryEn}</div><div className="muted text-[10px] mt-2">{date(e.createdAt)}</div></div><ArrowUpRight size={14} className="muted" /></Link>)}</div></section></div>
     <div><section className="panel"><div className="panel-header"><h2>{t('tasks')}</h2><CheckCircle2 size={16} className="muted" /></div><div className="panel-body">{!d?.tasks.length ? <Empty /> : d.tasks.map(task => <div className="list-line" key={task.id}><span className="icon-button"><CheckCircle2 size={14} /></span><div className="flex-1"><Link className="text-accent block mb-2" to={`/tasks?task=${task.id}`}>{task.name}</Link><span className="muted text-[10px]">{date(task.dueDate)}</span></div><Badge value={task.priority} /></div>)}</div></section><div className="notice mt-6 flex gap-3"><ShieldCheck size={28} className="text-accent shrink-0" /><div><strong className="block mb-1">{t('private')}</strong>{t('consent')}</div></div></div></div>
   </>;
 }
