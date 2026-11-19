@@ -34,8 +34,8 @@ Owner-approved 2026-11-03. An oturum is a verified work package, not a message c
 | 11 | Kişiler ve doğum günleri | M14, M15 ve R8 doğrulandı. B kabulünde M4 ve güvenlik incelemesi açık. | IN_PROGRESS |
 | 12 | Talepler ve eşleştirme | M9/M10 R7: Kanban, eksik veri normalizasyonu, kapsam ve açıklamalar. [PostgreSQL 16/17 CI](https://github.com/metodoagency/Metodo_CRM/actions/runs/44106365479). | DONE |
 | 13 | Öneri ve sunumlar | M10–M12 R3: atomik öneri, sunum matrisi, yetkili satış listesi, temel kulüp yetkisi ve öneri dosyası. [PostgreSQL16/17 CI](https://github.com/metodoagency/Metodo_CRM/actions/runs/44352395585) passed for8edb823. | DONE |
-| 14 | Sözleşmeler | M7: kaynaklı kayıt ekranı/API, şifreli maaş, kulüp/menajer tarafı, not/dosya, süre kuralları ve kalıcı hatırlatmalar uygulandı. Yerel kontroller geçti; kesin commit CI bekliyor. | IN_PROGRESS |
-| 15 | Ajanda ve bildirimler | M2 ajanda M24 R4: ICS, görev, dashboard, okuma/erteleme/dedupe; C kabul. | NOT_STARTED |
+| 14 | Sözleşmeler | M7: kayıt ekranı/API, şifreli maaş, kulüp/menajer tarafı, not/dosya ve hatırlatmalar. [5c516b4 PostgreSQL16/17 CI](https://github.com/metodoagency/Metodo_CRM/actions/runs/44496048310):161 uygulama,60 güvenlik,19 tarayıcı geçti. | DONE |
+| 15 | Ajanda ve bildirimler | M2 ajanda M24 R4: önce sürümlü bildirim merkezi; ardından görev/ajanda/ICS/dashboard ve C kabul. Henüz kabul edilmedi. | IN_PROGRESS |
 | 16 | Fikstürler | M2 R9: anonim TFF HTML testleri, robots ve CSV fallback, hiçbir planlı fetch yok. | NOT_STARTED |
 | 17 | GPS ve performans | M8: kolon eşleme, satır hataları, idempotent import, metrik ve anomali kontrolü. | NOT_STARTED |
 | 18 | Galeri ve transfer CV | M8/M23 R10: hak notları, klip URL, doğru bölüm sırası, PDF metni/DOCX XML; D kabul. | NOT_STARTED |
@@ -88,6 +88,6 @@ Acceptance percentage = accepted milestone gates /10, not effort. A10%; B(sessio
 
 ## Resume
 
-Kalan oturumlar: [docs/NEXT_SESSIONS.md](docs/NEXT_SESSIONS.md). Paket14 devam sınırı: [docs/CONTRACT_IMPLEMENTATION.md](docs/CONTRACT_IMPLEMENTATION.md).
+Kalan oturumlar: [docs/NEXT_SESSIONS.md](docs/NEXT_SESSIONS.md). Paket14 tamamlandı; paket15 devam sınırı: [docs/AGENDA_IMPLEMENTATION.md](docs/AGENDA_IMPLEMENTATION.md).
 
 Read AGENTS.md, SPEC.md, this file, PROGRESS.md and acceptance matrix; inspect Git state. Resume the last unfinished package, preserving owner changes. Do independent work while real owner/provider blocks are recorded. Secrets belong only in ignored local configuration/provider secret settings, never chat/source/logs. If interrupted, commit WIP and save the exact next step. Do not recreate finished work.

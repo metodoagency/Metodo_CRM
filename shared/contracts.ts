@@ -22,6 +22,7 @@ import { mandateCreate, mandateUpdate, saleCreate, salesQuery, saleUpdate } from
 import { matchingSettings, matchQuery } from './transfer-matching.js';
 import { contractInput, contractListQuery, contractNote, contractNoteParams, contractNotePatch, contractPatch, contractReveal, contractThresholds } from './player-contracts.js';
 import { agentBirthdayCreate, agentBirthdayQuery, birthdayChange, birthdayPage, birthdaySubject, birthdayThresholds, calendarPage, greetingSubject, greetingWrite, significantDateChange, significantDateWrite } from './calendar.js';
+import { notificationAction, notificationQuery } from './notifications.js';
 
 export const idParams = z.object({ id: z.uuid() }).strict();
 export const entityParams = z.object({ type: z.enum(entityTypes), id: z.uuid() }).strict();
@@ -56,6 +57,8 @@ export const revealInput = z.object({ field: z.enum(['birthDate', 'phone', 'emai
 export const patchInput = versionInput.extend({ changes: z.record(z.string(), z.unknown()) });
 export type ApiContract = { method: 'get' | 'post' | 'patch' | 'delete'; path: string; query?: z.ZodType; params?: z.ZodType; body?: z.ZodType; success?: number; public?: boolean; testOnly?: boolean; csv?: boolean; multipart?: boolean; download?: readonly string[] };
 export const apiContracts: ApiContract[] = [
+  { method: 'get', path: '/api/notifications', query: notificationQuery },
+  { method: 'patch', path: '/api/notifications/:id', params: idParams, body: notificationAction },
   { method: 'get', path: '/api/contracts', query: contractListQuery },
   { method: 'get', path: '/api/contracts/reminders', query: contractListQuery },
   { method: 'post', path: '/api/contracts/reminders' },

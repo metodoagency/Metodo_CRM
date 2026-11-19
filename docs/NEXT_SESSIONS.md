@@ -1,6 +1,6 @@
 # Metodo CRM — sonraki oturumlar
 
-18.11.2026. Oturum numaraları [onaylanan 54 paketlik planla](../SESSION_PLAN.md) aynıdır. Oturum bir iş paketidir; tek mesaj veya belirli gün sayısı değildir. Tamamlanan paketler yeniden kurulmaz. Kabul durumu ve test kanıtları [PROGRESS.md](../PROGRESS.md) ve [kabul matrisinde](acceptance-matrix.md) tutulur.
+19.11.2026. Oturum numaraları [onaylanan 54 paketlik planla](../SESSION_PLAN.md) aynıdır. Oturum bir iş paketidir; tek mesaj veya belirli gün sayısı değildir. Tamamlanan paketler yeniden kurulmaz. Kabul durumu ve test kanıtları [PROGRESS.md](../PROGRESS.md) ve [kabul matrisinde](acceptance-matrix.md) tutulur.
 
 ## Açık erken paketler
 
@@ -11,14 +11,13 @@
 | 08 | Personel CSV akışını koru; temsili anonim TFF personel sayfası veya sahibin başlattığı kesin sayfa kontrolüyle robots izinli kontrolü tamamla. Zamanlanmış veya ticari site isteği ekleme. |
 | 11 | M14/M15 tamam. Kalan M4 ve B güvenlik/CI kapısı doğrulandıktan sonra B kabulünü kapat. |
 
-Bu erişim işleri, bağımsız CRM geliştirmelerini durdurmaz. Paket13, eşzamanlı satış düzeltmesi dahil,8edb823 için PostgreSQL16/17 CI geçtikten sonra tamamlandı.9/54 paket tamam,5 paket devam ediyor,40 paket başlamadı. Resmî aşama kabulü A kapısı nedeniyle%10.
+Bu erişim işleri, bağımsız CRM geliştirmelerini durdurmaz. Paket 13, eşzamanlı satış düzeltmesi dahil, 8edb823 için PostgreSQL 16/17 CI geçtikten sonra tamamlandı. Paket 14 de 5c516b4 için PostgreSQL 16/17 CI geçtikten sonra tamamlandı. 10/54 paket tamam, 5 paket devam ediyor (15 dahil), 39 paket başlamadı. Resmî aşama kabulü A kapısı nedeniyle %10.
 
 ## Geliştirme sırası
 
 | Oturum | Yapılacak iş | Bitişte kullanılabilen davranış |
 |---|---|---|
-| 14 | Manuel sözleşme kaydı ve takibi | Kaynak/tarih/yöntem, şifreli maaş, kulüp veya menajer tarafı, not/dosya, onaylı hassas gösterim, süre bildirimleri ve nötr kontrol listesi. Sekiz saf doğrulama/tarih testi geçti; ekran/API ve kalıcılık henüz tamamlanmadı. |
-| 15 | Ajanda, ICS, görev ve bildirim merkezi | Tarihli işler, erteleme/okuma, tekrar üretmeyen hatırlatmalar ve dashboard; C kabulü. |
+| 15 (devam ediyor) | Ajanda, ICS, görev ve bildirim merkezi | Tarihli işler, erteleme/okuma, tekrar üretmeyen hatırlatmalar ve dashboard; C kabulü. |
 | 16 | TFF fikstürü ve CSV | Yalnız sahip tetiklemesi + robots izni; hata halinde doğrulanmış CSV. |
 | 17 | GPS ve performans CSV | Kolon eşleme/önizleme, satır hataları, tekrar kontrolü ve testli metrikler. |
 | 18 | Galeri, klip ve transfer CV | Hak notlu görseller, zaman damgalı klipler, TR/EN PDF/DOCX; D kabulü. |

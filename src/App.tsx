@@ -32,6 +32,7 @@ import { RequestSummary, TransferRequests, useRequestContacts } from './transfer
 import { MatchingSettingsPanel, RequestMatches } from './transfer-matching';
 import { Presentations, PresentationResult, RecordPicker } from './presentations';
 import { Contracts, ContractDetail, PlayerContracts } from './player-contracts';
+import { Notifications } from './notifications';
 import { hasCoordinates, type ClubFilters } from '../shared/club-network';
 import type { PrivacyState } from '../shared/privacy';
 import type { ClubRecord, List, PersonRecord, RecordRow, RecordType, Overview, Timeline } from './types';
@@ -93,7 +94,7 @@ export function App() {
     </aside>
     <div className="main"><header className="topbar">
       <div className="flex gap-3 items-center"><button className="icon-button mobile-menu" aria-label={t('menu')} onClick={() => setMenu(true)}><Menu size={18} /></button><button className="search-box" onClick={() => setSearch(true)}><Search size={17} /><span>{t('search')}</span><span className="shortcut">{t('searchLabel')}</span></button></div>
-      <div className="flex items-center gap-3"><button className="secondary" title={t('language')} onClick={() => { void preference({ language: i18n.language === 'tr' ? 'en' : 'tr' }); }}>{t(i18n.language === 'tr' ? 'en' : 'tr')}</button><button className="icon-button" aria-label={t(settings.data?.theme === 'dark' ? 'light' : 'dark')} onClick={() => { void preference({ theme: settings.data?.theme === 'dark' ? 'light' : 'dark' }); }}>{settings.data?.theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}</button><Link to="/proposals" className="icon-button" aria-label={t('notification')}><Bell size={16} /></Link></div>
+      <div className="flex items-center gap-3"><button className="secondary" title={t('language')} onClick={() => { void preference({ language: i18n.language === 'tr' ? 'en' : 'tr' }); }}>{t(i18n.language === 'tr' ? 'en' : 'tr')}</button><button className="icon-button" aria-label={t(settings.data?.theme === 'dark' ? 'light' : 'dark')} onClick={() => { void preference({ theme: settings.data?.theme === 'dark' ? 'light' : 'dark' }); }}>{settings.data?.theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}</button><Link to="/notifications" className="icon-button" aria-label={t('notification')}><Bell size={16} /></Link></div>
     </header><main className="content"><Routes>
       <Route path="/" element={<Dashboard onCreate={() => setCreate('Club')} />} />
       <Route path="/clubs" element={<Records type="Club" onCreate={() => setCreate('Club')} />} />
@@ -106,6 +107,7 @@ export function App() {
       <Route path="/birthdays" element={<BirthdayCalendar />} />
       <Route path="/presentations" element={<Presentations />} />
       <Route path="/contracts" element={<Contracts />} /><Route path="/contracts/:id" element={<ContractDetail />} />
+      <Route path="/notifications" element={<Notifications />} />
       <Route path="/settings" element={<Preferences />} />
       <Route path="/privacy" element={<PrivacyNotice state={privacy.data} />} /><Route path="/incident" element={<IncidentChecklist />} />
     </Routes><p className="footer-note">{t('foundation')} · {t('foundationNote')}</p></main></div>

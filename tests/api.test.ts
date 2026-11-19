@@ -24,6 +24,7 @@ import sharp from 'sharp';
 import { ageOn, istanbulToday } from '../shared/domain.js';
 import { readBirthdayCalendar, refreshBirthdayReminders } from '../server/birthdays.js';
 import { refreshContractReminders } from '../server/contract-reminders.js';
+import { listNotifications, unreadNotificationCount } from '../server/notifications.js';
 
 const fileStorage = new LocalFileStorage('.local/tmp/api-files');
 const processingCalls: ProcessingPreview['payload'][] = [];
@@ -64,6 +65,95 @@ const contractDraft = () => ({
   sourceUrl: 'https://example.com/contract', sourceDate: '2026-01-01', methodNote: 'Örnek elle belge kaydı',
 });
 async function ownPlayer() { return (await request('POST', '/api/players', { name: 'Örnek Sözleşmeli Oyuncu', primaryPosition: 'CM', status: 'OWN' })).json(); }
+describe('sensitive paths: notification center', () => {
+  async function reminders() {
+    const player = await ownPlayer(); const endDate = istanbulToday();
+    const contract = (await request('POST', `/api/players/${player.id}/contracts`, { ...contractDraft(), startDate: '2020-01-01', endDate })).json();
+    expect(await refreshContractReminders(db)).toBe(3);
+    return { player, contract, rows: await db.notification.findMany({ where: { entityId: contract.id }, orderBy: { id: 'asc' } }) };
+  }
+  it('reads and snoozes with optimistic versions, immutable dedupe identity and value-free audit', async () => {
+    const { contract, rows } = await reminders(); const row = rows[0]; const path = `/api/notifications/${row.id}`;
+    const read = await request('PATCH', path, { version: 1, action: 'read' });
+    expect(read.statusCode, read.body).toBe(200); expect(read.json()).toMatchObject({ version: 2, status: 'READ', snoozedUntil: null });
+    expect((await request('PATCH', path, { version: 1, action: 'snooze1' })).statusCode).toBe(409);
+    const start = Date.now(); expect((await request('PATCH', path, { version: 2, action: 'snooze1' })).statusCode).toBe(200);
+    let saved = await db.notification.findUniqueOrThrow({ where: { id: row.id } });
+    expect(saved.snoozedUntil!.getTime()).toBeGreaterThanOrEqual(start + 86400_000);
+    expect(saved.snoozedUntil!.getTime()).toBeLessThanOrEqual(Date.now() + 86400_000);
+    expect((await request('GET', '/api/notifications?view=snoozed')).json()).toMatchObject({ total: 1, unread: 2 });
+    const day7 = Date.now(); expect((await request('PATCH', path, { version: 3, action: 'snooze7' })).statusCode).toBe(200);
+    saved = await db.notification.findUniqueOrThrow({ where: { id: row.id } });
+    expect(saved.snoozedUntil!.getTime()).toBeGreaterThanOrEqual(day7 + 7 * 86400_000);
+    expect(saved.snoozedUntil!.getTime()).toBeLessThanOrEqual(Date.now() + 7 * 86400_000);
+    expect(saved).toMatchObject({ dedupeKey: row.dedupeKey, targetDate: row.targetDate, thresholdDays: row.thresholdDays, version: 4 });
+    expect(await refreshContractReminders(db)).toBe(0); expect(await db.notification.count()).toBe(3);
+    expect((await request('PATCH', path, { version: 4, action: 'read' })).json()).toMatchObject({ version: 5, status: 'READ', snoozedUntil: null });
+    expect((await request('GET', '/api/notifications?view=read')).json()).toMatchObject({ total: 1 });
+    const logs = await db.auditLog.findMany({ where: { entityType: 'Notification', entityId: row.id } });
+    expect(logs).toHaveLength(4); const text = JSON.stringify(logs);
+    expect(text).not.toContain(contractDraft().salaryAmount); expect(text).not.toContain(contractDraft().bonuses);
+    expect(text).not.toContain(contract.name); expect(text).not.toContain('targetDate'); expect(text).not.toContain('dedupeKey');
+    expect((await request('GET', '/api/overview')).json().notifications).toBe(2);
+  });
+  it('wakes expired snoozes on reads without jobs or changing versions, with the same dashboard count', async () => {
+    const { rows } = await reminders(); const now = new Date('2026-11-19T21:00:00Z');
+    await db.notification.update({ where: { id: rows[0].id }, data: { status: 'SNOOZED', snoozedUntil: now } });
+    await db.notification.update({ where: { id: rows[1].id }, data: { status: 'SNOOZED', snoozedUntil: new Date(now.getTime() + 1) } });
+    await db.notification.update({ where: { id: rows[2].id }, data: { status: 'READ' } });
+    const result = await db.$transaction(async tx => ({ list: await listNotifications(tx, { page: 1, view: 'unread' }, now), count: await unreadNotificationCount(tx, now) }));
+    expect(result.count).toBe(1); expect(result.list).toMatchObject({ unread: 1, total: 1, items: [{ id: rows[0].id, status: 'NEW', version: 1 }] });
+    expect((await db.notification.findUniqueOrThrow({ where: { id: rows[0].id } })).status).toBe('SNOOZED');
+    await db.notification.updateMany({ where: { status: 'SNOOZED' }, data: { snoozedUntil: new Date(Date.now() - 10000) } });
+    const api = (await request('GET', '/api/notifications')).json(); expect(api.unread).toBe(2);
+    expect((await request('GET', '/api/overview')).json().notifications).toBe(api.unread);
+  });
+  it('excludes birthday occurrences and unknown rules without disclosure or reveal logs', async () => {
+    const { rows, player } = await reminders();
+    await db.notification.create({ data: { entityType: 'Player', entityId: player.id, type: 'BIRTHDAY', targetDate: new Date('2026-02-03'), thresholdDays: 30, dedupeKey: 'owner:BIRTHDAY:example' } });
+    await db.notification.create({ data: { entityType: 'Player', entityId: player.id, type: 'FUTURE_PRIVATE_RULE', targetDate: new Date('2026-02-04'), thresholdDays: 7, dedupeKey: 'owner:FUTURE:example' } });
+    const result = await request('GET', '/api/notifications?view=all'); expect(result.json()).toMatchObject({ total: 3, unread: 3 });
+    expect(Object.keys(result.json().items[0]).sort()).toEqual(['id', 'version', 'type', 'entityType', 'entityId', 'name', 'targetDate', 'thresholdDays', 'status', 'snoozedUntil'].sort());
+    expect(result.body).not.toContain('2026-02-03'); expect(result.body).not.toContain('BIRTHDAY'); expect(result.body).not.toContain('salaryAmount'); expect(result.body).not.toContain('fieldProvenance');
+    expect(await db.auditLog.count({ where: { action: 'reveal' } })).toBe(0);
+    const birthday = await db.notification.findFirstOrThrow({ where: { type: 'BIRTHDAY' } });
+    expect((await request('PATCH', `/api/notifications/${birthday.id}`, { version: 1, action: 'read' })).statusCode).toBe(404);
+    expect(await db.notification.count()).toBe(rows.length + 2);
+  });
+  it('rejects foreign, deleted and changed targets while retaining stored notification history', async () => {
+    const { contract, rows } = await reminders();
+    const foreign = await db.owner.create({ data: { id: 'other-owner', email: encrypt('other@example.com', 'Owner.email') } });
+    await db.notification.update({ where: { id: rows[0].id }, data: { ownerId: foreign.id } });
+    await db.notification.update({ where: { id: rows[1].id }, data: { deletedAt: new Date() } });
+    expect((await request('GET', '/api/notifications?view=all')).json().total).toBe(1);
+    for (const row of rows.slice(0, 2)) expect((await request('PATCH', `/api/notifications/${row.id}`, { version: 1, action: 'read' })).statusCode).toBe(404);
+    const next = new Date(istanbulToday()); next.setUTCDate(next.getUTCDate() + 1);
+    expect((await request('PATCH', `/api/contracts/${contract.id}`, { version: 1, changes: { endDate: next.toISOString().slice(0, 10) } })).statusCode).toBe(200);
+    expect((await request('GET', '/api/notifications?view=all')).json().total).toBe(0);
+    expect((await request('PATCH', `/api/notifications/${rows[2].id}`, { version: 1, action: 'read' })).statusCode).toBe(404);
+    expect(await db.notification.count()).toBe(3); expect(await db.auditLog.count({ where: { entityType: 'Notification' } })).toBe(0);
+  });
+  it('hides notifications after a live parent is deleted and rejects simultaneous stale actions', async () => {
+    const { player, rows } = await reminders(); const path = `/api/notifications/${rows[0].id}`;
+    const replies = await Promise.all([request('PATCH', path, { version: 1, action: 'read' }), request('PATCH', path, { version: 1, action: 'snooze7' })]);
+    expect(replies.map(reply => reply.statusCode).sort()).toEqual([200, 409]);
+    expect(await db.auditLog.count({ where: { entityType: 'Notification' } })).toBe(1);
+    await db.player.update({ where: { id: player.id }, data: { deletedAt: new Date() } });
+    expect((await request('GET', '/api/notifications?view=all')).json().total).toBe(0);
+    expect((await request('PATCH', `/api/notifications/${rows[1].id}`, { version: 1, action: 'read' })).statusCode).toBe(404);
+    expect(await db.notification.count()).toBe(3);
+  });
+  it('enforces route authentication, CSRF, origin and strict mutation schemas', async () => {
+    const { rows } = await reminders(); const path = `/api/notifications/${rows[0].id}`;
+    expect((await app.inject({ url: '/api/notifications' })).statusCode).toBe(401);
+    expect((await app.inject({ method: 'PATCH', url: path, headers: { cookie, origin }, payload: { version: 1, action: 'read' } })).statusCode).toBe(403);
+    expect((await app.inject({ method: 'PATCH', url: path, headers: { cookie, origin: 'https://example.com', 'x-csrf-token': csrf }, payload: { version: 1, action: 'read' } })).statusCode).toBe(403);
+    for (const payload of [{ version: 1, action: 'snooze2' }, { version: 1, action: 'read', status: 'READ' }, { version: 1, action: 'snooze7', snoozedUntil: '2028-01-01' }]) expect((await request('PATCH', path, payload)).statusCode).toBe(400);
+    expect((await request('GET', '/api/notifications?view=all&page=0')).statusCode).toBe(400);
+    expect((await db.notification.findUniqueOrThrow({ where: { id: rows[0].id } })).version).toBe(1);
+  });
+});
+
 describe('sensitive paths: manual contracts', () => {
   it('uses private contract files and denies downloads while their parent is deleted', async () => {
     const player = await ownPlayer(); const record = (await request('POST', `/api/players/${player.id}/contracts`, contractDraft())).json();

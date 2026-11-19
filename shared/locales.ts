@@ -14,7 +14,9 @@ import { calendarTr, calendarEn } from './calendar-locales.js';
 import { requestsTr, requestsEn } from './request-locales.js';
 import { presentationTr, presentationEn } from './presentation-locales.js';
 import { contractTr, contractEn } from './contract-locales.js';
+import { notificationTr, notificationEn } from './notification-locales.js';
 export const tr = {
+  ...notificationTr,
   ...contractTr,
   ...adminTr,
   ...clubTr,
@@ -240,6 +242,7 @@ export const tr = {
   "suggestionSummary": "{club} kulübüne önerildi · Yetkili: {person} · Talep: {request} · Tarih: {date}"
 } as const;
 export const en: Record<keyof typeof tr, string> = {
+  ...notificationEn,
   ...contractEn,
   ...adminEn,
   ...clubEn,
