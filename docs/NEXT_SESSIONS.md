@@ -17,7 +17,7 @@ Bu erişim işleri, bağımsız CRM geliştirmelerini durdurmaz. Paket 13, eşza
 
 | Oturum | Yapılacak iş | Bitişte kullanılabilen davranış |
 |---|---|---|
-| 15 (devam ediyor) | Ajanda, ICS, görev ve bildirim merkezi | Tarihli işler, erteleme/okuma, tekrar üretmeyen hatırlatmalar ve dashboard; C kabulü. |
+| 15 (devam ediyor) | Bildirim/görev/toplantı/ICS doğrulandı. Sırada sözleşme ve korumalı doğum günü katmanları, dashboard düzeni ve kalan otomatik görev adaptörleri var. | Birleşik tarihli işler ve dashboard; ilgili güvenlik/CI kapıları sonrası C kabulü. |
 | 16 | TFF fikstürü ve CSV | Yalnız sahip tetiklemesi + robots izni; hata halinde doğrulanmış CSV. |
 | 17 | GPS ve performans CSV | Kolon eşleme/önizleme, satır hataları, tekrar kontrolü ve testli metrikler. |
 | 18 | Galeri, klip ve transfer CV | Hak notlu görseller, zaman damgalı klipler, TR/EN PDF/DOCX; D kabulü. |
