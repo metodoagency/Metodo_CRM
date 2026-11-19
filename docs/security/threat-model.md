@@ -36,4 +36,6 @@ Updated 2026-11-18. Scope includes OIDC, sessions, API writes, encryption, timel
 
 ## Recovery
 
+Package14 surfaces: Contract parent checks include live owner Player and optional Club/Agent. Notes/files/reveals and polymorphic Trash restore use the same guard. DTOs project only allowed fields/JSON keys; salary/bonuses never appear until an audited versioned reveal. Sparse patches preserve unknown legacy data and omitted ciphertext. Both old/new audit sides mask private terms. Background notification retries are idempotent; canonical contract writes do not retry. Source/date/method are manual. No external reader/provider or legal interpretation was introduced. The two scoped backend/UI source reviews and local tests are recorded in PROGRESS.md; final package14 CI is pending.
+
 All current business records are fictional. Database migrations are append-only. Soft delete is reversible until a confirmed Trash purge. Preserve encrypted backups and their corresponding old keys; never log keys, cookies or raw sensitive diffs.

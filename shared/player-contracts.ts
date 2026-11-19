@@ -22,13 +22,13 @@ export const contractFields = z.object({
   startDate: isoDate, endDate: isoDate, isActive: z.boolean(),
   salaryAmount: marketAmount.nullable(), salaryCurrency: z.enum(marketCurrencies).nullable(),
   salaryPeriod: z.enum(['YEAR', 'MONTH', 'WEEK', 'DAY', 'ONE_OFF']).nullable(), salaryBasis: z.enum(['GROSS', 'NET']).nullable(),
-  bonuses: terms.nullable(), paymentDay: z.number().int().min(1).max(31).nullable(),
+  bonuses: terms.min(1).nullable(), paymentDay: z.number().int().min(1).max(31).nullable(),
   releaseClause: clause.nullable(), buyout: clause.nullable(),
   extensionOption: z.object({ deadline: nullableDate, terms }).strict().nullable(), noticeDeadline: nullableDate,
   representation: z.object({
     scope: terms, startDate: nullableDate, endDate: nullableDate,
     commissionRate: z.string().regex(/^(?:\d{1,2}(?:\.\d{1,2})?|100(?:\.0{1,2})?)$/).nullable(), paymentTerms: terms,
-  }).strict().nullable(),
+  }).strict().refine(value => !value.startDate || !value.endDate || value.startDate <= value.endDate, { path: ['endDate'], message: 'DATE_ORDER' }).nullable(),
   documentLink: manualSourceUrl.nullable(), sourceUrl: manualSourceUrl, sourceDate: isoDate,
   methodNote: z.string().trim().min(1).max(1000),
 }).strict();
@@ -44,6 +44,22 @@ export const contractInput = contractFields.superRefine((value, context) => {
   }
 });
 export type ContractInput = z.infer<typeof contractInput>;
+export const contractPatch = z.object({ version: z.number().int().positive(), changes: contractFields.partial().refine(value => Object.keys(value).length > 0, 'EMPTY_CHANGE') }).strict();
+export const contractListQuery = z.object({
+  page: z.coerce.number().int().min(1).max(100000).default(1), q: z.string().max(100).default(''),
+  playerId: z.uuid().optional(), active: z.enum(['true', 'false']).optional(),
+}).strict();
+export const contractReveal = z.object({ version: z.number().int().positive(), field: z.enum(['salaryAmount', 'bonuses', 'compliance']) }).strict();
+export const contractNote = z.object({ text: z.string().trim().min(1).max(4000) }).strict();
+export const contractNotePatch = contractNote.extend({ version: z.number().int().positive() });
+export const contractNoteParams = z.object({ id: z.uuid(), noteId: z.uuid() }).strict();
+export type ContractRecord = Omit<ContractInput, 'salaryPeriod' | 'salaryBasis' | 'sourceUrl' | 'sourceDate' | 'methodNote' | 'releaseClause' | 'buyout' | 'extensionOption' | 'representation'> & {
+  id: string; version: number; playerId: string; player: { id: string; name: string; status: string };
+  club: { id: string; name: string } | null; agent: { id: string; name: string } | null;
+  salaryPeriod: string | null; salaryBasis: string | null; sourceUrl: string | null; sourceDate: string | null; methodNote: string | null;
+  releaseClause: unknown; buyout: unknown; extensionOption: unknown; representation: unknown;
+  dates: ReturnType<typeof contractDeadlines>; legacyGroups: string[];
+};
 
 export const contractDeadlineKinds = [
   'CONTRACT_END', 'RELEASE_FROM', 'RELEASE_TO', 'BUYOUT_FROM', 'BUYOUT_TO',

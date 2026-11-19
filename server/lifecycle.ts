@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 import { Prisma, type PrismaClient } from '@prisma/client';
 import { AppError, live, logEvent, type Tx } from './core.js';
 import { retentionPeriods, type RetentionPlan } from '../shared/retention.js';
+import { requireContract } from './contract-parent.js';
 
 // Identifiers come exclusively from the compiled Prisma schema. All data values
 // are parameters; no request value can become a SQL identifier.
@@ -168,6 +169,7 @@ export async function restoreTrash(db: PrismaClient, id: string, version: number
     if (!record || !record.deletedAt || record.version !== recordVersion) throw new AppError('STALE_VERSION', 409);
     for (const edge of graph.foreignKeys.filter(edge => edge.fromType === item.entityType)) if (record[edge.fromField] && !graph.get(edge.toType)?.some(row => row.id === record[edge.fromField] && !row.deletedAt)) throw new AppError('LINKED_RECORDS', 409);
     if (item.entityType === 'BirthdayGreeting' && !graph.get(String(record.entityType))?.some(row => row.id === record.entityId && !row.deletedAt)) throw new AppError('LINKED_RECORDS', 409);
+    if (['Note', 'Attachment'].includes(item.entityType) && record.entityType === 'Contract') await requireContract(tx, String(record.entityId));
     const changed = await tx.$executeRaw(Prisma.sql`UPDATE ${table(item.entityType)} SET "deletedAt" = NULL, "version" = "version" + 1, "updatedAt" = CURRENT_TIMESTAMP WHERE "id" = ${item.entityId}::uuid AND "ownerId" = ${'owner'} AND "version" = ${recordVersion} AND "deletedAt" IS NOT NULL`);
     if (changed !== 1 || (await tx.trashEntry.deleteMany({ where: { ...live, id, version } })).count !== 1) throw new AppError('STALE_VERSION', 409);
     await logEvent(tx, { entityType: item.entityType, entityId: item.entityId, action: 'restore', name: item.label, isExample: item.isExample });

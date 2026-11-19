@@ -7,10 +7,12 @@ import { fileParentParams, idParams } from '../shared/contracts.js';
 import { fileVersion, maxFileBytes } from '../shared/files.js';
 import { originalFilename, prepareFile, type MalwareScanner } from './file-validation.js';
 import { drainStorageDeletions, newStorageKey, type FileStorage } from './storage.js';
+import { requireContract } from './contract-parent.js';
 
 type FileParentType = z.infer<typeof fileParentParams.shape.type>;
 
 async function requireFileParent(tx: Tx, type: FileParentType, id: string) {
+  if (type === 'Contract') return requireContract(tx, id);
   if (type !== 'Suggestion') return requireEntity(tx, type, id);
   const row = await tx.suggestion.findFirst({
     where: { ...live, id, request: live, player: live, club: live, person: live },

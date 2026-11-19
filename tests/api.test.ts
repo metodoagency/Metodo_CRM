@@ -23,6 +23,7 @@ import JSZip from 'jszip';
 import sharp from 'sharp';
 import { ageOn, istanbulToday } from '../shared/domain.js';
 import { readBirthdayCalendar, refreshBirthdayReminders } from '../server/birthdays.js';
+import { refreshContractReminders } from '../server/contract-reminders.js';
 
 const fileStorage = new LocalFileStorage('.local/tmp/api-files');
 const processingCalls: ProcessingPreview['payload'][] = [];
@@ -54,6 +55,161 @@ afterEach(async () => {
 afterAll(async () => { await app.close(); await db.$disconnect(); });
 
 const pdfFile = Buffer.from('%PDF-1.7\n%%EOF');
+const contractDraft = () => ({
+  name: 'Örnek İş Sözleşmesi', type: 'EMPLOYMENT', clubId: null, agentId: null, signedDate: '2026-01-01',
+  startDate: '2026-01-01', endDate: '2027-01-01', isActive: true,
+  salaryAmount: '9007199254740991.99', salaryCurrency: 'EUR', salaryPeriod: 'YEAR', salaryBasis: 'GROSS',
+  bonuses: 'Örnek gizli prim 72193', paymentDay: null, releaseClause: null, buyout: null,
+  extensionOption: null, noticeDeadline: null, representation: null, documentLink: null,
+  sourceUrl: 'https://example.com/contract', sourceDate: '2026-01-01', methodNote: 'Örnek elle belge kaydı',
+});
+async function ownPlayer() { return (await request('POST', '/api/players', { name: 'Örnek Sözleşmeli Oyuncu', primaryPosition: 'CM', status: 'OWN' })).json(); }
+describe('sensitive paths: manual contracts', () => {
+  it('uses private contract files and denies downloads while their parent is deleted', async () => {
+    const player = await ownPlayer(); const record = (await request('POST', `/api/players/${player.id}/contracts`, contractDraft())).json();
+    const uploaded = await uploadFile(record.id, pdfFile, 'application/pdf', '', 'Contract');
+    expect(uploaded.statusCode, uploaded.body).toBe(201); const file = uploaded.json();
+    expect((await request('POST', `/api/files/${file.id}/download`, { version: file.version })).statusCode).toBe(200);
+    expect((await request('DELETE', `/api/contracts/${record.id}`, { version: 1 })).statusCode).toBe(200);
+    expect((await request('POST', `/api/files/${file.id}/download`, { version: file.version })).statusCode).toBe(404);
+    const entry = await db.trashEntry.findFirstOrThrow({ where: { entityId: record.id } });
+    expect((await request('POST', `/api/trash/${entry.id}/restore`, { version: entry.version, recordVersion: 2 })).statusCode).toBe(200);
+    expect((await request('GET', `/api/records/Contract/${record.id}/files`)).json().items).toMatchObject([{ id: file.id }]);
+    expect((await request('POST', `/api/files/${file.id}/download`, { version: file.version })).statusCode).toBe(200);
+  });
+  it('encrypts salary and bonuses, preserves omitted fields and records manual evidence without private audit values', async () => {
+    const player = await ownPlayer(); const input = contractDraft();
+    const created = await request('POST', `/api/players/${player.id}/contracts`, input);
+    expect(created.statusCode, created.body).toBe(201); const record = created.json(); const path = `/api/contracts/${record.id}`;
+    const stored = await db.contract.findUniqueOrThrow({ where: { id: record.id } });
+    expect(decrypt(stored.salaryAmount!, 'Contract.salaryAmount')).toBe(input.salaryAmount);
+    expect(stored.salaryAmount).not.toContain(input.salaryAmount); expect(stored.bonuses).not.toContain(input.bonuses);
+    expect(stored.fieldProvenance).toMatchObject({ salaryAmount: { sourceType: 'MANUAL', sourceUrl: input.sourceUrl, verificationStatus: 'UNVERIFIED' } });
+    for (const url of [path, '/api/contracts']) {
+      const result = await request('GET', url); expect(result.statusCode).toBe(200);
+      for (const value of [input.salaryAmount, input.bonuses, stored.salaryAmount!, stored.bonuses!]) expect(result.body).not.toContain(value);
+    }
+    expect((await request('PATCH', path, { version: 1, changes: { name: 'Örnek Yeni Ad' } })).statusCode).toBe(200);
+    expect((await db.contract.findUniqueOrThrow({ where: { id: record.id } })).salaryAmount).toBe(stored.salaryAmount);
+    expect((await request('PATCH', path, { version: 1, changes: { isActive: false } })).statusCode).toBe(409);
+    expect((await request('PATCH', path, { version: 2, changes: { endDate: '2025-01-01' } })).statusCode).toBe(400);
+    expect((await request('PATCH', path, { version: 2, changes: { representation: { scope: '', startDate: '2026-06-01', endDate: '2026-05-01', commissionRate: null, paymentTerms: '' } } })).statusCode).toBe(400);
+    expect((await request('PATCH', path, { version: 2, changes: { bonuses: '   ' } })).statusCode).toBe(400);
+    const changed = await db.timelineEvent.findFirstOrThrow({ where: { entityId: record.id, action: 'update' } });
+    expect(changed.diffs).toMatchObject({ old: { name: input.name }, new: { name: 'Örnek Yeni Ad' } });
+    expect((await request('POST', `${path}/reveal`, { version: 2, field: 'salaryAmount' })).json()).toMatchObject({ value: input.salaryAmount, expiresIn: 60 });
+    expect((await request('POST', `${path}/reveal`, { version: 1, field: 'bonuses' })).statusCode).toBe(409);
+    expect((await request('PATCH', path, { version: 2, changes: { salaryAmount: null, bonuses: null } })).statusCode).toBe(200);
+    expect((await db.contract.findUniqueOrThrow({ where: { id: record.id } })).salaryAmount).toBeNull();
+    const logs = JSON.stringify(await db.auditLog.findMany({ where: { entityId: record.id } }));
+    expect(logs).not.toContain(input.salaryAmount); expect(logs).not.toContain(input.bonuses);
+    expect((await db.auditLog.findFirstOrThrow({ where: { entityId: record.id, action: 'reveal' } })).diffs).toEqual({ field: 'salaryAmount' });
+    expect((await request('GET', `${path}/timeline`)).json().length).toBe(3);
+  });
+
+  it('keeps multiple active contracts and historical records after a player panel changes, but restricts new records', async () => {
+    const player = await ownPlayer(); const path = `/api/players/${player.id}/contracts`;
+    const first = await request('POST', path, contractDraft()); const second = await request('POST', path, contractDraft());
+    expect(first.statusCode).toBe(201); expect(second.statusCode).toBe(201);
+    expect(await db.contract.count({ where: { playerId: player.id, isActive: true } })).toBe(2);
+    await db.player.update({ where: { id: player.id }, data: { status: 'TARGET' } });
+    expect((await request('POST', path, contractDraft())).json().code).toBe('CONTRACT_PLAYER_REQUIRED');
+    expect((await request('PATCH', `/api/contracts/${first.json().id}`, { version: 1, changes: { isActive: false } })).statusCode).toBe(200);
+    expect((await request('GET', `/api/contracts?playerId=${player.id}&active=true`)).json().total).toBe(1);
+    expect((await request('GET', `/api/contracts/${second.json().id}`)).statusCode).toBe(200);
+  });
+
+  it('preserves legacy untyped clauses and hidden salary when editing an unrelated field', async () => {
+    await seedExamples(db);
+    const legacy = await db.contract.findFirstOrThrow(); const path = `/api/contracts/${legacy.id}`;
+    expect((await request('GET', path)).json().legacyGroups).toContain('releaseClause');
+    expect((await request('PATCH', path, { version: legacy.version, changes: { isActive: false } })).statusCode).toBe(200);
+    const after = await db.contract.findUniqueOrThrow({ where: { id: legacy.id } });
+    expect(after.salaryAmount).toBe(legacy.salaryAmount); expect(after.releaseClause).toEqual(legacy.releaseClause); expect(after.type).toBe(legacy.type);
+    expect((await request('PATCH', path, { version: after.version, changes: { salaryAmount: '100.00' } })).statusCode).toBe(400);
+    expect((await request('PATCH', path, { version: after.version, changes: { verificationStatus: 'VERIFIED' } })).statusCode).toBe(400);
+  });
+
+  it('scopes counterpart and parent access and requires a separate audited minor check', async () => {
+    const player = await ownPlayer(); const birthDate = `${Number(istanbulToday().slice(0, 4)) - 17}-01-01`;
+    await db.player.update({ where: { id: player.id }, data: { birthDate: encrypt(birthDate, 'Player.birthDate') } });
+    const agent = await db.agent.create({ data: { name: 'Örnek Taraf Menajeri', countries: [], markets: [], networkMemberships: [] } });
+    const created = await request('POST', `/api/players/${player.id}/contracts`, { ...contractDraft(), agentId: agent.id });
+    expect(created.statusCode, created.body).toBe(201); const path = `/api/contracts/${created.json().id}`;
+    expect((await request('GET', path)).body).not.toContain('minor');
+    const reveal = await request('POST', `${path}/reveal`, { version: 1, field: 'compliance' });
+    expect(reveal.json()).toMatchObject({ minor: true, status: 'NOT REVIEWED', expiresIn: 60, checkpoints: [{ id: 'minors-review', version: '0.1.0' }] });
+    expect(reveal.body).not.toContain(birthDate);
+    expect((await db.auditLog.findFirstOrThrow({ where: { entityId: player.id, action: 'reveal' } })).diffs).toEqual({ field: 'birthDate' });
+    await db.owner.create({ data: { id: 'other', email: encrypt('other@example.com', 'Owner.email') } });
+    const foreign = await db.agent.create({ data: { ownerId: 'other', name: 'Örnek Diğer Sahip Menajeri', countries: [], markets: [], networkMemberships: [] } });
+    expect((await request('POST', `/api/players/${player.id}/contracts`, { ...contractDraft(), agentId: foreign.id })).statusCode).toBe(404);
+    await db.agent.update({ where: { id: agent.id }, data: { deletedAt: new Date() } });
+    for (const suffix of ['', '/notes', '/timeline']) expect((await request('GET', path + suffix)).statusCode).toBe(404);
+    expect((await request('GET', '/api/contracts')).json().items).toEqual([]);
+    expect((await app.inject({ url: path })).statusCode).toBe(401);
+    expect((await app.inject({ method: 'POST', url: path + '/reveal', headers: { cookie, origin }, payload: { version: 1, field: 'salaryAmount' } })).statusCode).toBe(403);
+  });
+
+  it('version-checks private notes, blocks note restore through a deleted contract and preserves links on restore', async () => {
+    const player = await ownPlayer(); const contract = (await request('POST', `/api/players/${player.id}/contracts`, contractDraft())).json();
+    const path = `/api/contracts/${contract.id}`;
+    const created = await request('POST', path + '/notes', { text: 'Örnek sözleşme notu' }); expect(created.statusCode).toBe(201);
+    const note = created.json(); const notePath = `${path}/notes/${note.id}`;
+    expect((await request('PATCH', notePath, { version: 1, text: 'Örnek değiştirilen not' })).statusCode).toBe(200);
+    expect((await request('PATCH', notePath, { version: 1, text: 'Örnek eski sürüm' })).statusCode).toBe(409);
+    expect((await request('DELETE', notePath, { version: 2 })).statusCode).toBe(200);
+    const noteTrash = await db.trashEntry.findFirstOrThrow({ where: { entityId: note.id } });
+    expect((await request('DELETE', path, { version: 1 })).statusCode).toBe(200);
+    expect((await request('POST', `/api/trash/${noteTrash.id}/restore`, { version: noteTrash.version, recordVersion: 3 })).statusCode).toBe(404);
+    const contractTrash = await db.trashEntry.findFirstOrThrow({ where: { entityId: contract.id } });
+    expect((await request('POST', `/api/trash/${contractTrash.id}/restore`, { version: contractTrash.version, recordVersion: 2 })).statusCode).toBe(200);
+    expect((await request('POST', `/api/trash/${noteTrash.id}/restore`, { version: noteTrash.version, recordVersion: 3 })).statusCode).toBe(200);
+    expect((await request('GET', path + '/notes')).json()).toMatchObject([{ id: note.id, text: 'Örnek değiştirilen not', version: 4 }]);
+    expect(JSON.stringify(await db.auditLog.findMany({ where: { entityId: note.id } }))).not.toContain('Örnek değiştirilen not');
+  });
+
+  it('deduplicates concurrent deadline catch-up, honors settings and keeps historical notifications after a date edit', async () => {
+    const player = await ownPlayer();
+    const contract = (await request('POST', `/api/players/${player.id}/contracts`, { ...contractDraft(), endDate: '2026-06-30', salaryAmount: null })).json();
+    const before = new Date('2026-06-29T20:59:59Z'); const after = new Date('2026-06-29T21:00:00Z');
+    const created = await Promise.all([refreshContractReminders(db, before), refreshContractReminders(db, before)]);
+    expect(created.reduce((total, count) => total + count)).toBe(3);
+    expect(await refreshContractReminders(db, after)).toBe(0);
+    expect(await db.notification.count({ where: { entityId: contract.id } })).toBe(3);
+    expect((await request('PATCH', `/api/contracts/${contract.id}`, { version: 1, changes: { endDate: '2026-07-01' } })).statusCode).toBe(200);
+    expect(await refreshContractReminders(db, new Date('2026-07-02T12:00:00Z'))).toBe(3);
+    expect(await db.notification.count({ where: { entityId: contract.id } })).toBe(6);
+    const settings = (await request('GET', '/api/settings')).json();
+    expect((await request('PATCH', '/api/settings', { version: settings.version, notificationThresholds: [] })).statusCode).toBe(200);
+    expect(await refreshContractReminders(db, new Date('2026-07-02T12:00:00Z'))).toBe(0);
+    expect((await request('PATCH', '/api/settings', { version: settings.version + 1, notificationThresholds: [30, 30] })).statusCode).toBe(400);
+    expect(await db.notification.count()).toBe(6);
+  });
+  it('shows only current reminder targets and catches up seven days without replaying older deadlines', async () => {
+    const player = await ownPlayer(); const today = istanbulToday();
+    const offset = (days: number) => { const date = new Date(today); date.setUTCDate(date.getUTCDate() + days); return date.toISOString().slice(0, 10); };
+    const create = async (endDate: string) => (await request('POST', `/api/players/${player.id}/contracts`, { ...contractDraft(), startDate: '1900-01-01', endDate, salaryAmount: null })).json();
+    const record = await create(offset(1));
+    expect(await refreshContractReminders(db)).toBe(3);
+    expect((await request('GET', '/api/contracts/reminders')).json().items).toHaveLength(3);
+    expect((await request('PATCH', `/api/contracts/${record.id}`, { version: 1, changes: { endDate: offset(2) } })).statusCode).toBe(200);
+    expect((await request('GET', '/api/contracts/reminders')).json().items).toEqual([]);
+    expect((await request('GET', '/api/overview')).json().notifications).toBe(0);
+    expect(await refreshContractReminders(db)).toBe(3);
+    expect((await request('GET', '/api/contracts/reminders')).json().items.every((item: { targetDate: string }) => item.targetDate.slice(0, 10) === offset(2))).toBe(true);
+    const missed = await create(offset(-7)); const older = await create(offset(-8));
+    expect(await refreshContractReminders(db)).toBe(3);
+    expect(await db.notification.count({ where: { entityId: missed.id } })).toBe(3);
+    expect(await db.notification.count({ where: { entityId: older.id } })).toBe(0);
+    await db.notification.create({ data: { type: 'CONTRACT_CONTRACT_END', entityType: 'Contract', entityId: older.id, targetDate: new Date(offset(-8)), thresholdDays: 30,
+      dedupeKey: `owner:CONTRACT:CONTRACT_END:${older.id}:30:${offset(-8)}` } });
+    expect((await request('GET', '/api/contracts/reminders')).json().items.some((item: { entityId: string }) => item.entityId === older.id)).toBe(true);
+    expect((await request('GET', '/api/overview')).json().notifications).toBe(7);
+    expect((await request('PATCH', `/api/contracts/${record.id}`, { version: 2, changes: { isActive: false } })).statusCode).toBe(200);
+    expect((await request('GET', '/api/contracts/reminders')).json().items.every((item: { entityId: string }) => item.entityId !== record.id)).toBe(true);
+  });
+});
 describe('sensitive paths: birthday calendar', () => {
   it('shows only live owner birthdays and audits calendar access without birth dates', async () => {
     const now = new Date('2026-12-29T21:00:00Z');
@@ -283,7 +439,7 @@ describe('sensitive paths: people and club network', () => {
   });
 });
 
-function uploadFile(id: string, data = pdfFile, mime = 'application/pdf', extra = '', type: 'Club' | 'Player' | 'Suggestion' = 'Club') {
+function uploadFile(id: string, data = pdfFile, mime = 'application/pdf', extra = '', type: 'Club' | 'Player' | 'Suggestion' | 'Contract' = 'Club') {
   const boundary = 'example-boundary';
   const payload = Buffer.concat([Buffer.from(`--${boundary}\r\nContent-Disposition: form-data; name="file"; filename="Örnek belge.pdf"\r\nContent-Type: ${mime}\r\n\r\n`), data, Buffer.from(`\r\n${extra}--${boundary}--\r\n`)]);
   return app.inject({ method: 'POST', url: `/api/records/${type}/${id}/files`, remoteAddress: clientIp, payload, headers: { cookie, origin, 'x-csrf-token': csrf, 'content-type': `multipart/form-data; boundary=${boundary}` } });
@@ -455,6 +611,10 @@ describe('sensitive paths: player card evidence', () => {
     expect((await sharp(imageResponse.rawPayload).metadata()).format).toBe('webp');
     const events = await db.auditLog.findMany({ where: { entityId: photo.id, action: 'reveal' } });
     expect(events.map(event => event.diffs)).toEqual([{ field: 'document' }]);
+    const metadata = await db.attachment.findUniqueOrThrow({ where: { id: photo.id } });
+    await fileStorage.remove(metadata.storageKey);
+    expect((await request('GET', url)).statusCode).toBe(404);
+    expect(await db.attachment.count({ where: { id: photo.id } })).toBe(1);
     expect((await request('PATCH', url, { action: 'remove', version: player.version })).statusCode).toBe(409);
     expect((await request('PATCH', url, { action: 'remove', version: selected.json().version })).statusCode).toBe(200);
     expect((await request('GET', url)).statusCode).toBe(404);

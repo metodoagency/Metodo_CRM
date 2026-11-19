@@ -85,7 +85,7 @@ export async function buildApp(options: { db?: PrismaClient; config?: Config; st
     if (error instanceof Prisma.PrismaClientKnownRequestError && ['P2025', 'P2034'].includes(error.code) || isCommitWriteConflict(error)) return reply.code(409).send({ code: 'STALE_VERSION' });
     if (error instanceof Error && 'statusCode' in error && typeof error.statusCode === 'number' && error.statusCode < 500) return reply.code(error.statusCode).send({ code: 'INVALID_INPUT' });
     // No request bodies, tokens or database errors are logged.
-    console.error('Request failed:', error instanceof Error ? error.name : 'UnknownError');
+    console.error('Request failed:', error instanceof Error ? error.name : 'UnknownError', _req.routeOptions.url ?? 'unmatched');
     return reply.code(500).send({ code: 'INTERNAL_ERROR' });
   });
   app.get('/health', async (_req, reply) => {

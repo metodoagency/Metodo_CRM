@@ -19,7 +19,10 @@ export async function registerPlayerPhotos(app: FastifyInstance, db: PrismaClien
     const file = await db.attachment.findFirst({ where: imageWhere(id, photo) });
     if (!file) throw new AppError('NOT_FOUND', 404);
     if (!storage || file.storageDriver !== storage.driver) throw new AppError('STORAGE_UNAVAILABLE', 503);
-    const bytes = await storage.read(file.storageKey);
+    const bytes = await storage.read(file.storageKey).catch((error: unknown) => {
+      if (error instanceof Error && 'code' in error && error.code === 'ENOENT') throw new AppError('NOT_FOUND', 404);
+      throw error;
+    });
     await db.$transaction(async tx => {
       const current = await tx.player.findFirst({ where: { ...live, id }, select: photoFields });
       if (!current || activePhotoId(current) !== photo || !await tx.attachment.findFirst({ where: { ...imageWhere(id, photo), version: file.version } })) throw new AppError('NOT_FOUND', 404);

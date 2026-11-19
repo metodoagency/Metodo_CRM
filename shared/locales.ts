@@ -13,7 +13,9 @@ import { personNetworkTr, personNetworkEn } from './person-network-locales.js';
 import { calendarTr, calendarEn } from './calendar-locales.js';
 import { requestsTr, requestsEn } from './request-locales.js';
 import { presentationTr, presentationEn } from './presentation-locales.js';
+import { contractTr, contractEn } from './contract-locales.js';
 export const tr = {
+  ...contractTr,
   ...adminTr,
   ...clubTr,
   ...privacyTr,
@@ -238,6 +240,7 @@ export const tr = {
   "suggestionSummary": "{club} kulübüne önerildi · Yetkili: {person} · Talep: {request} · Tarih: {date}"
 } as const;
 export const en: Record<keyof typeof tr, string> = {
+  ...contractEn,
   ...adminEn,
   ...clubEn,
   ...privacyEn,

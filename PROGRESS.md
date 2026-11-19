@@ -1,6 +1,6 @@
 # Metodo CRM progress
 
-Updated 2026-11-18, Europe/Istanbul. SPEC.md and docs/REQUIREMENTS.md define the scope. See the [session plan](SESSION_PLAN.md) and [100-row acceptance matrix](docs/acceptance-matrix.md) for the current records. Earlier checkpoints are available in Git history.
+Updated 2026-11-19, Europe/Istanbul. SPEC.md and docs/REQUIREMENTS.md define the scope. See the [session plan](SESSION_PLAN.md) and [100-row acceptance matrix](docs/acceptance-matrix.md) for the current records. Earlier checkpoints are available in Git history.
 
 ## Current state
 
@@ -77,6 +77,12 @@ Updated 2026-11-18, Europe/Istanbul. SPEC.md and docs/REQUIREMENTS.md define the
 - Dependency advisory triage, 2026-11-18: full npm audit reports18 high entries in development-tool chains, all via `picomatch` advisory [GHSA-fc5q-39xc-vjpf](https://github.com/advisories/GHSA-fc5q-39xc-vjpf), CVE-2026-112366. Upstream marks it withdrawn on2026-11-18 and lists no patched version. The [maintainer discussion](https://github.com/micromatch/picomatch/pull/235) disputes untrusted-glob use; no application route imports these libraries or accepts glob patterns. Existing lockfile SHA256 `494249b0a87093c1bdbb33ca3a3cf3ed5ee53833732079e7efb487d7ec29d108` is unchanged: picomatch2.3.2 at root and4.0.7 under tinyglobby/Vite/Vitest, all dev-only. Production audit0. No speculative major downgrade, override, alert dismissal or human risk acceptance was performed. Recheck registry/advisory status before the next dependency change and final release.
 
 ## Milestone gates
+
+Package14 implementation checkpoint, 2026-11-19: dedicated TR/EN contract list/detail/editor and owner-scoped API now cover all Contract fields, independent active records, manual source/date/method, Club or Agent counterpart, versioned notes, private files, Trash and timeline. Salary/bonuses are encrypted, masked by default, separately revealed for60 seconds and never sent into an unopened editor. Sparse edits retain omitted secrets and unknown legacy terms; Replace/Clear are explicit. Minor prompts use an audited DOB-derived check with no raw birth date and versioned NOT REVIEWED rules. A background refetch preserves dirty forms while resetting sensitive views. Migration011 adds only nullable agent/source fields and indexes; it has been applied to local test/E2E databases, not production. Existing table RLS/grants stay unchanged.
+
+Contract reminders run at startup/daily or on owner click, deduplicate by source/target/threshold, and retain historical rows. New-generation catch-up is bounded to the last7 days; already-generated valid alerts do not expire by age. Changed targets and inactive/deleted parents leave the current list and dashboard count. Configured empty thresholds stop new generation; existing history remains. Invalid monthly days are skipped and visibly listed. No network acquisition, legal conclusion or external processing was added.
+
+Observed local checks: initial full suite159/159; subsequent contract integration/date/translation17/17; security60/60 with production audit0; two contract browser scenarios and both19-route TR/EN axe scans passed across focused follow-ups. TypeScript/lint/984-key i18n and production build passed before the last reminder-count and missing-photo corrections; exact-head full CI is pending. Independent read-only backend/UI reviews found issues that were corrected and rechecked. Missing local portrait objects now return404 without deleting metadata; a focused regression is running. Package14 remains IN_PROGRESS until final CI. No production migration, deploy or PR merge occurred. Preview was paused for browser tests and must be restarted after development migration011.
 
 | Stage | Status | Gate |
 |---|---|---|

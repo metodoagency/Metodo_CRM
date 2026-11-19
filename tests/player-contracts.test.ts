@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { contractDeadlines, contractInput, contractThresholds, defaultContractThresholds, type ContractDates } from '../shared/player-contracts.js';
 import { istanbulToday } from '../shared/domain.js';
+import i18next from 'i18next';
+import { contractTr, contractEn } from '../shared/contract-locales.js';
 
 const input = {
   name: 'Örnek Sözleşme', type: 'EMPLOYMENT', clubId: null, agentId: null, signedDate: null,
@@ -11,6 +13,16 @@ const input = {
 };
 const dates: ContractDates = { ...input };
 describe('manual contract validation', () => {
+  it('substitutes every contract UI variable in Turkish and English', async () => {
+    const i18n = i18next.createInstance(); await i18n.init({ resources: { tr: { translation: contractTr }, en: { translation: contractEn } }, lng: 'tr' });
+    for (const language of ['tr', 'en']) {
+      const t = i18n.getFixedT(language);
+      for (const [key, values, expected] of [
+        ['contractMode', { field: 'Example' }, 'Example'], ['contractSkippedMonths', { months: '2026-02' }, '2026-02'],
+        ['contractDateIssue', { field: 'Example' }, 'Example'], ['contractVersion', { version: '1.2.3' }, '1.2.3'], ['contractThreshold', { days: 90 }, '90'],
+      ] as const) { expect(t(key, values)).toContain(expected); expect(t(key, values)).not.toMatch(/[{}]/); }
+    }
+  });
   it('preserves decimal strings and requires provenance and salary context', () => {
     expect(contractInput.parse(input).salaryAmount).toBe(input.salaryAmount);
     for (const changes of [

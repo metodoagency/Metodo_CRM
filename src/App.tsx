@@ -31,6 +31,7 @@ import { BirthdayCalendar, BirthdayEditor, GreetingEditor } from './birthday-cal
 import { RequestSummary, TransferRequests, useRequestContacts } from './transfer-requests';
 import { MatchingSettingsPanel, RequestMatches } from './transfer-matching';
 import { Presentations, PresentationResult, RecordPicker } from './presentations';
+import { Contracts, ContractDetail, PlayerContracts } from './player-contracts';
 import { hasCoordinates, type ClubFilters } from '../shared/club-network';
 import type { PrivacyState } from '../shared/privacy';
 import type { ClubRecord, List, PersonRecord, RecordRow, RecordType, Overview, Timeline } from './types';
@@ -44,6 +45,7 @@ const pages = [
   { path: '/sources', key: 'sourceRegistry', icon: Link2 },
   { path: '/birthdays', key: 'birthdayCalendar', icon: CalendarDays },
   { path: '/presentations', key: 'presentations', icon: ArrowLeftRight },
+  { path: '/contracts', key: 'contracts', icon: ShieldCheck },
 ];
 const endpoints = { Club: 'clubs', Player: 'players', Person: 'people', Request: 'requests' };
 function useDate() { const { i18n } = useTranslation(); return (value: string) => new Intl.DateTimeFormat(i18n.language === 'tr' ? 'tr-TR' : 'en-GB', { timeZone: 'Europe/Istanbul', day: '2-digit', month: i18n.language === 'tr' ? '2-digit' : 'short', year: 'numeric' }).format(new Date(value)); }
@@ -103,6 +105,7 @@ export function App() {
       <Route path="/sources" element={<ClubSourceRegistry />} />
       <Route path="/birthdays" element={<BirthdayCalendar />} />
       <Route path="/presentations" element={<Presentations />} />
+      <Route path="/contracts" element={<Contracts />} /><Route path="/contracts/:id" element={<ContractDetail />} />
       <Route path="/settings" element={<Preferences />} />
       <Route path="/privacy" element={<PrivacyNotice state={privacy.data} />} /><Route path="/incident" element={<IncidentChecklist />} />
     </Routes><p className="footer-note">{t('foundation')} · {t('foundationNote')}</p></main></div>
@@ -199,6 +202,7 @@ function Detail() {
   const overview = <>
     {type === 'Request' && <><RequestSummary request={row as RequestRecord} /><RequestMatches id={row.id} version={row.version} /></>}
     {type === 'Player' && <PlayerCardPanel key={row.id} id={row.id} version={row.version} />}
+    {type === 'Player' && <PlayerContracts key={`contracts:${row.id}`} id={row.id} />}
     {type === 'Person' && <PersonProfile key={`profile:${row.id}`} person={row as PersonRecord} />}
     {type === 'Person' && <PersonNetwork key={`network:${row.id}`} id={row.id} />}
     <div className="detail-grid"><div className="space-y-5"><section className="panel"><div className="panel-header"><h2>{t('overview')}</h2><Badge value="unverified" /></div><div className="panel-body">{(type === 'Player' ? ['primaryPosition', 'status'] : type === 'Person' ? ['role'] : ['city']).map(key => <div className="detail-field" key={key}><span className="muted">{t(key === 'primaryPosition' ? 'position' : key)}</span><span>{t(String(row[key as keyof RecordRow] || 'empty'))}</span></div>)}{(type === 'Player' || type === 'Person') && <Sensitive key={`${type}:${row.id}:${row.version}`} type={type} id={row.id} field="birthDate" />}<div className="detail-field"><span className="muted">{t('version')}</span><span>{row.version}</span></div><p className="muted text-[10px] mt-5">{t('noSensitiveExports')}</p></div></section><section className="panel"><div className="panel-header"><h2>{t('relations')}</h2><Link2 size={15} /></div><div className="panel-body">{['outgoing', 'incoming'].map(direction => <div key={direction}><h3 className="muted text-xs my-4">{t(direction)}</h3>{!links.data?.filter(l => l.direction === direction).length ? <p className="muted text-xs">{t('empty')}</p> : links.data.filter(l => l.direction === direction).map(l => <div key={l.id} className="list-line"><span className="muted">{t(l.relation)}</span>{l.available ? <Link className="ml-auto text-accent" to={`/record/${l.targetType}/${l.targetId}`}>{l.label}</Link> : <span className="ml-auto muted">{t('trash')}</span>}</div>)}</div>)}</div></section></div>{timelinePanel}</div>

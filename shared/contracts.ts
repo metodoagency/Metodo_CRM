@@ -20,18 +20,19 @@ import { requestContactsQuery, requestInput, requestListQuery, requestPageQuery 
 import { matrixQuery, presentationCreate, presentationQuery, presentationUpdate } from './presentations.js';
 import { mandateCreate, mandateUpdate, saleCreate, salesQuery, saleUpdate } from './sales.js';
 import { matchingSettings, matchQuery } from './transfer-matching.js';
+import { contractInput, contractListQuery, contractNote, contractNoteParams, contractNotePatch, contractPatch, contractReveal, contractThresholds } from './player-contracts.js';
 import { agentBirthdayCreate, agentBirthdayQuery, birthdayChange, birthdayPage, birthdaySubject, birthdayThresholds, calendarPage, greetingSubject, greetingWrite, significantDateChange, significantDateWrite } from './calendar.js';
 
 export const idParams = z.object({ id: z.uuid() }).strict();
 export const entityParams = z.object({ type: z.enum(entityTypes), id: z.uuid() }).strict();
-export const fileParentParams = entityParams.extend({ type: z.enum([...entityTypes, 'Suggestion']) });
+export const fileParentParams = entityParams.extend({ type: z.enum([...entityTypes, 'Suggestion', 'Contract']) });
 export const listQuery = z.object({ page: z.coerce.number().int().min(1).default(1), q: z.string().max(100).default(''), status: z.enum(['OWN', 'TARGET', 'INTERMEDIARY', 'MANDATED']).optional() }).strict();
 export const clubListQuery = listQuery.extend(clubFilters.shape);
 export const versionInput = z.object({ version: z.number().int().positive() }).strict();
 export const fieldVerification = versionInput.extend({ field: z.string().regex(/^[a-zA-Z][a-zA-Z0-9]{0,63}$/), sourceUrl: manualSourceUrl });
 export const trashWrite = versionInput.extend({ recordVersion: z.number().int().positive() });
 export const previewConfirmation = z.object({ previewToken: z.string().regex(/^[a-f0-9]{64}$/) }).strict();
-export const settingsInput = versionInput.extend({ language: z.enum(['tr', 'en']).optional(), theme: z.enum(['dark', 'light']).optional(), retentionDays: retentionPeriods.optional(), levelWeights: positionWeights.optional(), leagueTiers: leagueTiers.optional(), birthdayThresholds: birthdayThresholds.optional(), matchingWeights: matchingSettings.optional() });
+export const settingsInput = versionInput.extend({ language: z.enum(['tr', 'en']).optional(), theme: z.enum(['dark', 'light']).optional(), retentionDays: retentionPeriods.optional(), levelWeights: positionWeights.optional(), leagueTiers: leagueTiers.optional(), birthdayThresholds: birthdayThresholds.optional(), matchingWeights: matchingSettings.optional(), notificationThresholds: contractThresholds.optional() });
 export { staffRoles } from './staff-import.js';
 const recordVersion = z.number().int().positive();
 const tenureDigest = z.string().regex(/^[a-f0-9]{64}$/);
@@ -55,6 +56,19 @@ export const revealInput = z.object({ field: z.enum(['birthDate', 'phone', 'emai
 export const patchInput = versionInput.extend({ changes: z.record(z.string(), z.unknown()) });
 export type ApiContract = { method: 'get' | 'post' | 'patch' | 'delete'; path: string; query?: z.ZodType; params?: z.ZodType; body?: z.ZodType; success?: number; public?: boolean; testOnly?: boolean; csv?: boolean; multipart?: boolean; download?: readonly string[] };
 export const apiContracts: ApiContract[] = [
+  { method: 'get', path: '/api/contracts', query: contractListQuery },
+  { method: 'get', path: '/api/contracts/reminders', query: contractListQuery },
+  { method: 'post', path: '/api/contracts/reminders' },
+  { method: 'get', path: '/api/contracts/:id', params: idParams },
+  { method: 'post', path: '/api/players/:id/contracts', params: idParams, body: contractInput, success: 201 },
+  { method: 'patch', path: '/api/contracts/:id', params: idParams, body: contractPatch },
+  { method: 'delete', path: '/api/contracts/:id', params: idParams, body: versionInput },
+  { method: 'post', path: '/api/contracts/:id/reveal', params: idParams, body: contractReveal },
+  { method: 'get', path: '/api/contracts/:id/timeline', params: idParams },
+  { method: 'get', path: '/api/contracts/:id/notes', params: idParams },
+  { method: 'post', path: '/api/contracts/:id/notes', params: idParams, body: contractNote, success: 201 },
+  { method: 'patch', path: '/api/contracts/:id/notes/:noteId', params: contractNoteParams, body: contractNotePatch },
+  { method: 'delete', path: '/api/contracts/:id/notes/:noteId', params: contractNoteParams, body: versionInput },
   { method: 'post', path: '/api/calendar/birthdays', body: birthdayPage },
   { method: 'patch', path: '/api/calendar/birthdays/:kind/:id', params: birthdaySubject, body: birthdayChange },
   { method: 'post', path: '/api/calendar/birthdays/:kind/:id/view', params: birthdaySubject },

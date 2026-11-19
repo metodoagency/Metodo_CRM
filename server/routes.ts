@@ -33,6 +33,8 @@ import { csvCell } from './csv.js';
 import { getTransferRequest, registerTransferRequests, updateTransferRequest } from './transfer-requests.js';
 import { overduePresentations, registerPresentations } from './presentations.js';
 import { registerSales } from './sales.js';
+import { registerContracts } from './player-contracts.js';
+import { contractReminderPrefix, currentContractNotificationKeys } from './contract-reminders.js';
 
 const idParams = z.object({ id: z.string().uuid() });
 const entityParams = z.object({ type: z.enum(entityTypes), id: z.string().uuid() });
@@ -62,6 +64,7 @@ export async function registerRoutes(app: FastifyInstance, db: PrismaClient) {
   await registerTransferRequests(app, db);
   await registerPresentations(app, db);
   await registerSales(app, db);
+  await registerContracts(app, db);
   app.get('/api/me', async req => ({ id: 'owner', csrfToken: csrfToken(req.cookies[sessionCookie]!) }));
   app.get('/api/settings', async () => masked(await db.userSettings.upsert({ where: { ownerId: 'owner' }, create: { ownerId: 'owner' }, update: {} })));
   app.patch('/api/settings', async req => {
@@ -82,7 +85,10 @@ export async function registerRoutes(app: FastifyInstance, db: PrismaClient) {
       db.updateProposal.findMany({ where: { ...live, approvalStatus: 'PENDING' }, take: 5, orderBy: [{ createdAt: 'desc' }, { id: 'asc' }], select: { id: true, name: true, type: true } }),
       db.task.findMany({ where: { ...live, status: 'OPEN' }, orderBy: { dueDate: 'asc' }, take: 5 }),
       db.meeting.findMany({ where: { ...live, date: { gte: new Date(new Date().toISOString().slice(0, 10)) } }, orderBy: { date: 'asc' }, take: 4 }),
-      db.timelineEvent.findMany({ where: live, orderBy: { createdAt: 'desc' }, take: 6 }), db.notification.count({ where: { ...live, status: 'NEW', type: { not: birthdayRule } } }),
+      db.timelineEvent.findMany({ where: live, orderBy: { createdAt: 'desc' }, take: 6 }),
+      db.$transaction(async tx => tx.notification.count({ where: { ...live, status: 'NEW', AND: [
+        { type: { not: birthdayRule } }, { OR: [{ NOT: { type: { startsWith: contractReminderPrefix } } }, { dedupeKey: { in: await currentContractNotificationKeys(tx) } }] },
+      ] } }), { isolationLevel: 'RepeatableRead' }),
       db.presentation.findMany({
         where: overduePresentations(), take: 5, orderBy: [{ followUpDate: 'asc' }, { id: 'asc' }],
         select: { id: true, name: true, followUpDate: true, result: true },

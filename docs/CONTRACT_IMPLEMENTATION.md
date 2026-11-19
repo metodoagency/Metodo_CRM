@@ -1,5 +1,9 @@
 # Package14 continuation boundary
 
+Updated19.11.2026: the implementation checklist below is now implemented. Dedicated routes/modules are `server/player-contracts.ts`, `server/contract-parent.ts`, `server/contract-reminders.ts`, `src/player-contracts.tsx`, migration011 and the shared API/schema/locale files. Independent source reviews and focused unit/PostgreSQL/browser/axe checks passed after corrections. Final exact-head CI remains pending; do not call package14 DONE yet. The older foundation paragraph below is retained as the starting checkpoint.
+
+Reminder policy: defaults180/90/30; owner may choose an empty set. Generation catches up the last7 days without replaying years of dates. Existing alerts retain their history and remain current while the same target and live active Contract exist, regardless of age. Edited targets/inactive parents leave the current queue/dashboard. Monthly29–31 never clamp. Package15 will add the unified read/snooze notification center; it must reuse target validation. Production is still at its separately recorded migration checkpoint.
+
 18.11.2026. M7 remains incomplete. `shared/player-contracts.ts` contains tested manual-input schemas and a pure nine-kind deadline extractor. Eight unit tests cover provenance, exact decimal strings, salary context, clause/representation date order, Istanbul boundaries, inactive/past dates, leap years, invalid monthly days, reversed legacy intervals, missing legacy JSON dates and the four-digit year limit. This foundation is not a working contract module.
 
 Next implementation, preserving the existing architecture:
