@@ -25,6 +25,7 @@ import { agentBirthdayCreate, agentBirthdayQuery, birthdayChange, birthdayPage, 
 import { notificationAction, notificationQuery } from './notifications.js';
 import { taskCreate, taskLinkQuery, taskPatch, taskQuery } from './tasks.js';
 import { agendaExport, agendaQuery, meetingCreate, meetingPatch, meetingTaskCommit, meetingTaskPreview, meetingTimeInput, participantQuery } from './meetings.js';
+import { dashboardLayout } from './dashboard.js';
 
 export const idParams = z.object({ id: z.uuid() }).strict();
 export const entityParams = z.object({ type: z.enum(entityTypes), id: z.uuid() }).strict();
@@ -35,7 +36,7 @@ export const versionInput = z.object({ version: z.number().int().positive() }).s
 export const fieldVerification = versionInput.extend({ field: z.string().regex(/^[a-zA-Z][a-zA-Z0-9]{0,63}$/), sourceUrl: manualSourceUrl });
 export const trashWrite = versionInput.extend({ recordVersion: z.number().int().positive() });
 export const previewConfirmation = z.object({ previewToken: z.string().regex(/^[a-f0-9]{64}$/) }).strict();
-export const settingsInput = versionInput.extend({ language: z.enum(['tr', 'en']).optional(), theme: z.enum(['dark', 'light']).optional(), retentionDays: retentionPeriods.optional(), levelWeights: positionWeights.optional(), leagueTiers: leagueTiers.optional(), birthdayThresholds: birthdayThresholds.optional(), matchingWeights: matchingSettings.optional(), notificationThresholds: contractThresholds.optional() });
+export const settingsInput = versionInput.extend({ language: z.enum(['tr', 'en']).optional(), theme: z.enum(['dark', 'light']).optional(), retentionDays: retentionPeriods.optional(), levelWeights: positionWeights.optional(), leagueTiers: leagueTiers.optional(), birthdayThresholds: birthdayThresholds.optional(), matchingWeights: matchingSettings.optional(), notificationThresholds: contractThresholds.optional(), dashboardLayout: dashboardLayout.optional() });
 export { staffRoles } from './staff-import.js';
 const recordVersion = z.number().int().positive();
 const tenureDigest = z.string().regex(/^[a-f0-9]{64}$/);

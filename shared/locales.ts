@@ -18,7 +18,9 @@ import { notificationTr, notificationEn } from './notification-locales.js';
 import { taskTr, taskEn } from './task-locales.js';
 import { meetingTr, meetingEn } from './meeting-locales.js';
 import { agendaTr, agendaEn } from './agenda-locales.js';
+import { dashboardTr, dashboardEn } from './dashboard-locales.js';
 export const tr = {
+  ...dashboardTr,
   ...agendaTr,
   ...meetingTr,
   ...taskTr,
@@ -138,7 +140,7 @@ export const tr = {
   "error": "İşlem tamamlanamadı. Lütfen yeniden deneyin.",
   "invalid": "Alanları kontrol edin.",
   "saved": "Kaydedildi",
-  "foundation": "Temel sürüm · A aşaması",
+  "foundation": "Geliştirme önizlemesi",
   "foundationNote": "Geliştirme sürümü. Sonraki aşamalardaki özellikler henüz kullanıma açılmadı.",
   "security": "Güvenlik",
   "preferences": "Tercihler",
@@ -248,6 +250,7 @@ export const tr = {
   "suggestionSummary": "{club} kulübüne önerildi · Yetkili: {person} · Talep: {request} · Tarih: {date}"
 } as const;
 export const en: Record<keyof typeof tr, string> = {
+  ...dashboardEn,
   ...agendaEn,
   ...meetingEn,
   ...taskEn,
@@ -367,7 +370,7 @@ export const en: Record<keyof typeof tr, string> = {
   "error": "The operation could not be completed. Please try again.",
   "invalid": "Please check the fields.",
   "saved": "Saved",
-  "foundation": "Foundation release · Milestone A",
+  "foundation": "Development preview",
   "foundationNote": "Development release. Features in later milestones are not available yet.",
   "security": "Security",
   "preferences": "Preferences",

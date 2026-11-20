@@ -2,7 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react';
 import { NavLink, Link, Routes, Route, useNavigate, useParams } from 'react-router-dom';
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import { LayoutDashboard, Building2, Users, UserRound, ArrowLeftRight, ShieldCheck, Trash2, Settings, Search, Sun, Moon, Bell, Plus, ArrowUpRight, CalendarDays, CheckCircle2, Menu, LogOut, ChevronRight, Globe2, Eye, Download, Link2, ExternalLink } from 'lucide-react';
+import { LayoutDashboard, Building2, Users, UserRound, ArrowLeftRight, ShieldCheck, Trash2, Settings, Search, Sun, Moon, Bell, Plus, ArrowUpRight, CalendarDays, CheckCircle2, Menu, LogOut, Globe2, Eye, Download, Link2, ExternalLink } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -30,14 +30,15 @@ import { PersonNetwork } from './person-network';
 import { BirthdayCalendar, BirthdayEditor, GreetingEditor } from './birthday-calendar';
 import { RequestSummary, TransferRequests, useRequestContacts } from './transfer-requests';
 import { MatchingSettingsPanel, RequestMatches } from './transfer-matching';
-import { Presentations, PresentationResult, RecordPicker } from './presentations';
+import { Presentations, RecordPicker } from './presentations';
 import { Contracts, ContractDetail, PlayerContracts } from './player-contracts';
 import { Notifications } from './notifications';
 import { Tasks } from './tasks';
 import { Meetings } from './meetings';
+import { Dashboard } from './dashboard';
 import { hasCoordinates, type ClubFilters } from '../shared/club-network';
 import type { PrivacyState } from '../shared/privacy';
-import type { ClubRecord, List, PersonRecord, RecordRow, RecordType, Overview, Timeline } from './types';
+import type { ClubRecord, List, PersonRecord, RecordRow, RecordType, Timeline } from './types';
 import { clubInput, playerInput, personInput, personRoles, positions, statuses, relationTypes, relationInput, presentationChannels, suggestionInput } from '../shared/domain';
 import type { RequestRecord } from '../shared/transfer-requests';
 
@@ -132,31 +133,6 @@ function Login({ onLogin }: { onLogin: () => void }) {
     {status.data?.testMode && <button className="secondary mt-4 w-full" onClick={() => { void api('/auth/test', { method: 'POST', body: body({ email: 'owner@example.com' }) }).then(onLogin).catch(() => setError(true)); }}>{t('testLogin')}</button>}
     {error && <ErrorMessage />}<div className="flex items-center gap-2 muted text-[10px] mt-8"><ShieldCheck size={14} />{t('private')}</div>
   </div></div>;
-}
-
-function Dashboard({ onCreate }: { onCreate: () => void }) {
-  const { t, i18n } = useTranslation(); const date = useDate();
-  const q = useQuery({ queryKey: ['overview'], queryFn: () => api<Overview>('/api/overview') });
-  const d = q.data;
-  return <><div className="flex justify-between gap-4 items-center"><div><div className="eyebrow">{t('today')} · {date(new Date().toISOString())}</div><h1>{t('overview')}</h1><p className="subtitle">{t('overviewSub')}</p></div><button className="primary" onClick={onCreate}><Plus size={16} />{t('new')}</button></div>
-    {q.isError && <ErrorMessage />}
-    <div className="metric-grid">{[{ key: 'activeClubs', value: d?.clubs, icon: Building2, to: '/clubs' }, { key: 'playerCount', value: d?.players, icon: Users, to: '/players' }, { key: 'openRequests', value: d?.requests, icon: ArrowLeftRight, to: '/requests' }, { key: 'pendingProposals', value: d?.proposals, icon: ShieldCheck, to: '/proposals' }].map(m => <Link key={m.key} to={m.to} className="panel metric"><div className="metric-top"><span>{t(m.key)}</span><m.icon size={18} /></div><div className="metric-value">{m.value ?? '—'}</div><div className="metric-footer">{t('allRecords')}<ArrowUpRight size={12} /></div></Link>)}</div>
-    {!!d?.pendingUpdates?.length && <section className="panel panel-body mb-6">
-      <h2>{t('proposals')}</h2>
-      {d.pendingUpdates.map(row => <Link key={row.id} className="list-line" to={`/proposals?proposal=${row.id}`}>
-        <span>{row.type === 'injury' ? t('clubUpdate_injury') : row.name}</span><ChevronRight size={14} className="ml-auto muted" />
-      </Link>)}
-    </section>}
-    {!!d?.followUps?.length && <section className="panel panel-body mb-6">
-      <div className="flex flex-wrap justify-between gap-2"><h2>{t('presentationOverdue')}</h2><Link className="text-accent" to="/presentations?overdue=true">{t('allRecords')}</Link></div>
-      {d.followUps.map(item => <Link key={item.id} className="list-line" to={`/presentations?presentation=${item.id}`}>
-        <span className="flex-1">{item.name}<small className="muted block mt-1">{date(item.followUpDate)}</small></span>
-        <PresentationResult value={item.result} />
-      </Link>)}
-    </section>}
-    <div className="dashboard-columns"><div className="space-y-6"><section className="panel"><div className="panel-header"><h2>{t('agenda')}</h2><CalendarDays size={16} className="muted" /></div><div className="panel-body">{!d?.meetings.length ? <Empty /> : d.meetings.map(m => <div className="meeting" key={m.id}><div className="date-box">{new Date(m.date).getUTCDate()}<small>{new Intl.DateTimeFormat(i18n.language, { month: 'short', timeZone: 'Europe/Istanbul' }).format(new Date(m.date))}</small></div><div><Link className="text-[13px] font-medium mb-2 text-accent block" to={`/agenda?meeting=${m.id}`}>{m.name}</Link><div className="muted text-[11px]">{m.time}</div></div><ChevronRight size={15} className="muted ml-auto" /></div>)}</div></section><section className="panel"><div className="panel-header"><h2>{t('activity')}</h2><ArrowLeftRight size={16} className="muted" /></div><div className="panel-body">{!d?.recent.length ? <Empty /> : d.recent.map(e => <Link to={e.entityType === 'Meeting' ? `/agenda?meeting=${e.entityId}` : e.entityType === 'Task' ? `/tasks?task=${e.entityId}` : e.entityType === 'Contract' ? `/contracts/${e.entityId}` : e.entityType === 'Notification' ? '/notifications' : ['Club', 'Player', 'Person', 'Request'].includes(e.entityType) ? `/record/${e.entityType}/${e.entityId}` : '/settings'} key={e.id} className="list-line"><span className="activity-dot" /><div className="flex-1"><div>{i18n.language === 'tr' ? e.summaryTr : e.summaryEn}</div><div className="muted text-[10px] mt-2">{date(e.createdAt)}</div></div><ArrowUpRight size={14} className="muted" /></Link>)}</div></section></div>
-    <div><section className="panel"><div className="panel-header"><h2>{t('tasks')}</h2><CheckCircle2 size={16} className="muted" /></div><div className="panel-body">{!d?.tasks.length ? <Empty /> : d.tasks.map(task => <div className="list-line" key={task.id}><span className="icon-button"><CheckCircle2 size={14} /></span><div className="flex-1"><Link className="text-accent block mb-2" to={`/tasks?task=${task.id}`}>{task.name}</Link><span className="muted text-[10px]">{date(task.dueDate)}</span></div><Badge value={task.priority} /></div>)}</div></section><div className="notice mt-6 flex gap-3"><ShieldCheck size={28} className="text-accent shrink-0" /><div><strong className="block mb-1">{t('private')}</strong>{t('consent')}</div></div></div></div>
-  </>;
 }
 
 function Records({ type, onCreate }: { type: RecordType; onCreate: () => void }) {

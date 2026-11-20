@@ -37,6 +37,7 @@ import { registerNotifications, unreadNotificationCount } from './notifications.
 import { registerTasks } from './tasks.js';
 import { registerMeetings } from './meetings.js';
 import { registerAgendaOverlays } from './agenda-overlays.js';
+import { dashboardDates } from '../shared/dashboard.js';
 
 const idParams = z.object({ id: z.string().uuid() });
 const entityParams = z.object({ type: z.enum(entityTypes), id: z.string().uuid() });
@@ -85,20 +86,24 @@ export async function registerRoutes(app: FastifyInstance, db: PrismaClient) {
     });
   });
   app.get('/api/overview', async () => {
-    const [clubs, players, requests, proposals, pendingUpdates, tasks, meetings, recent, notifications, followUps] = await Promise.all([
+    const dates = dashboardDates();
+    const [clubs, players, requests, proposals, pendingUpdates, tasks, meetings, recent, notifications, followUps, todayTasks, todayMeetings, weekMeetings] = await Promise.all([
       db.club.count({ where: live }), db.player.count({ where: live }), db.request.count({ where: { ...live, status: { not: 'CLOSED' } } }),
       db.updateProposal.count({ where: { ...live, approvalStatus: 'PENDING' } }),
       db.updateProposal.findMany({ where: { ...live, approvalStatus: 'PENDING' }, take: 5, orderBy: [{ createdAt: 'desc' }, { id: 'asc' }], select: { id: true, name: true, type: true } }),
       db.task.findMany({ where: { ...live, status: 'OPEN' }, orderBy: [{ dueDate: 'asc' }, { id: 'asc' }], take: 5, select: { id: true, name: true, dueDate: true, priority: true } }),
       db.meeting.findMany({ where: { ...live, date: { gte: new Date(istanbulToday()) } }, orderBy: [{ date: 'asc' }, { time: 'asc' }, { id: 'asc' }], take: 4, select: { id: true, name: true, date: true, time: true, durationMin: true } }),
-      db.timelineEvent.findMany({ where: live, orderBy: { createdAt: 'desc' }, take: 6 }),
+      db.timelineEvent.findMany({ where: live, orderBy: [{ createdAt: 'desc' }, { id: 'asc' }], take: 6, select: { id: true, entityType: true, entityId: true, summaryTr: true, summaryEn: true, createdAt: true } }),
       db.$transaction(tx => unreadNotificationCount(tx), { isolationLevel: 'RepeatableRead' }),
       db.presentation.findMany({
         where: overduePresentations(), take: 5, orderBy: [{ followUpDate: 'asc' }, { id: 'asc' }],
         select: { id: true, name: true, followUpDate: true, result: true },
       }),
+      db.task.findMany({ where: { ...live, status: 'OPEN', dueDate: new Date(dates.today) }, orderBy: { id: 'asc' }, take: 5, select: { id: true, name: true, dueDate: true, priority: true } }),
+      db.meeting.findMany({ where: { ...live, date: new Date(dates.today) }, orderBy: [{ time: 'asc' }, { id: 'asc' }], take: 6, select: { id: true, name: true, date: true, time: true, durationMin: true } }),
+      db.meeting.findMany({ where: { ...live, date: { gte: new Date(dates.weekFrom), lte: new Date(dates.weekTo) } }, orderBy: [{ date: 'asc' }, { time: 'asc' }, { id: 'asc' }], take: 6, select: { id: true, name: true, date: true, time: true, durationMin: true } }),
     ]);
-    return { clubs, players, requests, proposals, pendingUpdates, tasks, meetings, recent, notifications, followUps };
+    return { clubs, players, requests, proposals, pendingUpdates, tasks, meetings, recent, notifications, followUps, todayTasks, todayMeetings, weekMeetings, ...dates };
   });
   app.get('/api/clubs', async req => {
     const { page, q, ...filters } = clubListQuery.parse(req.query);

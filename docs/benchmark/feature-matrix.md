@@ -32,14 +32,14 @@ New G1–G15 requirements are tracked individually in that matrix. Former G/H/I 
 | Disputes | NOT BUILT | J | — | Schema/example only |
 | Templates | NOT BUILT | J | — | Pending |
 | Sharing links | NOT BUILT | J | — | No public share endpoint exposed |
-| Calendar and ICS | PARTIAL | C | Versioned Meeting workspace, day/week/month agenda and restricted ICS implemented at02a5854; [independent parser tests](../../tests/meeting-ics.test.ts), [browser](../../tests/e2e/meetings.spec.ts) | [Exact-head16/17 CI passed](https://github.com/metodoagency/Metodo_CRM/actions/runs/44567970465); contract/birthday overlays and package16 fixtures remain open |
-| Notifications and digest | PARTIAL | C/F | Birthday/contract catch-up and notification center accepted; Task recurrence accepted at f0ea3fd | Remaining module task adapters/dashboard, future date rules and weekly digest remain open |
+| Calendar and ICS | PARTIAL | C | Versioned Meeting workspace, bounded agenda, restricted ICS and contract/protected birthday layers; [parser](../../tests/meeting-ics.test.ts), [layers](../../tests/e2e/agenda-layers.spec.ts) | [a1e9dc5 exact16/17 CI passed](https://github.com/metodoagency/Metodo_CRM/actions/runs/44650458994); package16 fixtures/future module overlays remain open |
+| Notifications and digest | PARTIAL | C/F | Birthday/contract catch-up, notification center, recurring tasks, Meeting/ICS and date layers verified; configurable dashboard local tests passed | Dashboard immutable CI, remaining source-task adapters/future rules and weekly digest remain open |
 | AI assistant | NOT BUILT | E | — | No outbound AI path |
 | Data operations | PARTIAL | A/F | Core and new-module Trash, previewed retention/purge, value-free field-view logs and safe allowlisted CSV implemented | General import/subject export/backup operations remain package25; production storage verification remains package05 |
 | Backup and restore | NOT BUILT | F | — | Pending |
 | Mobile and PWA | PARTIAL | A/F | Responsive CSS; browser shell tests | Drawer/cards exist; installable PWA pending |
 | Accessibility | PARTIAL | A/F | [TR/EN axe evidence](../../tests/e2e/a11y.spec.ts);24 current routes per language plus populated forms passed locally and in02a5854 CI | Future module routes/mobile acceptance remain package28/final |
-| Bilingual (tr, en) | PARTIAL | A/F | [Dictionary check](../../scripts/i18n-check.ts);1117 bilingual keys and34 JSX files passed | Current implemented flows localized; future modules remain pending |
+| Bilingual (tr, en) | PARTIAL | A/F | [Dictionary check](../../scripts/i18n-check.ts);1138 keys passed a1e9dc5 CI, dashboard1162 keys/36 JSX passed locally | Future modules and current dashboard immutable CI remain pending |
 | Turkish regulatory checklists | PARTIAL | A/H | tests/tooling.test.ts; config/compliance | Versioned placeholder prompts; owner review pending |
 
 ## Benchmark evidence

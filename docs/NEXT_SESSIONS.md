@@ -1,6 +1,6 @@
 # Metodo CRM — sonraki oturumlar
 
-19.11.2026. Oturum numaraları [onaylanan 54 paketlik planla](../SESSION_PLAN.md) aynıdır. Oturum bir iş paketidir; tek mesaj veya belirli gün sayısı değildir. Tamamlanan paketler yeniden kurulmaz. Kabul durumu ve test kanıtları [PROGRESS.md](../PROGRESS.md) ve [kabul matrisinde](acceptance-matrix.md) tutulur.
+20.11.2026. İlk54 oturum numarası [onaylanan planla](../SESSION_PLAN.md) aynıdır; sponsorluk ve medya genişlemesi55–66 olarak eklendi. Oturum bir iş paketidir; tek mesaj veya belirli gün sayısı değildir. Tamamlanan paketler yeniden kurulmaz. Kabul durumu ve test kanıtları [PROGRESS.md](../PROGRESS.md) ve [kabul matrisinde](acceptance-matrix.md) tutulur.
 
 ## Açık erken paketler
 

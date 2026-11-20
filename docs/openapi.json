@@ -24620,6 +24620,37 @@
                       "maximum": 365
                     },
                     "maxItems": 12
+                  },
+                  "dashboardLayout": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "enum": [
+                            "summary",
+                            "todayTasks",
+                            "tasks",
+                            "todayMeetings",
+                            "weekMeetings",
+                            "deadlines",
+                            "proposals",
+                            "followUps",
+                            "activity"
+                          ]
+                        },
+                        "visible": {
+                          "type": "boolean"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "visible"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "maxItems": 9
                   }
                 },
                 "required": [
