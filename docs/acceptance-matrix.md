@@ -1,5 +1,7 @@
 # Requirement acceptance matrix
 
+Consolidated owner amendment2026-11-20: [private-pilot ledger](PRIVATE_PILOT_PLAN.md) supplements, never replaces, every baseline and K/L row. General file upload clauses now mean encrypted external Drive resources plus the explicit private portrait/logo exception and legacy compatibility. Initial owner-only HTTPS is separate from29/F Sites/full-core acceptance. No new acceptance from the plan update; report pilot passed/pending beside DONE/66, A–J and K/L.
+
 Updated2026-11-20. Each M row incorporates **every bullet** of its matching baseline subsection; each R/G row incorporates its entire rule in SPEC.md/baseline. A row becomes DONE only after all its clauses pass, with exact tests/commit/CI. PARTIAL evidence is not completion. 66-package ledger (original01–54 preserved): [SESSION_PLAN.md](../SESSION_PLAN.md). Accepted progress remains10% (A gate);10 packages DONE,5 in progress,51 pending. K/L extension acceptance0/2; baseline A–J10% stays separate.
 
 Live commercial/provider implementation is explicitly deferred by SPEC update1. M35 covers licensed owner-supplied files and interfaces only. Optional features remain disabled until configured and verified. No real minor/medical production data until H.

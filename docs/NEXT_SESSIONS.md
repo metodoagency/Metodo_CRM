@@ -1,5 +1,9 @@
 # Metodo CRM — sonraki oturumlar
 
+## Güncel yürütme sırası —2026-11-20
+
+Sahibin onayladığı [birleştirilmiş özel pilot planı](PRIVATE_PILOT_PLAN.md) önce gelir. Mevcut66 kabul paketi ve tüm kapsam korunur. Dokuz Drive başlangıç dosyası hash'li yerel kontrol noktasında korundu. Meeting DELETE/Trash senkronizasyonu ayrı8c2cde1 commit'inde düzeltildi;4 yerel tarayıcı senaryosu geçti, kesin16/17 CI doğrulaması bekleniyor. Önce bu kanıtı kapat; premium gerçek ekran temeli, bağımsız çoklu bağlantılı Drive kütüphanesi, özel profil/logo görselleri ve erken yedek/özel HTTPS adımlarına ilerle. Aşağıdaki eski paket sırası tarihsel kabul kimliklerini korur; yeni öncelik/Drive kurallarıyla çelişen ifadeler PRIVATE_PILOT_PLAN.md ile değiştirilmiştir. Özel pilot,29/F veya54/66 nihai kabul değildir.
+
 20.11.2026. İlk54 oturum numarası [onaylanan planla](../SESSION_PLAN.md) aynıdır; sponsorluk ve medya genişlemesi55–66 olarak eklendi. Oturum bir iş paketidir; tek mesaj veya belirli gün sayısı değildir. Tamamlanan paketler yeniden kurulmaz. Kabul durumu ve test kanıtları [PROGRESS.md](../PROGRESS.md) ve [kabul matrisinde](acceptance-matrix.md) tutulur.
 
 ## Açık erken paketler

@@ -9,7 +9,7 @@
 - No Google Apps Script. No localStorage or sessionStorage for business data. Browser storage is allowed only for UI state, such as the last open tab and the theme choice.
 - Write tests together with each feature, not at the end.
 - You may run out of session time or context before the last milestones are done. Keep the repository runnable at every commit. If you stop mid-milestone, commit work in progress to the milestone branch, write the exact next step in PROGRESS.md, and do not merge.
-- If time runs short, prioritize A–F, then the new G, then preserved H–J. Never trade security or data accuracy for feature count. If a feature cannot be built safely, ship a documented stub with a NOT DONE entry in the feature matrix.
+- Follow docs/PRIVATE_PILOT_PLAN.md's owner-approved early balanced pilot order, then the retained full01–66 scope. Pull forward sponsorship/media without closing partial packages or29/F/54/66 early. Never trade security or data accuracy for feature count; unimplemented behavior remains NOT DONE.
 
 ## 1. Product principles (non-negotiable)
 
@@ -63,6 +63,7 @@ Node 20 or newer, Fastify, TypeScript, zod validation on every route, Prisma ORM
 Content-Security-Policy: default-src 'self'; script-src 'self'; img-src 'self' data: blob: plus the tile host used by Leaflet; connect-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors as required by R14. Never send X-Frame-Options. Referrer-Policy: strict-origin-when-cross-origin. X-Content-Type-Options: nosniff. Permissions-Policy disables camera, microphone, geolocation and payment by default. The Google OpenID sign-in uses server-side redirects, so no Google host is needed in connect-src.
 
 ### 2.5 Files and storage
+- Owner amendment2026-11-20 overrides generic uploads: documents/contracts/native designs/videos are encrypted Drive library references with typed multi-parent links, independent lifecycle and no automatic Drive requests/previews/sharing changes. Only optimized portraits/logos may use private binary storage. Preserve legacy uploaded-file reads/restores; follow docs/PRIVATE_PILOT_PLAN.md.
 - Storage adapter: local disk in development; S3-compatible storage in production (Supabase Storage through its S3-compatible endpoint is the preferred option).
 - Upload limit 10 MB per file. MIME allowlist plus magic-byte check. Random storage keys. Original filenames stored as metadata only.
 - Photos are resized to a maximum of 1600 px on upload and re-encoded, which strips EXIF and GPS data.
@@ -146,6 +147,8 @@ These must work exactly as written.
 Use the existing isolated checkout. Do not create worktrees unless explicitly requested.
 
 ## SPEC update 2 —2026-11-20
+
+The consolidated amendment in docs/PRIVATE_PILOT_PLAN.md governs priority, private pilot, Drive references, portrait/logo exception and premium real-screen design. Sites is final scope, not an early access blocker. Preserve66 IDs/all clauses and separately report pilot rows. Render Free cannot send standard SMTP: use in-app digest and optional configured local owner-only SMTP helper. Local processing must really run locally and import previewed proposals; do not imply deployed plugin access. No acceptance credit from this documentation.
 
 Apply the owner-approved full extension in docs/OWNER_EXTENSION_20261120.md and the normative SP1–SP8/MO1–MO10 mapping in docs/COMMERCIAL_MEDIA_SCOPE.md. Preserve every original M1–M45/R1–R26/G1–G15 and innovation requirement. Existing A–J/package01–54 remain; add K sponsorship55–59 and L media60–66. Original54 closes the baseline; expanded final delivery follows66. Counts describe work packages, not message/time guarantees.
 

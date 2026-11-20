@@ -4,6 +4,8 @@ Baseline owner-approved2026-11-03; sponsorship/media extension approved2026-11-2
 
 ## Authoritative decisions
 
+Owner consolidated amendment2026-11-20: [PRIVATE_PILOT_PLAN.md](docs/PRIVATE_PILOT_PLAN.md) records the16-slice balanced private pilot and retained full order, overriding older fixed pilot timing/general binary storage. Drive references for documents/designs/videos; optimized portraits/logos alone in private storage. Sites stays final scope. Every01–66/M/R/G/SP/MO clause remains. Package05 now covers safe resource lifecycle, image exception and legacy compatibility. Partial slices never close whole packages. Report pilot rows separately from DONE/66/A–J/K/L.
+
 - SPEC.md includes docs/REQUIREMENTS.md; SPEC update 1 overrides older rules. A is merged, B remains draft PR #2.
 - Existing React/TypeScript/Fastify/Prisma/single-owner OIDC/TR+EN architecture stays.
 - Owner selected existing Supabase PostgreSQL 17 production; preserve local PostgreSQL 16 and test compatibility in CI on 16/17.
@@ -25,7 +27,7 @@ Baseline owner-approved2026-11-03; sponsorship/media extension approved2026-11-2
 | 02 | Ücretsiz yayın altyapısı | Render + Supabase 17 + Google OIDC; gerçek HTTPS sağlık/giriş; stub yok. | IN_PROGRESS |
 | 03 | Gizlilik ve ihlal sayfası | TR/EN ilk giriş bildirimi, sürüm kaydı, ihlal adımları ve sahip iletişim alanı. | DONE |
 | 04 | Saklama ve erişim günlüğü | Tüm tablolarda varsayılan otomatik silme yok; önizlemeli purge; değersiz hassas alan erişim kaydı. | DONE |
-| 05 | Güvenli dosya ve işlem onayı | 10 MB, MIME/magic-byte, EXIF temizliği, özel depolama, beş dakikalık indirme; belge başına harici işlem onayı. | IN_PROGRESS |
+| 05 | Güvenli kaynak ve küçük görsel/işlem onayı | Şifreli Drive kütüphanesi/çoklu bağlantı/süreli açıklama/yaşam döngüsü; yalnız profil/logo için MIME/magic-byte/EXIF/özel depolama; eski dosyalar korunur; belge başına harici işlem onayı. | IN_PROGRESS |
 | 06 | Ortak belge motoru | TR/EN PDF/DOCX, tek veri kaynağı, fallback, sürüm/kaynak ve hassas veri hariç tutma. | DONE |
 | 07 | Kulüp ağı | M1: ülke/bölge ağacı, sayılar, gerçek koordinatlar, tüm bağlı detay panelleri. | DONE |
 | 08 | Personel ve güncellemeler | M3/M4 R1/R2: kaynaklı öneri onayı, doğru kişi/görev, sürüm/digest, sahip tetiklemeli robots izinli TFF. | IN_PROGRESS |

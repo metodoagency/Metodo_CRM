@@ -4,6 +4,8 @@ Updated 2026-11-04. Accepted release progress remains10%. A is merged; B is a dr
 
 ## Current resources
 
+Owner amendment2026-11-20: docs/PRIVATE_PILOT_PLAN.md governs the early owner-only pilot. Initial private HTTPS does not wait for Sites/29. Business documents/designs/videos stay as encrypted Drive references; only optimized portraits/logos use private storage. Never enable general uploads to support that exception. Preserve legacy file reads. Verify encrypted recovery and temporary restore before real data. Standard SMTP is unavailable on Render Free; in-app digest plus optional configured local owner-only SMTP helper. Database backups cover references, not Drive contents or image bytes; back up small-image objects separately. All final29/54/66 Sites and security gates remain.
+
 - Service: `the existing free service`, agency account, Free $0/month, Frankfurt.
 - Assigned URL: https://metodo-crm.onrender.com . **Not ready:** first container build completed, but boot rejected missing production configuration. HTTPS health and real owner login are not yet verified.
 - Dashboard: the existing Render service settings (private dashboard link kept locally)
