@@ -1,7 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 import type { PrismaClient } from '@prisma/client';
 import { z } from 'zod';
-import { clubInput, playerInput, personInput, requestInput, suggestionInput, relationInput, entityTypes, maskSensitive, normalizeSearch } from '../shared/domain.js';
+import { clubInput, playerInput, personInput, suggestionInput, relationInput, entityTypes, maskSensitive, normalizeSearch, istanbulToday } from '../shared/domain.js';
 import { AppError, live, logEvent, requireEntity, softDelete } from './core.js';
 import { createSuggestion } from './suggestions.js';
 import { encrypt, decrypt, blindIndex, csrfToken } from './crypto.js';
@@ -28,8 +28,16 @@ import { cleanBiography, registerPlayerBiographies } from './player-biography.js
 import { playerFilters } from '../shared/player-list.js';
 import { registerPersonNetwork } from './person-network.js';
 import { registerCalendar } from './calendar.js';
-import { birthdayRule } from './birthdays.js';
 import { csvCell } from './csv.js';
+import { getTransferRequest, registerTransferRequests, updateTransferRequest } from './transfer-requests.js';
+import { overduePresentations, registerPresentations } from './presentations.js';
+import { registerSales } from './sales.js';
+import { registerContracts } from './player-contracts.js';
+import { registerNotifications, unreadNotificationCount } from './notifications.js';
+import { registerTasks } from './tasks.js';
+import { registerMeetings } from './meetings.js';
+import { registerAgendaOverlays } from './agenda-overlays.js';
+import { dashboardDates } from '../shared/dashboard.js';
 
 const idParams = z.object({ id: z.string().uuid() });
 const entityParams = z.object({ type: z.enum(entityTypes), id: z.string().uuid() });
@@ -56,6 +64,14 @@ export async function registerRoutes(app: FastifyInstance, db: PrismaClient) {
   await registerPlayerBiographies(app, db);
   await registerPersonNetwork(app, db);
   await registerCalendar(app, db);
+  await registerTransferRequests(app, db);
+  await registerPresentations(app, db);
+  await registerSales(app, db);
+  await registerContracts(app, db);
+  await registerNotifications(app, db);
+  await registerTasks(app, db);
+  await registerMeetings(app, db);
+  await registerAgendaOverlays(app, db);
   app.get('/api/me', async req => ({ id: 'owner', csrfToken: csrfToken(req.cookies[sessionCookie]!) }));
   app.get('/api/settings', async () => masked(await db.userSettings.upsert({ where: { ownerId: 'owner' }, create: { ownerId: 'owner' }, update: {} })));
   app.patch('/api/settings', async req => {
@@ -70,15 +86,24 @@ export async function registerRoutes(app: FastifyInstance, db: PrismaClient) {
     });
   });
   app.get('/api/overview', async () => {
-    const [clubs, players, requests, proposals, pendingUpdates, tasks, meetings, recent, notifications] = await Promise.all([
+    const dates = dashboardDates();
+    const [clubs, players, requests, proposals, pendingUpdates, tasks, meetings, recent, notifications, followUps, todayTasks, todayMeetings, weekMeetings] = await Promise.all([
       db.club.count({ where: live }), db.player.count({ where: live }), db.request.count({ where: { ...live, status: { not: 'CLOSED' } } }),
       db.updateProposal.count({ where: { ...live, approvalStatus: 'PENDING' } }),
       db.updateProposal.findMany({ where: { ...live, approvalStatus: 'PENDING' }, take: 5, orderBy: [{ createdAt: 'desc' }, { id: 'asc' }], select: { id: true, name: true, type: true } }),
-      db.task.findMany({ where: { ...live, status: 'OPEN' }, orderBy: { dueDate: 'asc' }, take: 5 }),
-      db.meeting.findMany({ where: { ...live, date: { gte: new Date(new Date().toISOString().slice(0, 10)) } }, orderBy: { date: 'asc' }, take: 4 }),
-      db.timelineEvent.findMany({ where: live, orderBy: { createdAt: 'desc' }, take: 6 }), db.notification.count({ where: { ...live, status: 'NEW', type: { not: birthdayRule } } }),
+      db.task.findMany({ where: { ...live, status: 'OPEN' }, orderBy: [{ dueDate: 'asc' }, { id: 'asc' }], take: 5, select: { id: true, name: true, dueDate: true, priority: true } }),
+      db.meeting.findMany({ where: { ...live, date: { gte: new Date(istanbulToday()) } }, orderBy: [{ date: 'asc' }, { time: 'asc' }, { id: 'asc' }], take: 4, select: { id: true, name: true, date: true, time: true, durationMin: true } }),
+      db.timelineEvent.findMany({ where: live, orderBy: [{ createdAt: 'desc' }, { id: 'asc' }], take: 6, select: { id: true, entityType: true, entityId: true, summaryTr: true, summaryEn: true, createdAt: true } }),
+      db.$transaction(tx => unreadNotificationCount(tx), { isolationLevel: 'RepeatableRead' }),
+      db.presentation.findMany({
+        where: overduePresentations(), take: 5, orderBy: [{ followUpDate: 'asc' }, { id: 'asc' }],
+        select: { id: true, name: true, followUpDate: true, result: true },
+      }),
+      db.task.findMany({ where: { ...live, status: 'OPEN', dueDate: new Date(dates.today) }, orderBy: { id: 'asc' }, take: 5, select: { id: true, name: true, dueDate: true, priority: true } }),
+      db.meeting.findMany({ where: { ...live, date: new Date(dates.today) }, orderBy: [{ time: 'asc' }, { id: 'asc' }], take: 6, select: { id: true, name: true, date: true, time: true, durationMin: true } }),
+      db.meeting.findMany({ where: { ...live, date: { gte: new Date(dates.weekFrom), lte: new Date(dates.weekTo) } }, orderBy: [{ date: 'asc' }, { time: 'asc' }, { id: 'asc' }], take: 6, select: { id: true, name: true, date: true, time: true, durationMin: true } }),
     ]);
-    return { clubs, players, requests, proposals, pendingUpdates, tasks, meetings, recent, notifications };
+    return { clubs, players, requests, proposals, pendingUpdates, tasks, meetings, recent, notifications, followUps, todayTasks, todayMeetings, weekMeetings, ...dates };
   });
   app.get('/api/clubs', async req => {
     const { page, q, ...filters } = clubListQuery.parse(req.query);
@@ -128,29 +153,17 @@ export async function registerRoutes(app: FastifyInstance, db: PrismaClient) {
     });
     return reply.code(201).send(masked(row));
   });
-  app.get('/api/requests', async req => {
-    const { page } = listQuery.parse(req.query);
-    return { items: (await db.request.findMany({ where: live, include: { club: true, requester: true }, orderBy: { createdAt: 'desc' }, skip: (page - 1) * 50, take: 50 })).map(masked), total: await db.request.count({ where: live }), page };
-  });
-  app.post('/api/requests', async (req, reply) => {
-    const input = requestInput.parse(req.body);
-    const row = await db.$transaction(async tx => {
-      await requireEntity(tx, 'Club', input.clubId); await requireEntity(tx, 'Person', input.requesterId);
-      if (!await tx.relation.findFirst({ where: { ...live, fromType: 'Person', fromId: input.requesterId, toType: 'Club', toId: input.clubId, endDate: null, relation: { in: ['memberOf', 'contactOf'] } } })) throw new AppError('PERSON_NOT_AT_CLUB');
-      const row = await tx.request.create({ data: { ...input, fieldProvenance: provenanceFor(input), deadline: input.deadline ? new Date(input.deadline) : undefined } });
-      await logEvent(tx, { entityType: 'Request', entityId: row.id, name: row.name, action: 'create' }); return row;
-    });
-    return reply.code(201).send(row);
-  });
   app.post('/api/suggestions', async (req, reply) => reply.code(201).send(await createSuggestion(db, suggestionInput.parse(req.body))));
   app.get('/api/records/:type/:id', async req => {
     const { type, id } = entityParams.parse(req.params);
+    if (type === 'Request') return getTransferRequest(db, id);
     return maskedRecord(await requireEntity(db, type, id));
   });
   app.patch('/api/records/:type/:id', async req => {
     const { type, id } = entityParams.parse(req.params);
-    const schema = type === 'Club' ? clubInput.partial() : type === 'Player' ? playerInput.partial() : type === 'Person' ? personInput.partial() : requestInput.partial();
     const { version, changes } = z.object({ version: z.number().int().positive(), changes: z.record(z.string(), z.unknown()) }).strict().parse(req.body);
+    if (type === 'Request') return updateTransferRequest(db, id, version, changes);
+    const schema = type === 'Club' ? clubInput.partial() : type === 'Player' ? playerInput.partial() : personInput.partial();
     const parsed = schema.parse(changes);
     // Optional partial fields must not re-apply create-time defaults.
     const input = Object.fromEntries(Object.entries(parsed).filter(([key]) => key in changes)) as typeof parsed;
@@ -166,21 +179,13 @@ export async function registerRoutes(app: FastifyInstance, db: PrismaClient) {
       const changesToSave = changedPosition ? { ...input, levelScore: null, levelSubscores: {}, ...(secondaryPositions ? { secondaryPositions } : {}) } : input;
       const data: Record<string, unknown> = { ...changesToSave, fieldProvenance: provenanceFor(changesToSave, before.fieldProvenance), version: { increment: 1 } };
       if ('currentClubId' in input && input.currentClubId) await requireEntity(tx, 'Club', input.currentClubId);
-      if ('clubId' in input && input.clubId) await requireEntity(tx, 'Club', input.clubId);
-      if ('requesterId' in input && input.requesterId) await requireEntity(tx, 'Person', input.requesterId);
-      if (type === 'Request') {
-        const clubId = 'clubId' in input && input.clubId ? input.clubId : 'clubId' in before ? before.clubId : undefined;
-        const requesterId = 'requesterId' in input && input.requesterId ? input.requesterId : 'requesterId' in before ? before.requesterId : undefined;
-        if (!clubId || !requesterId || !await tx.relation.findFirst({ where: { ...live, fromType: 'Person', fromId: requesterId, toType: 'Club', toId: clubId, endDate: null, relation: { in: ['memberOf', 'contactOf'] } } })) throw new AppError('PERSON_NOT_AT_CLUB');
-      }
       if ('birthDate' in input && input.birthDate !== undefined) {
         data.birthDate = input.birthDate ? encrypt(input.birthDate, `${type}.birthDate`) : null;
         data.birthDateIndex = input.birthDate ? blindIndex(input.birthDate) : null;
       }
-      if ('name' in input && input.name && type !== 'Request') data.searchName = normalizeSearch(input.name);
-      if ('deadline' in input && input.deadline) data.deadline = new Date(input.deadline);
+      if ('name' in input && input.name) data.searchName = normalizeSearch(input.name);
       const where = { ...live, id, version };
-      const after = type === 'Club' ? await tx.club.update({ where, data }) : type === 'Player' ? await tx.player.update({ where, data }) : type === 'Person' ? await tx.person.update({ where, data }) : await tx.request.update({ where, data });
+      const after = type === 'Club' ? await tx.club.update({ where, data }) : type === 'Player' ? await tx.player.update({ where, data }) : await tx.person.update({ where, data });
       const old = Object.fromEntries(Object.keys(changesToSave).map(key => [key, before[key as keyof typeof before]]));
       await logEvent(tx, { entityType: type, entityId: id, name: before.name, action: 'update', diffs: { old, new: changesToSave }, isExample: before.isExample });
       return maskedRecord(after);

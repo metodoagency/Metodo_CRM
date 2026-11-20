@@ -24,7 +24,7 @@ if (args.length) {
   // Restart the test servers between suites so rapid scans do not inherit
   // the earlier Chromium scenarios' API and authentication rate counters.
   const reportRoot = process.env.PLAYWRIGHT_HTML_OUTPUT_DIR ?? 'playwright-report';
-  for (const project of ['chromium', 'club-workspace', 'a11y']) {
+  for (const project of ['chromium', 'club-workspace', 'transfer-workspace', 'contract-workspace', 'agenda-workspace', 'meeting-workspace', 'agenda-layers', 'dashboard-workspace', 'a11y']) {
     run('npx', ['playwright', 'test', `--project=${project}`, `--output=test-results/${project}`], {
       ...env, PLAYWRIGHT_HTML_OUTPUT_DIR: join(reportRoot, project),
     });

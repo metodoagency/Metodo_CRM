@@ -1,6 +1,6 @@
-# Metodo CRM — 54 oturumluk uygulama planı
+# Metodo CRM — 54 temel +12 ek iş paketi uygulama planı
 
-Owner-approved 2026-11-03. An oturum is a verified work package, not a message count or time guarantee. Pilot: 29. Final: 54. Work may continue across chats without waiting for 'devam'. Preserve the current checkout; one writer, no new worktree. This file and PROGRESS.md are durable state.
+Baseline owner-approved2026-11-03; sponsorship/media extension approved2026-11-20. An oturum is a verified work package, not a message count or time guarantee. Pilot:29. Baseline delivery:54. Expanded final delivery:66. Work may continue across chats without waiting for 'devam'. Preserve the current checkout; one writer, no new worktree. This file and PROGRESS.md are durable state.
 
 ## Authoritative decisions
 
@@ -32,10 +32,10 @@ Owner-approved 2026-11-03. An oturum is a verified work package, not a message c
 | 09 | Oyuncu veritabanı | M5: dört panel, arama/sıralama/filtre, kayıtlı görünüm, toplu etiket, güvenli CSV, fotoğraf ve süreli lig uygunluğu. | DONE |
 | 10 | Oyuncu kartı | M6: puan geçmişi, lig uygunluğu, kaynaklı piyasa değeri, güvenli biyografi, yazdırılabilir kart ve TR/EN profil çıktısı. | DONE |
 | 11 | Kişiler ve doğum günleri | M14, M15 ve R8 doğrulandı. B kabulünde M4 ve güvenlik incelemesi açık. | IN_PROGRESS |
-| 12 | Talepler ve eşleştirme | M9/M10 R7: Kanban, eksik veri normalizasyonu, kapsam ve açıklamalar. | NOT_STARTED |
-| 13 | Öneri ve sunumlar | M10–M12 R3: atomik öneri, sunum matrisi, yetkili satış listesi, temel kulüp yetkisi ve öneri dosyası. | NOT_STARTED |
-| 14 | Sözleşmeler | M7: manuel kaynaklı tarihler/yöntem, şifreli maaş, nötr kontrol listesi ve süre takibi. | NOT_STARTED |
-| 15 | Ajanda ve bildirimler | M2 ajanda M24 R4: ICS, görev, dashboard, okuma/erteleme/dedupe; C kabul. | NOT_STARTED |
+| 12 | Talepler ve eşleştirme | M9/M10 R7: Kanban, eksik veri normalizasyonu, kapsam ve açıklamalar. [PostgreSQL 16/17 CI](https://github.com/metodoagency/Metodo_CRM/actions/runs/44106365479). | DONE |
+| 13 | Öneri ve sunumlar | M10–M12 R3: atomik öneri, sunum matrisi, yetkili satış listesi, temel kulüp yetkisi ve öneri dosyası. [PostgreSQL16/17 CI](https://github.com/metodoagency/Metodo_CRM/actions/runs/44352395585) passed for8edb823. | DONE |
+| 14 | Sözleşmeler | M7: kayıt ekranı/API, şifreli maaş, kulüp/menajer tarafı, not/dosya ve hatırlatmalar. [5c516b4 PostgreSQL16/17 CI](https://github.com/metodoagency/Metodo_CRM/actions/runs/44496048310):161 uygulama,60 güvenlik,19 tarayıcı geçti. | DONE |
+| 15 | Ajanda ve bildirimler | Bildirim/görev/tekrar/Trash, görüşme/onaylı görev/ICS ve korumalı tarih katmanları kesin16/17 CI ile doğrulandı (a1e9dc5:223 uygulama,95 güvenlik,31 tarayıcı). Kaydedilebilir dashboard yerel9 odaklı/3 tarayıcı kontrolünü geçti; yeni kesin CI bekleniyor. Otomatik görev adaptörleri ve C kabulü açık. | IN_PROGRESS |
 | 16 | Fikstürler | M2 R9: anonim TFF HTML testleri, robots ve CSV fallback, hiçbir planlı fetch yok. | NOT_STARTED |
 | 17 | GPS ve performans | M8: kolon eşleme, satır hataları, idempotent import, metrik ve anomali kontrolü. | NOT_STARTED |
 | 18 | Galeri ve transfer CV | M8/M23 R10: hak notları, klip URL, doğru bölüm sırası, PDF metni/DOCX XML; D kabul. | NOT_STARTED |
@@ -76,6 +76,27 @@ Owner-approved 2026-11-03. An oturum is a verified work package, not a message c
 | 53 | Bütünleşik kabul | Tüm gereksinim kanıtları, güvenlik/yük/restore/rollback provası; gerçek veriye dokunma. | NOT_STARTED |
 | 54 | Son yayın ve teslim | Doğrulanmış app ve Sites URL, komut/kılavuz/yedek/bakım; J ve %100 nihai kabul. | NOT_STARTED |
 
+## Owner extension —2026-11-20: K/L packages55–66
+
+[Full scope and dependencies](docs/COMMERCIAL_MEDIA_SCOPE.md), [owner instruction](docs/OWNER_EXTENSION_20261120.md). Preserve01–54 as the original baseline. Expanded delivery requires all66 packages and K/L acceptance. No feature/runtime acceptance is earned by this plan update.
+
+| No | İş | Kabul ölçütü | Durum |
+|---|---|---|---|
+| 55 | Sponsor/marka ve fırsatlar | SP1/2: mevcut Person bağlantısı, ortak Campaign/hesap temeli, tarihli pipeline, görev ve terminal neden. | NOT_STARTED |
+| 56 | Sponsorluk teklif/anlaşma | SP3: kaynaklı, sürümlü teklifler ve anlaşmalar, özel dosyalar, açık bölge/kategori notları. | NOT_STARTED |
+| 57 | Sponsorluk bedel/tahsilat | SP4/5: nakdî/ayni ayrımı, kısmi tahsilat/alacak/komisyon, decimal ve kaynaklı FX; ikinci muhasebe yok. | NOT_STARTED |
+| 58 | Yükümlülük, hak ve yenileme | SP6/7: adet/format/hesap/tarih, onay ve manuel tamamlama kanıtı, gecikme, açıklanabilir olası çakışma ve tekrar üretmeyen iç uyarı. | NOT_STARTED |
+| 59 | Sponsorluk panel/rapor | SP8: merkezî/oyuncu paneli, para birimi bazlı kaynaklı KPI, yaşam döngüsü/güvenlik/CI; K kabulü. | NOT_STARTED |
+| 60 | Sosyal hesap ve içerik brief | MO1/2: mevcut ortak hesap/Campaign temelinde oyuncu ve fikstür bağlantıları, özel kategoriler, dil/format/sorumlu/teslim. | NOT_STARTED |
+| 61 | Medya çalışma alanı | MO3/4: liste/Kanban/takvim, tasarım/sürüm/uyarlama, güvenli dosya/hak, ayrı onay/hazır/manuel yayın ve kanıt; otomatik gönderim yok. | NOT_STARTED |
+| 62 | Matchday görev motoru | MO5/6: kayıtlı Match, sabit import kimliği, UTC hedef/sürüm/rule, değişen maç/oyuncu ilişkisi, iptal ve kaçırılan çalışmada idempotency. | NOT_STARTED |
+| 63 | Oyuncu hizmet/tasarım sayacı | MO7: iş/tasarım/revizyon/uyarlama/yayın ayrı; çok oyunculu işler ofis benzersiz toplamını şişirmez, formül/kaynak görünür. | NOT_STARTED |
+| 64 | Medya süre/maliyet/kapasite | MO8: mevcut Work Log/dış kaynak maliyeti, açık dağıtım, yük ve onay yaşlandırması. | NOT_STARTED |
+| 65 | Sosyal metrik ve hazırlık | MO9: yalnız manuel/sahip dosyası kaynaklı ölçümler, açıklanabilir readiness ve eksik veri, canlı provider yok. | NOT_STARTED |
+| 66 | Genişletilmiş nihai kabul | MO10: tüm eski+yeni kapsam, güvenlik/yük/sayım/saat/restore/rollback, TR/EN/mobil, gerçek HTTPS/OAuth/Sites; L ve genişletilmiş teslim. | NOT_STARTED |
+
+Current package count:10 DONE,5 IN_PROGRESS,51 NOT_STARTED of66. Baseline A–J acceptance remains1/10=10%; K/L accepted0/2. These are separate measures, not effort estimates. New package dependencies may be split into more work units if needed, with explicit ledger changes and no dropped clauses.
+
 ## Acceptance and execution contract
 
 Each package reports behavior delivered, API/schema/migration change, observed tests, commit/PR, remaining work and exact next step. Implement tests with the feature. Do not call partial code/schema/stubs DONE. Update the ledger only from actual evidence; related uncompleted requirements stay PARTIAL or NOT_DONE.
@@ -84,8 +105,10 @@ At each milestone: lint, TypeScript, build, real PostgreSQL integration, unit, i
 
 Test critical failures: wrong coach/other staff unchanged; rollback on transaction error; source/approval enforcement; stale version/preview/replay; no default purge; masked logs/share/export; per-document consent; unchanged row counts with changed checksum must fail; real OAuth/iframe and blocked-cookie fallback. Local 10,000-example-player p95 <500ms, record hardware/plan. No serious/critical axe violations in TR/EN.
 
-Acceptance percentage = accepted milestone gates /10, not effort. A10%; B(session11)20%; C15→30%; D18→40%; E24→50%; F29→60%; G38→70%; H40→80%; I44→90%; J/final54→100%. No public URL is reported until actual successful deployment.
+Acceptance percentage = accepted milestone gates /10, not effort. A10%; B(session11)20%; C15→30%; D18→40%; E24→50%; F29→60%; G38→70%; H40→80%; I44→90%; J/baseline54→100% of A–J. Expanded final delivery also requires K/L/package66. No public URL is reported until actual successful deployment.
 
 ## Resume
+
+Kalan oturumlar: [docs/NEXT_SESSIONS.md](docs/NEXT_SESSIONS.md). Paket14 tamamlandı; paket15 devam sınırı: [docs/AGENDA_IMPLEMENTATION.md](docs/AGENDA_IMPLEMENTATION.md).
 
 Read AGENTS.md, SPEC.md, this file, PROGRESS.md and acceptance matrix; inspect Git state. Resume the last unfinished package, preserving owner changes. Do independent work while real owner/provider blocks are recorded. Secrets belong only in ignored local configuration/provider secret settings, never chat/source/logs. If interrupted, commit WIP and save the exact next step. Do not recreate finished work.

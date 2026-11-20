@@ -48,8 +48,12 @@ export const personInput = withProvenance({
   birthDate: birthDate.nullish(), hideBirthYear: z.boolean().optional(),
   transfermarktUrl: manualSourceUrl.nullish(), tffProfileUrl: manualSourceUrl.nullish(),
 });
-export const requestInput = withProvenance({ name, clubId: z.string().uuid(), requesterId: z.string().uuid(), position: z.enum(positions), deadline: isoDate.optional() });
-export const suggestionInput = z.object({ requestId: z.string().uuid(), playerId: z.string().uuid(), personId: z.string().uuid(), whyGoodTransfer: z.string().trim().min(3).max(4000), matchScore: z.number().min(0).max(100).nullable().default(null), followUpDate: isoDate.optional() }).strict();
+export const presentationChannels = ['IN_PERSON', 'EMAIL', 'MESSAGING', 'VIDEO'] as const;
+export const suggestionInput = z.object({
+  requestId: z.uuid(), requestVersion: z.number().int().positive().optional(), playerId: z.uuid(), personId: z.uuid(),
+  whyGoodTransfer: z.string().trim().min(3).max(4000), matchScore: z.number().min(0).max(100).nullable().default(null),
+  channel: z.enum(presentationChannels).optional(), followUpDate: isoDate.optional(),
+}).strict();
 export const relationTypes = ['memberOf', 'representedBy', 'intermediaryFor', 'sellingFor', 'mandatedBy', 'suggestedTo', 'presentedTo', 'invitedAs', 'attendee', 'contactOf', 'worksWith', 'partnerOf', 'usesTool', 'hiredBy', 'speakerAt', 'organizedBy', 'scoutedAt', 'linkedTo'] as const;
 export const entityTypes = ['Club', 'Player', 'Person', 'Request'] as const;
 export const relationInput = z.object({ fromType: z.enum(entityTypes), fromId: z.string().uuid(), toType: z.enum(entityTypes), toId: z.string().uuid(), relation: z.enum(relationTypes), role: z.string().max(100).optional(), startDate: isoDate.optional(), note: z.string().max(2000).default('') }).strict();

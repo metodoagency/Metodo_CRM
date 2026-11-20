@@ -145,6 +145,16 @@ These must work exactly as written.
 
 Use the existing isolated checkout. Do not create worktrees unless explicitly requested.
 
+## SPEC update 2 —2026-11-20
+
+Apply the owner-approved full extension in docs/OWNER_EXTENSION_20261120.md and the normative SP1–SP8/MO1–MO10 mapping in docs/COMMERCIAL_MEDIA_SCOPE.md. Preserve every original M1–M45/R1–R26/G1–G15 and innovation requirement. Existing A–J/package01–54 remain; add K sponsorship55–59 and L media60–66. Original54 closes the baseline; expanded final delivery follows66. Counts describe work packages, not message/time guarantees.
+
+Build central/per-player sponsorship, offers/agreements, original-currency cash/in-kind/receivables, obligations/rights and source-backed reports. Build shared Campaign/account metadata/content jobs, separate logical designs/revisions/adaptations/manual publication, stored-fixture matchday tasks and accurate per-player/office-distinct counts. Reuse Person contacts, Finance/Commission/WorkLog/files/Task/Notification through explicit typed services and parent allowlists; never add unknown types to the generic delegate fallback. Existing DATE task/notification fields are insufficient for timed matchday rules; add explicit UTC due instant/source/rule version semantics at the relevant package. Source/import fixture identity precedes automation. Do not invent FX, in-kind values, lineup facts or legal conclusions.
+
+No commercial acquisition, live licensed provider implementation, platform passwords, automated posting/contact sending or scheduled TFF request. External processing always needs per-document exact preview/consent; the general autonomy authorization does not replace it. Existing sensitive encryption/value-free logs, lifecycle/retention/no automatic deletion, protected exports, H production limits and free-only constraints cover every new entity. Native design files need a deliberate safe strategy; do not silently expand MIME/preview support.
+
+One source writer per checkout; use parallel agents for read-only review. Continue authorized independent work without repeated approval. Keep INNOVATIONS.md and BUGS.md with concrete evidence; existing scope improvements may proceed, while new costs/disclosures/policy changes require owner decisions. Preserve unfinished work; verify previously interrupted tests rather than carrying forward stale passes. Report A–J, K/L and DONE/total packages separately. Exact source commit CI and required security review precede milestone merge; no absolute zero-defect claim.
+
 ## SPEC update 1 — 2026-11-03
 
 SPEC.md is the authoritative amendment, incorporated with the full baseline in docs/REQUIREMENTS.md. Its data-acquisition policy overrides all older fetching, RSS, scraping, IMAP and provider implementation instructions. No commercial-site acquisition code, including optional AI page extraction. Licensed providers are deferred, interface only. First-login bilingual privacy notice; per-table owner-selected retention with no automatic deletion by default; value-free sensitive-field view logs; encrypted sensitive backups; breach checklist/contact; per-document consent and exact preview before any external document/audio processing. Local adapters process locally.

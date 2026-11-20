@@ -8,6 +8,7 @@ import { createStorage, drainStorageDeletions, type FileStorage } from './storag
 import type { MalwareScanner } from './file-validation.js';
 import { registerProcessing, type DocumentProcessor } from './processing.js';
 import { registerProfileDocument } from './profile-document.js';
+import { registerRecommendationDocument } from './recommendation-document.js';
 import { registerPlayerPhotos } from './player-photo.js';
 import staticFiles from '@fastify/static';
 import type { PrismaClient } from '@prisma/client';
@@ -24,6 +25,7 @@ import { AppError } from './core.js';
 import { loggerOptions } from './logging.js';
 import { openapiDocument } from './openapi.js';
 import { apiContracts, emptyObject } from '../shared/contracts.js';
+import { isCommitWriteConflict } from './runtime-adapter.js';
 
 export async function buildApp(options: { db?: PrismaClient; config?: Config; storage?: FileStorage; scanner?: MalwareScanner; processors?: readonly DocumentProcessor[] } = {}) {
   const db = options.db ?? defaultDb; const config = options.config ?? readConfig();
@@ -80,10 +82,10 @@ export async function buildApp(options: { db?: PrismaClient; config?: Config; st
     if (error instanceof ZodError) return reply.code(400).send({ code: 'INVALID_INPUT', fields: error.issues.map(i => i.path.join('.')) });
     if (error instanceof AppError) return reply.code(error.status).send({ code: error.code });
     if (error instanceof Prisma.PrismaClientKnownRequestError && ['P2003', 'P2014', 'P2002'].includes(error.code)) return reply.code(409).send({ code: 'LINKED_RECORDS' });
-    if (error instanceof Prisma.PrismaClientKnownRequestError && ['P2025', 'P2034'].includes(error.code)) return reply.code(409).send({ code: 'STALE_VERSION' });
+    if (error instanceof Prisma.PrismaClientKnownRequestError && ['P2025', 'P2034'].includes(error.code) || isCommitWriteConflict(error)) return reply.code(409).send({ code: 'STALE_VERSION' });
     if (error instanceof Error && 'statusCode' in error && typeof error.statusCode === 'number' && error.statusCode < 500) return reply.code(error.statusCode).send({ code: 'INVALID_INPUT' });
     // No request bodies, tokens or database errors are logged.
-    console.error('Request failed:', error instanceof Error ? error.name : 'UnknownError');
+    console.error('Request failed:', error instanceof Error ? error.name : 'UnknownError', _req.routeOptions.url ?? 'unmatched');
     return reply.code(500).send({ code: 'INTERNAL_ERROR' });
   });
   app.get('/health', async (_req, reply) => {
@@ -105,6 +107,7 @@ export async function buildApp(options: { db?: PrismaClient; config?: Config; st
   await registerPlayerPhotos(app, db, storage);
   await registerProcessing(app, db, config, options.processors);
   await registerProfileDocument(app, db, config);
+  await registerRecommendationDocument(app, db, config);
   app.get('/api/docs', async () => openapiDocument());
   if (config.NODE_ENV === 'production' && existsSync(resolve('dist/web/index.html'))) {
     await app.register(staticFiles, { root: resolve('dist/web') });

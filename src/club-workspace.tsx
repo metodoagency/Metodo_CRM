@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { Link, useSearchParams } from 'react-router-dom';
 import { api, ApiError, body } from './api';
+import { ClubSales } from './sales';
 import { Badge, Empty, ErrorMessage, Modal } from './components';
 import { geographyKey } from './club-explorer';
 import { ClubUpdateForm, StaffProposalForm } from './proposals';
@@ -124,6 +125,7 @@ function ClubSectionPanel({ club, section }: { club: ClubRecord; section: ClubSe
     <h2>{t(sections[section])}</h2>
     {section === 'sources' && <Link className="secondary mt-3 inline-flex" to={`/sources?clubId=${club.id}`}>{t('sourceRegistry')}</Link>}
     {section === 'staff' && <StaffImport clubId={club.id} />}
+    {section === 'players' && <ClubSales clubId={club.id} />}
     {section === 'players' && <label className="field max-w-sm mt-4">{t('players')}
       <select aria-label={t('players')} value={scope} onChange={event => { setScope(event.target.value as typeof scope); setPage(1); }}>
         {(Object.keys(playerScopes) as (keyof typeof playerScopes)[]).map(key => <option key={key} value={key}>{t(playerScopes[key])}</option>)}

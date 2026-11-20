@@ -21,7 +21,7 @@ export const significantDateChange = significantDateWrite.extend({ version });
 
 export function birthdayOccurrence(monthDay: string, year: number): string {
   const date = `${String(year).padStart(4, '0')}-${monthDay}`;
-  return monthDay === '02-29' && !isoDate.safeParse(date).success ? `${year}-03-01` : date;
+  return monthDay === '02-29' && !isoDate.safeParse(date).success ? `${String(year).padStart(4, '0')}-03-01` : date;
 }
 
 export function daysBetween(from: string, to: string): number {

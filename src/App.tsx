@@ -2,7 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react';
 import { NavLink, Link, Routes, Route, useNavigate, useParams } from 'react-router-dom';
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import { LayoutDashboard, Building2, Users, UserRound, ArrowLeftRight, ShieldCheck, Trash2, Settings, Search, Sun, Moon, Bell, Plus, ArrowUpRight, CalendarDays, CheckCircle2, Menu, LogOut, ChevronRight, Globe2, Eye, Download, Link2, ExternalLink } from 'lucide-react';
+import { LayoutDashboard, Building2, Users, UserRound, ArrowLeftRight, ShieldCheck, Trash2, Settings, Search, Sun, Moon, Bell, Plus, ArrowUpRight, CalendarDays, CheckCircle2, Menu, LogOut, Globe2, Eye, Download, Link2, ExternalLink } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -28,10 +28,19 @@ import { PlayerCardPanel } from './player-card';
 import { PersonProfile } from './person-profile';
 import { PersonNetwork } from './person-network';
 import { BirthdayCalendar, BirthdayEditor, GreetingEditor } from './birthday-calendar';
+import { RequestSummary, TransferRequests, useRequestContacts } from './transfer-requests';
+import { MatchingSettingsPanel, RequestMatches } from './transfer-matching';
+import { Presentations, RecordPicker } from './presentations';
+import { Contracts, ContractDetail, PlayerContracts } from './player-contracts';
+import { Notifications } from './notifications';
+import { Tasks } from './tasks';
+import { Meetings } from './meetings';
+import { Dashboard } from './dashboard';
 import { hasCoordinates, type ClubFilters } from '../shared/club-network';
 import type { PrivacyState } from '../shared/privacy';
-import type { ClubRecord, List, PersonRecord, RecordRow, RecordType, Overview, Timeline } from './types';
-import { clubInput, playerInput, personInput, personRoles, requestInput, positions, statuses, relationTypes, relationInput, suggestionInput } from '../shared/domain';
+import type { ClubRecord, List, PersonRecord, RecordRow, RecordType, Timeline } from './types';
+import { clubInput, playerInput, personInput, personRoles, positions, statuses, relationTypes, relationInput, presentationChannels, suggestionInput } from '../shared/domain';
+import type { RequestRecord } from '../shared/transfer-requests';
 
 const pages = [
   { path: '/', key: 'dashboard', icon: LayoutDashboard }, { path: '/clubs', key: 'clubs', icon: Building2 },
@@ -39,6 +48,10 @@ const pages = [
   { path: '/requests', key: 'requests', icon: ArrowLeftRight }, { path: '/proposals', key: 'proposals', icon: ShieldCheck },
   { path: '/sources', key: 'sourceRegistry', icon: Link2 },
   { path: '/birthdays', key: 'birthdayCalendar', icon: CalendarDays },
+  { path: '/presentations', key: 'presentations', icon: ArrowLeftRight },
+  { path: '/contracts', key: 'contracts', icon: ShieldCheck },
+  { path: '/tasks', key: 'tasks', icon: CheckCircle2 },
+  { path: '/agenda', key: 'meetingWorkspace', icon: CalendarDays },
 ];
 const endpoints = { Club: 'clubs', Player: 'players', Person: 'people', Request: 'requests' };
 function useDate() { const { i18n } = useTranslation(); return (value: string) => new Intl.DateTimeFormat(i18n.language === 'tr' ? 'tr-TR' : 'en-GB', { timeZone: 'Europe/Istanbul', day: '2-digit', month: i18n.language === 'tr' ? '2-digit' : 'short', year: 'numeric' }).format(new Date(value)); }
@@ -53,7 +66,7 @@ export function App() {
   const privacy = useQuery({ queryKey: ['privacy'], queryFn: () => api<PrivacyState>('/api/privacy'), enabled: !!session.data });
   const [menu, setMenu] = useState(false);
   const [search, setSearch] = useState(false);
-  const [create, setCreate] = useState<RecordType>();
+  const [create, setCreate] = useState<Exclude<RecordType, 'Request'>>();
   useEffect(() => { document.title = t('brand') + ' ' + t('crm'); document.documentElement.lang = i18n.language; }, [t, i18n.language]);
   useEffect(() => { if (settings.data?.language) void languageInstance.changeLanguage(settings.data.language); }, [settings.data?.language]);
   useEffect(() => { if (settings.data?.theme) document.documentElement.classList.toggle('dark', settings.data.theme === 'dark'); }, [settings.data?.theme]);
@@ -86,17 +99,22 @@ export function App() {
     </aside>
     <div className="main"><header className="topbar">
       <div className="flex gap-3 items-center"><button className="icon-button mobile-menu" aria-label={t('menu')} onClick={() => setMenu(true)}><Menu size={18} /></button><button className="search-box" onClick={() => setSearch(true)}><Search size={17} /><span>{t('search')}</span><span className="shortcut">{t('searchLabel')}</span></button></div>
-      <div className="flex items-center gap-3"><button className="secondary" title={t('language')} onClick={() => { void preference({ language: i18n.language === 'tr' ? 'en' : 'tr' }); }}>{t(i18n.language === 'tr' ? 'en' : 'tr')}</button><button className="icon-button" aria-label={t(settings.data?.theme === 'dark' ? 'light' : 'dark')} onClick={() => { void preference({ theme: settings.data?.theme === 'dark' ? 'light' : 'dark' }); }}>{settings.data?.theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}</button><Link to="/proposals" className="icon-button" aria-label={t('notification')}><Bell size={16} /></Link></div>
+      <div className="flex items-center gap-3"><button className="secondary" title={t('language')} onClick={() => { void preference({ language: i18n.language === 'tr' ? 'en' : 'tr' }); }}>{t(i18n.language === 'tr' ? 'en' : 'tr')}</button><button className="icon-button" aria-label={t(settings.data?.theme === 'dark' ? 'light' : 'dark')} onClick={() => { void preference({ theme: settings.data?.theme === 'dark' ? 'light' : 'dark' }); }}>{settings.data?.theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}</button><Link to="/notifications" className="icon-button" aria-label={t('notification')}><Bell size={16} /></Link></div>
     </header><main className="content"><Routes>
       <Route path="/" element={<Dashboard onCreate={() => setCreate('Club')} />} />
       <Route path="/clubs" element={<Records type="Club" onCreate={() => setCreate('Club')} />} />
       <Route path="/players" element={<PlayerDatabase onCreate={() => setCreate('Player')} />} />
       <Route path="/people" element={<Records type="Person" onCreate={() => setCreate('Person')} />} />
-      <Route path="/requests" element={<Records type="Request" onCreate={() => setCreate('Request')} />} />
+      <Route path="/requests" element={<TransferRequests />} />
       <Route path="/record/:type/:id" element={<RecordDetailRoute />} />
       <Route path="/trash" element={<Trash />} /><Route path="/proposals" element={<Proposals />} />
       <Route path="/sources" element={<ClubSourceRegistry />} />
       <Route path="/birthdays" element={<BirthdayCalendar />} />
+      <Route path="/presentations" element={<Presentations />} />
+      <Route path="/contracts" element={<Contracts />} /><Route path="/contracts/:id" element={<ContractDetail />} />
+      <Route path="/notifications" element={<Notifications />} />
+      <Route path="/tasks" element={<Tasks />} />
+      <Route path="/agenda" element={<Meetings />} />
       <Route path="/settings" element={<Preferences />} />
       <Route path="/privacy" element={<PrivacyNotice state={privacy.data} />} /><Route path="/incident" element={<IncidentChecklist />} />
     </Routes><p className="footer-note">{t('foundation')} · {t('foundationNote')}</p></main></div>
@@ -117,24 +135,6 @@ function Login({ onLogin }: { onLogin: () => void }) {
   </div></div>;
 }
 
-function Dashboard({ onCreate }: { onCreate: () => void }) {
-  const { t, i18n } = useTranslation(); const date = useDate();
-  const q = useQuery({ queryKey: ['overview'], queryFn: () => api<Overview>('/api/overview') });
-  const d = q.data;
-  return <><div className="flex justify-between gap-4 items-center"><div><div className="eyebrow">{t('today')} · {date(new Date().toISOString())}</div><h1>{t('overview')}</h1><p className="subtitle">{t('overviewSub')}</p></div><button className="primary" onClick={onCreate}><Plus size={16} />{t('new')}</button></div>
-    {q.isError && <ErrorMessage />}
-    <div className="metric-grid">{[{ key: 'activeClubs', value: d?.clubs, icon: Building2, to: '/clubs' }, { key: 'playerCount', value: d?.players, icon: Users, to: '/players' }, { key: 'openRequests', value: d?.requests, icon: ArrowLeftRight, to: '/requests' }, { key: 'pendingProposals', value: d?.proposals, icon: ShieldCheck, to: '/proposals' }].map(m => <Link key={m.key} to={m.to} className="panel metric"><div className="metric-top"><span>{t(m.key)}</span><m.icon size={18} /></div><div className="metric-value">{m.value ?? '—'}</div><div className="metric-footer">{t('allRecords')}<ArrowUpRight size={12} /></div></Link>)}</div>
-    {!!d?.pendingUpdates?.length && <section className="panel panel-body mb-6">
-      <h2>{t('proposals')}</h2>
-      {d.pendingUpdates.map(row => <Link key={row.id} className="list-line" to={`/proposals?proposal=${row.id}`}>
-        <span>{row.type === 'injury' ? t('clubUpdate_injury') : row.name}</span><ChevronRight size={14} className="ml-auto muted" />
-      </Link>)}
-    </section>}
-    <div className="dashboard-columns"><div className="space-y-6"><section className="panel"><div className="panel-header"><h2>{t('agenda')}</h2><CalendarDays size={16} className="muted" /></div><div className="panel-body">{!d?.meetings.length ? <Empty /> : d.meetings.map(m => <div className="meeting" key={m.id}><div className="date-box">{new Date(m.date).getUTCDate()}<small>{new Intl.DateTimeFormat(i18n.language, { month: 'short', timeZone: 'Europe/Istanbul' }).format(new Date(m.date))}</small></div><div><div className="text-[13px] font-medium mb-2">{m.name}</div><div className="muted text-[11px]">{m.time} · {m.locationOrUrl}</div></div><ChevronRight size={15} className="muted ml-auto" /></div>)}</div></section><section className="panel"><div className="panel-header"><h2>{t('activity')}</h2><ArrowLeftRight size={16} className="muted" /></div><div className="panel-body">{!d?.recent.length ? <Empty /> : d.recent.map(e => <Link to={['Club', 'Player', 'Person', 'Request'].includes(e.entityType) ? `/record/${e.entityType}/${e.entityId}` : '/settings'} key={e.id} className="list-line"><span className="activity-dot" /><div className="flex-1"><div>{i18n.language === 'tr' ? e.summaryTr : e.summaryEn}</div><div className="muted text-[10px] mt-2">{date(e.createdAt)}</div></div><ArrowUpRight size={14} className="muted" /></Link>)}</div></section></div>
-    <div><section className="panel"><div className="panel-header"><h2>{t('tasks')}</h2><CheckCircle2 size={16} className="muted" /></div><div className="panel-body">{!d?.tasks.length ? <Empty /> : d.tasks.map(task => <div className="list-line" key={task.id}><span className="icon-button"><CheckCircle2 size={14} /></span><div className="flex-1"><div className="mb-2">{task.name}</div><span className="muted text-[10px]">{date(task.dueDate)}</span></div><Badge value={task.priority} /></div>)}</div></section><div className="notice mt-6 flex gap-3"><ShieldCheck size={28} className="text-accent shrink-0" /><div><strong className="block mb-1">{t('private')}</strong>{t('consent')}</div></div></div></div>
-  </>;
-}
-
 function Records({ type, onCreate }: { type: RecordType; onCreate: () => void }) {
   const { t } = useTranslation(); const [page, setPage] = useState(1); const [q, setQ] = useState(''); const [status, setStatus] = useState('');
   const [filters, setFilters] = useState<ClubFilters>({});
@@ -152,10 +152,10 @@ function Records({ type, onCreate }: { type: RecordType; onCreate: () => void })
   </>;
 }
 
-function CreateRecord({ type, onClose }: { type: RecordType; onClose: () => void }) {
+function CreateRecord({ type, onClose }: { type: Exclude<RecordType, 'Request'>; onClose: () => void }) {
   const { t } = useTranslation(); const navigate = useNavigate(); const refresh = useRefresh();
-  const clubs = useRecords('Club'); const people = useRecords('Person');
-  const schema = type === 'Club' ? clubInput : type === 'Player' ? playerInput : type === 'Person' ? personInput : requestInput;
+  const clubs = useRecords('Club');
+  const schema = type === 'Club' ? clubInput : type === 'Player' ? playerInput : personInput;
   const { register, handleSubmit, formState: { errors } } = useForm({ resolver: zodResolver(schema) });
   const mutation = useMutation({ mutationFn: (value: unknown) => api<RecordRow>(`/api/${endpoints[type]}`, { method: 'POST', body: body(value) }), onSuccess: row => { refresh(); onClose(); navigate(`/record/${type}/${row.id}`); } });
   return <Modal title={`${t('new')} · ${t(type)}`} onClose={onClose}><form onSubmit={handleSubmit(value => mutation.mutate(value))}>
@@ -163,7 +163,6 @@ function CreateRecord({ type, onClose }: { type: RecordType; onClose: () => void
     {type === 'Club' && <><label className="field">{t('city')}<input {...register('city')} /></label><label className="field">{t('relationStatus')}<select aria-label={t('relationStatus')} {...register('relationStatus')}>{['NEW', 'WARM', 'ACTIVE', 'COLD'].map(s => <option key={s} value={s}>{t(s)}</option>)}</select></label><label className="field">{t('tracked')}<input type="checkbox" {...register('isTracked')} /></label></>}
     {type === 'Player' && <><label className="field">{t('position')}<select aria-label={t('position')} {...register('primaryPosition')}>{positions.map(s => <option key={s} value={s}>{t(s)}</option>)}</select></label><label className="field">{t('status')}<select aria-label={t('status')} {...register('status')}>{statuses.map(s => <option key={s} value={s}>{t(s)}</option>)}</select></label><label className="field">{t('club')}<select aria-label={t('club')} {...register('currentClubId', { setValueAs: (v: string) => v || undefined })}><option value="">{t('select')}</option>{clubs.data?.items.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select></label><label className="field">{t('birthDate')}<input type="date" {...register('birthDate', { setValueAs: (v: string) => v || undefined })} /></label></>}
     {type === 'Person' && <label className="field">{t('role')}<select aria-label={t('role')} {...register('role')}>{personRoles.map(role => <option key={role} value={role}>{t(role)}</option>)}</select></label>}
-    {type === 'Request' && <><label className="field">{t('club')}<select aria-label={t('club')} {...register('clubId')}><option value="">{t('select')}</option>{clubs.data?.items.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select></label><label className="field">{t('person')}<select aria-label={t('person')} {...register('requesterId')}><option value="">{t('select')}</option>{people.data?.items.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select></label><label className="field">{t('position')}<select aria-label={t('position')} {...register('position')}>{positions.map(p => <option key={p} value={p}>{t(p)}</option>)}</select></label></>}
     {!!Object.keys(errors).length && <p role="alert" className="error">{t('invalid')}</p>}{mutation.isError && <ErrorMessage />}<div className="form-footer"><button className="secondary" type="button" onClick={onClose}>{t('cancel')}</button><button className="primary" disabled={mutation.isPending}>{t('create')}</button></div>
   </form></Modal>;
 }
@@ -185,7 +184,9 @@ function Detail() {
   if (record.isError) return <ErrorMessage />; if (!record.data) return <p role="status">{t('loading')}</p>; const row = record.data;
   const timelinePanel = <section className="panel"><div className="panel-header"><h2>{t('timeline')}</h2><ArrowLeftRight size={15} /></div><div className="panel-body">{!timeline.data?.length ? <Empty /> : timeline.data.map(e => <div key={e.id} className="list-line"><span className="activity-dot" /><div><div>{i18n.language === 'tr' ? e.summaryTr : e.summaryEn}</div><p className="muted text-[10px] mt-2">{date(e.createdAt)}</p></div></div>)}</div></section>;
   const overview = <>
+    {type === 'Request' && <><RequestSummary request={row as RequestRecord} /><RequestMatches id={row.id} version={row.version} /></>}
     {type === 'Player' && <PlayerCardPanel key={row.id} id={row.id} version={row.version} />}
+    {type === 'Player' && <PlayerContracts key={`contracts:${row.id}`} id={row.id} />}
     {type === 'Person' && <PersonProfile key={`profile:${row.id}`} person={row as PersonRecord} />}
     {type === 'Person' && <PersonNetwork key={`network:${row.id}`} id={row.id} />}
     <div className="detail-grid"><div className="space-y-5"><section className="panel"><div className="panel-header"><h2>{t('overview')}</h2><Badge value="unverified" /></div><div className="panel-body">{(type === 'Player' ? ['primaryPosition', 'status'] : type === 'Person' ? ['role'] : ['city']).map(key => <div className="detail-field" key={key}><span className="muted">{t(key === 'primaryPosition' ? 'position' : key)}</span><span>{t(String(row[key as keyof RecordRow] || 'empty'))}</span></div>)}{(type === 'Player' || type === 'Person') && <Sensitive key={`${type}:${row.id}:${row.version}`} type={type} id={row.id} field="birthDate" />}<div className="detail-field"><span className="muted">{t('version')}</span><span>{row.version}</span></div><p className="muted text-[10px] mt-5">{t('noSensitiveExports')}</p></div></section><section className="panel"><div className="panel-header"><h2>{t('relations')}</h2><Link2 size={15} /></div><div className="panel-body">{['outgoing', 'incoming'].map(direction => <div key={direction}><h3 className="muted text-xs my-4">{t(direction)}</h3>{!links.data?.filter(l => l.direction === direction).length ? <p className="muted text-xs">{t('empty')}</p> : links.data.filter(l => l.direction === direction).map(l => <div key={l.id} className="list-line"><span className="muted">{t(l.relation)}</span>{l.available ? <Link className="ml-auto text-accent" to={`/record/${l.targetType}/${l.targetId}`}>{l.label}</Link> : <span className="ml-auto muted">{t('trash')}</span>}</div>)}</div>)}</div></section></div>{timelinePanel}</div>
@@ -199,7 +200,7 @@ function Detail() {
       <PlayerMarketPanel key={row.id} id={row.id} /><PlayerBiography key={row.id} id={row.id} version={row.version} html={row.bio ?? ''} /><ProfileExport id={row.id} version={row.version} /></>}
     <AttachmentPanel type={type} id={row.id} />
   </>;
-  return <><div className="eyebrow"><Link to={`/${endpoints[type]}`}>{t(endpoints[type])}</Link></div><div className="flex justify-between gap-3 flex-wrap"><div><h1>{row.name}</h1><div className="flex gap-3 mt-3"><Badge value={row.status || row.relationStatus || 'NEW'} />{row.isExample && <span className="badge">{t('example')}</span>}</div></div><div className="flex gap-2 items-start">{type === 'Request' && <button className="primary" onClick={() => setModal('suggest')}><Plus size={15} />{t('suggest')}</button>}<button className="secondary" onClick={() => setModal('relation')}><Link2 size={15} />{t('addRelation')}</button><button className="icon-button" aria-label={t('delete')} onClick={() => setModal('delete')}><Trash2 size={15} /></button></div></div>
+  return <><div className="eyebrow"><Link to={`/${endpoints[type]}`}>{t(endpoints[type])}</Link></div><div className="flex justify-between gap-3 flex-wrap"><div><h1>{row.name}</h1><div className="flex gap-3 mt-3"><Badge value={row.status || row.relationStatus || 'NEW'} />{row.isExample && <span className="badge">{t('example')}</span>}</div></div><div className="flex gap-2 items-start">{type === 'Request' && row.status !== 'CLOSED' && <button className="primary" onClick={() => setModal('suggest')}><Plus size={15} />{t('suggest')}</button>}<button className="secondary" onClick={() => setModal('relation')}><Link2 size={15} />{t('addRelation')}</button><button className="icon-button" aria-label={t('delete')} onClick={() => setModal('delete')}><Trash2 size={15} /></button></div></div>
     {type === 'Club' ? <ClubWorkspace key={row.id} club={row as ClubRecord} overview={overview} /> : overview}
     {modal === 'birthday' && type === 'Player' && <BirthdayEditor kind={type} subject={{ ...row, hideBirthYear: !!row.hideBirthYear }} onClose={() => setModal(undefined)} onSaved={() => setModal(undefined)} />}
     {modal === 'greeting' && (type === 'Player' || type === 'Person') && <GreetingEditor subject={{ ...row, kind: type }} onClose={() => setModal(undefined)} onSaved={() => { refresh(); setModal(undefined); }} />}
@@ -238,12 +239,45 @@ function AddRelation({ type, id, onClose }: { type: RecordType; id: string; onCl
   function submit(event: FormEvent<HTMLFormElement>) { event.preventDefault(); const data = Object.fromEntries(new FormData(event.currentTarget)); const parsed = relationInput.safeParse({ ...data, fromType: type, fromId: id, toType: target }); if (parsed.success) mutation.mutate(parsed.data); }
   return <Modal title={t('addRelation')} onClose={onClose}><form onSubmit={submit}><label className="field">{t('targetType')}<select aria-label={t('targetType')} value={target} onChange={e => setTarget(e.target.value as RecordType)}>{['Club', 'Person', 'Player', 'Request'].map(v => <option key={v} value={v}>{t(v)}</option>)}</select></label><label className="field">{t('target')}<select aria-label={t('target')} required name="toId">{records.data?.items.filter(row => row.id !== id).map(row => <option key={row.id} value={row.id}>{row.name}</option>)}</select></label><label className="field">{t('relation')}<select aria-label={t('relation')} name="relation">{relationTypes.map(v => <option key={v} value={v}>{t(v)}</option>)}</select></label>{mutation.isError && <ErrorMessage />}<div className="form-footer"><button className="primary" disabled={mutation.isPending}>{t('save')}</button></div></form></Modal>;
 }
-function Suggest({ request, onClose }: { request: RecordRow; onClose: () => void }) {
-  const { t } = useTranslation(); const players = useRecords('Player'); const refresh = useRefresh();
+function Suggest({ request: initial, onClose }: { request: RecordRow; onClose: () => void }) {
+  const { t } = useTranslation(); const refresh = useRefresh();
+  const [player, setPlayer] = useState<{ id: string; name: string }>();
+  const [request] = useState(initial);
+  const contacts = useRequestContacts(request.clubId ?? '');
+  const [contact, setContact] = useState(request.requesterId ?? '');
+  const selectedContact = contacts.data?.some(person => person.id === contact) ? contact : '';
   const mutation = useMutation({ mutationFn: (data: z.infer<typeof suggestionInput>) => api('/api/suggestions', { method: 'POST', body: body(data) }), onSuccess: () => { refresh(); onClose(); } });
   const [invalid, setInvalid] = useState(false);
-  function submit(event: FormEvent<HTMLFormElement>) { event.preventDefault(); const form = Object.fromEntries(new FormData(event.currentTarget)); const parsed = suggestionInput.safeParse({ requestId: request.id, personId: request.requesterId, ...form, matchScore: form.matchScore ? Number(form.matchScore) : null }); setInvalid(!parsed.success); if (parsed.success) mutation.mutate(parsed.data); }
-  return <Modal title={t('suggest')} onClose={onClose}><form onSubmit={submit}><label className="field">{t('player')}<select aria-label={t('player')} name="playerId" required>{players.data?.items.map(row => <option key={row.id} value={row.id}>{row.name}</option>)}</select></label><label className="field">{t('why')}<textarea name="whyGoodTransfer" required minLength={3} /></label><label className="field">{t('score')}<input name="matchScore" type="number" min={0} max={100} /></label><p className="notice">{t('missingScore')}</p>{invalid && <p className="error" role="alert">{t('invalid')}</p>}{mutation.isError && <ErrorMessage />}<div className="form-footer"><button className="primary" disabled={mutation.isPending}>{t('save')}</button></div></form></Modal>;
+  function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const form = Object.fromEntries(new FormData(event.currentTarget));
+    const parsed = suggestionInput.safeParse({
+      ...form, playerId: player?.id, requestId: request.id, requestVersion: request.version, personId: selectedContact,
+      matchScore: form.matchScore ? Number(form.matchScore) : null, followUpDate: form.followUpDate || undefined,
+    });
+    setInvalid(!parsed.success);
+    if (parsed.success) mutation.mutate(parsed.data);
+  }
+  return <Modal title={t('suggest')} onClose={onClose}><form onSubmit={submit}>
+    {request.club && <p className="muted mb-3">{t('club')} · {request.club.name}</p>}
+    <RecordPicker type="Player" value={player} onChange={setPlayer} />
+    <label className="field">{t('requestContact')}<select value={selectedContact} required onChange={event => setContact(event.target.value)}>
+      <option value="">{t('select')}</option>{contacts.data?.map(person => <option key={person.id} value={person.id}>{person.name}</option>)}
+    </select></label>
+    <label className="field">{t('why')}<textarea name="whyGoodTransfer" required minLength={3} /></label>
+    <div className="grid sm:grid-cols-2 gap-3">
+      <label className="field">{t('presentationChannel')}<select name="channel" defaultValue="EMAIL">
+        {presentationChannels.map(channel => <option key={channel} value={channel}>{t(`presentationChannel_${channel}`)}</option>)}
+      </select></label>
+      <label className="field">{t('presentationFollowUp')}<input type="date" name="followUpDate" aria-describedby="suggestion-follow-up-default" /></label>
+    </div>
+    <p className="muted text-xs" id="suggestion-follow-up-default">{t('presentationFollowUpDefault')}</p>
+    <label className="field">{t('score')}<input name="matchScore" type="number" min={0} max={100} step={0.01} /></label>
+    <p className="notice">{t('missingScore')}</p>
+    {invalid && <p className="error" role="alert">{t('invalid')}</p>}
+    {(mutation.isError || contacts.isError) && <ErrorMessage />}
+    <div className="form-footer"><button className="primary" disabled={mutation.isPending || !selectedContact}>{t('save')}</button></div>
+  </form></Modal>;
 }
 function Trash() {
   const { t } = useTranslation(); const refresh = useRefresh(); const [purge, setPurge] = useState<string>();
@@ -256,7 +290,7 @@ function Trash() {
   return <><h1>{t('trash')}</h1><div className="panel mt-7 panel-body">{!data.data?.length ? <Empty /> : data.data.map(row => <div key={row.id} className="list-line"><span>{row.label}</span><button className="secondary ml-auto" disabled={mutation.isPending} onClick={() => mutation.mutate({ id: row.id, action: 'restore' })}>{t('restore')}</button><button className="danger" onClick={() => setPurge(row.id)}>{t('purge')}</button></div>)}{mutation.isError && <ErrorMessage />}</div>{purge && <Modal title={t('purge')} onClose={() => setPurge(undefined)}><p className="subtitle">{t('purgeConfirm')}</p>{preview.isPending && <p role="status">{t('previewLoading')}</p>}{preview.isError && <ErrorMessage />}{preview.data && <ImpactList plan={preview.data} />}<div className="form-footer"><button className="secondary" onClick={() => { void preview.refetch(); refresh(); }}>{t('refreshPreview')}</button><button className="danger" disabled={!preview.data?.canPurge || mutation.isPending} onClick={() => mutation.mutate({ id: purge, action: 'purge' })}>{t('purge')}</button></div></Modal>}</>;
 }
 function Preferences() {
-  const { t } = useTranslation(); return <><h1>{t('settings')}</h1><div className="panel panel-body mt-7 space-y-6"><h2>{t('security')}</h2><p className="notice">{t('consent')}</p><button className="danger" onClick={() => { void api('/api/logout-all', { method: 'POST' }).then(() => location.reload()); }}>{t('logoutAll')}</button><h2>{t('compliance')}</h2><p className="notice">{t('notReviewed')}</p><p className="subtitle">{t('legal')}</p></div><RetentionControls /><FileMaintenance /><SensitiveAccessLog /><ScoringWeightsPanel /><LeagueTiersPanel /><AdminControls /></>;
+  const { t } = useTranslation(); return <><h1>{t('settings')}</h1><div className="panel panel-body mt-7 space-y-6"><h2>{t('security')}</h2><p className="notice">{t('consent')}</p><button className="danger" onClick={() => { void api('/api/logout-all', { method: 'POST' }).then(() => location.reload()); }}>{t('logoutAll')}</button><h2>{t('compliance')}</h2><p className="notice">{t('notReviewed')}</p><p className="subtitle">{t('legal')}</p></div><RetentionControls /><FileMaintenance /><SensitiveAccessLog /><ScoringWeightsPanel /><LeagueTiersPanel /><MatchingSettingsPanel /><AdminControls /></>;
 }
 function GlobalSearch({ onClose }: { onClose: () => void }) {
   const { t } = useTranslation(); const [q, setQ] = useState(''); const navigate = useNavigate();

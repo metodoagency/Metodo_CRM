@@ -539,6 +539,7 @@ model Person {
 }
 
 model Agent {
+ contractLinks Contract[]
  licenseRecordLinks LicenseRecord[]
  id String @id @default(uuid()) @db.Uuid
  ownerId String @default("owner")
@@ -658,6 +659,12 @@ model Player {
 }
 
 model Contract {
+ agentId String? @db.Uuid
+ agent Agent? @relation(fields: [agentId], references: [id], onDelete: Restrict)
+ sourceDate DateTime? @db.Date
+ methodNote String?
+ @@index([agentId])
+ @@index([ownerId, deletedAt, endDate, id])
  id String @id @default(uuid()) @db.Uuid
  ownerId String @default("owner")
  owner Owner @relation(fields: [ownerId], references: [id])
@@ -926,6 +933,7 @@ model Meeting {
  date DateTime @db.Date
  time String
  durationMin Int @default(60)
+ utcOffsetSeconds Int?
  locationOrUrl String?
  participants Json @default("[]")
  agenda String @default("")
@@ -934,6 +942,7 @@ model Meeting {
  @@index([ownerId, deletedAt])
  @@index([ownerId])
  @@index([ownerId, date])
+ @@index([ownerId, deletedAt, date, time, id])
 }
 
 model Task {
@@ -957,12 +966,15 @@ model Task {
  dueDate DateTime @db.Date
  status TaskStatus @default(OPEN)
  recurrence Recurrence @default(NONE)
+ generationKey String? @unique
+ recurrenceGenerated Boolean @default(false)
  entityType String?
  entityId String?
  @@index([ownerId, deletedAt])
  @@index([ownerId])
  @@index([entityId])
  @@index([ownerId, dueDate])
+ @@index([ownerId, deletedAt, status, dueDate, id])
 }
 
 model Match {

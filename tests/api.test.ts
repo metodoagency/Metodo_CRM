@@ -23,20 +23,23 @@ import JSZip from 'jszip';
 import sharp from 'sharp';
 import { ageOn, istanbulToday } from '../shared/domain.js';
 import { readBirthdayCalendar, refreshBirthdayReminders } from '../server/birthdays.js';
+import { refreshContractReminders } from '../server/contract-reminders.js';
+import { listNotifications, unreadNotificationCount } from '../server/notifications.js';
 
 const fileStorage = new LocalFileStorage('.local/tmp/api-files');
 const processingCalls: ProcessingPreview['payload'][] = [];
 const processor: DocumentProcessor = { id: 'example-processor', revision: '1', location: 'external', destination: 'https://example.com/process', process: async payload => { processingCalls.push(payload); return { candidates: [{ salary: '100', excerpt: payload.text }] }; } };
 
 const origin = 'http://localhost:5173';
-let app: FastifyInstance; let cookie = ''; let csrf = ''; let loginIp = 1;
+let app: FastifyInstance; let cookie = ''; let csrf = ''; let loginIp = 1; let clientIp = '127.1.0.1';
 async function login(email = 'owner@example.com') {
-  const res = await app.inject({ method: 'POST', url: '/auth/test', remoteAddress: `127.1.0.${loginIp++}`, headers: { origin }, payload: { email } });
+  clientIp = `127.1.0.${loginIp++}`;
+  const res = await app.inject({ method: 'POST', url: '/auth/test', remoteAddress: clientIp, headers: { origin }, payload: { email } });
   cookie = String(res.headers['set-cookie']).split(';')[0];
-  if (res.statusCode === 200) csrf = (await app.inject({ url: '/api/me', headers: { cookie } })).json().csrfToken;
+  if (res.statusCode === 200) csrf = (await app.inject({ url: '/api/me', remoteAddress: clientIp, headers: { cookie } })).json().csrfToken;
   return res;
 }
-function request(method: 'GET' | 'POST' | 'PATCH' | 'DELETE', url: string, payload?: Record<string, unknown>) { return app.inject({ method, url, headers: { cookie, origin, 'x-csrf-token': csrf }, ...(payload === undefined ? {} : { payload }) }); }
+function request(method: 'GET' | 'POST' | 'PATCH' | 'DELETE', url: string, payload?: Record<string, unknown>) { return app.inject({ method, url, remoteAddress: clientIp, headers: { cookie, origin, 'x-csrf-token': csrf }, ...(payload === undefined ? {} : { payload }) }); }
 async function club(name = 'Örnek Test Kulübü') { return (await request('POST', '/api/clubs', { name })).json(); }
 beforeAll(async () => { app = await buildApp({ db, storage: fileStorage, processors: [processor], config: readConfig({ ...process.env, NODE_ENV: 'test', APP_ORIGIN: origin, ALLOWED_EMAILS: 'owner@example.com', EXTERNAL_PROCESSING_ENABLED: 'true' }) }); });
 beforeEach(async () => {
@@ -53,6 +56,250 @@ afterEach(async () => {
 afterAll(async () => { await app.close(); await db.$disconnect(); });
 
 const pdfFile = Buffer.from('%PDF-1.7\n%%EOF');
+const contractDraft = () => ({
+  name: 'Örnek İş Sözleşmesi', type: 'EMPLOYMENT', clubId: null, agentId: null, signedDate: '2026-01-01',
+  startDate: '2026-01-01', endDate: '2027-01-01', isActive: true,
+  salaryAmount: '9007199254740991.99', salaryCurrency: 'EUR', salaryPeriod: 'YEAR', salaryBasis: 'GROSS',
+  bonuses: 'Örnek gizli prim 72193', paymentDay: null, releaseClause: null, buyout: null,
+  extensionOption: null, noticeDeadline: null, representation: null, documentLink: null,
+  sourceUrl: 'https://example.com/contract', sourceDate: '2026-01-01', methodNote: 'Örnek elle belge kaydı',
+});
+async function ownPlayer() { return (await request('POST', '/api/players', { name: 'Örnek Sözleşmeli Oyuncu', primaryPosition: 'CM', status: 'OWN' })).json(); }
+describe('sensitive paths: notification center', () => {
+  async function reminders() {
+    const player = await ownPlayer(); const endDate = istanbulToday();
+    const contract = (await request('POST', `/api/players/${player.id}/contracts`, { ...contractDraft(), startDate: '2020-01-01', endDate })).json();
+    expect(await refreshContractReminders(db)).toBe(3);
+    return { player, contract, rows: await db.notification.findMany({ where: { entityId: contract.id }, orderBy: { id: 'asc' } }) };
+  }
+  it('reads and snoozes with optimistic versions, immutable dedupe identity and value-free audit', async () => {
+    const { contract, rows } = await reminders(); const row = rows[0]; const path = `/api/notifications/${row.id}`;
+    const read = await request('PATCH', path, { version: 1, action: 'read' });
+    expect(read.statusCode, read.body).toBe(200); expect(read.json()).toMatchObject({ version: 2, status: 'READ', snoozedUntil: null });
+    expect((await request('PATCH', path, { version: 1, action: 'snooze1' })).statusCode).toBe(409);
+    const start = Date.now(); expect((await request('PATCH', path, { version: 2, action: 'snooze1' })).statusCode).toBe(200);
+    let saved = await db.notification.findUniqueOrThrow({ where: { id: row.id } });
+    expect(saved.snoozedUntil!.getTime()).toBeGreaterThanOrEqual(start + 86400_000);
+    expect(saved.snoozedUntil!.getTime()).toBeLessThanOrEqual(Date.now() + 86400_000);
+    expect((await request('GET', '/api/notifications?view=snoozed')).json()).toMatchObject({ total: 1, unread: 2 });
+    const day7 = Date.now(); expect((await request('PATCH', path, { version: 3, action: 'snooze7' })).statusCode).toBe(200);
+    saved = await db.notification.findUniqueOrThrow({ where: { id: row.id } });
+    expect(saved.snoozedUntil!.getTime()).toBeGreaterThanOrEqual(day7 + 7 * 86400_000);
+    expect(saved.snoozedUntil!.getTime()).toBeLessThanOrEqual(Date.now() + 7 * 86400_000);
+    expect(saved).toMatchObject({ dedupeKey: row.dedupeKey, targetDate: row.targetDate, thresholdDays: row.thresholdDays, version: 4 });
+    expect(await refreshContractReminders(db)).toBe(0); expect(await db.notification.count()).toBe(3);
+    expect((await request('PATCH', path, { version: 4, action: 'read' })).json()).toMatchObject({ version: 5, status: 'READ', snoozedUntil: null });
+    expect((await request('GET', '/api/notifications?view=read')).json()).toMatchObject({ total: 1 });
+    const logs = await db.auditLog.findMany({ where: { entityType: 'Notification', entityId: row.id } });
+    expect(logs).toHaveLength(4); const text = JSON.stringify(logs);
+    expect(text).not.toContain(contractDraft().salaryAmount); expect(text).not.toContain(contractDraft().bonuses);
+    expect(text).not.toContain(contract.name); expect(text).not.toContain('targetDate'); expect(text).not.toContain('dedupeKey');
+    expect((await request('GET', '/api/overview')).json().notifications).toBe(2);
+  });
+  it('wakes expired snoozes on reads without jobs or changing versions, with the same dashboard count', async () => {
+    const { rows } = await reminders(); const now = new Date('2026-11-19T21:00:00Z');
+    await db.notification.update({ where: { id: rows[0].id }, data: { status: 'SNOOZED', snoozedUntil: now } });
+    await db.notification.update({ where: { id: rows[1].id }, data: { status: 'SNOOZED', snoozedUntil: new Date(now.getTime() + 1) } });
+    await db.notification.update({ where: { id: rows[2].id }, data: { status: 'READ' } });
+    const result = await db.$transaction(async tx => ({ list: await listNotifications(tx, { page: 1, view: 'unread' }, now), count: await unreadNotificationCount(tx, now) }));
+    expect(result.count).toBe(1); expect(result.list).toMatchObject({ unread: 1, total: 1, items: [{ id: rows[0].id, status: 'NEW', version: 1 }] });
+    expect((await db.notification.findUniqueOrThrow({ where: { id: rows[0].id } })).status).toBe('SNOOZED');
+    await db.notification.updateMany({ where: { status: 'SNOOZED' }, data: { snoozedUntil: new Date(Date.now() - 10000) } });
+    const api = (await request('GET', '/api/notifications')).json(); expect(api.unread).toBe(2);
+    expect((await request('GET', '/api/overview')).json().notifications).toBe(api.unread);
+  });
+  it('excludes birthday occurrences and unknown rules without disclosure or reveal logs', async () => {
+    const { rows, player } = await reminders();
+    await db.notification.create({ data: { entityType: 'Player', entityId: player.id, type: 'BIRTHDAY', targetDate: new Date('2026-02-03'), thresholdDays: 30, dedupeKey: 'owner:BIRTHDAY:example' } });
+    await db.notification.create({ data: { entityType: 'Player', entityId: player.id, type: 'FUTURE_PRIVATE_RULE', targetDate: new Date('2026-02-04'), thresholdDays: 7, dedupeKey: 'owner:FUTURE:example' } });
+    const result = await request('GET', '/api/notifications?view=all'); expect(result.json()).toMatchObject({ total: 3, unread: 3 });
+    expect(Object.keys(result.json().items[0]).sort()).toEqual(['id', 'version', 'type', 'entityType', 'entityId', 'name', 'targetDate', 'thresholdDays', 'status', 'snoozedUntil'].sort());
+    expect(result.body).not.toContain('2026-02-03'); expect(result.body).not.toContain('BIRTHDAY'); expect(result.body).not.toContain('salaryAmount'); expect(result.body).not.toContain('fieldProvenance');
+    expect(await db.auditLog.count({ where: { action: 'reveal' } })).toBe(0);
+    const birthday = await db.notification.findFirstOrThrow({ where: { type: 'BIRTHDAY' } });
+    expect((await request('PATCH', `/api/notifications/${birthday.id}`, { version: 1, action: 'read' })).statusCode).toBe(404);
+    expect(await db.notification.count()).toBe(rows.length + 2);
+  });
+  it('rejects foreign, deleted and changed targets while retaining stored notification history', async () => {
+    const { contract, rows } = await reminders();
+    const foreign = await db.owner.create({ data: { id: 'other-owner', email: encrypt('other@example.com', 'Owner.email') } });
+    await db.notification.update({ where: { id: rows[0].id }, data: { ownerId: foreign.id } });
+    await db.notification.update({ where: { id: rows[1].id }, data: { deletedAt: new Date() } });
+    expect((await request('GET', '/api/notifications?view=all')).json().total).toBe(1);
+    for (const row of rows.slice(0, 2)) expect((await request('PATCH', `/api/notifications/${row.id}`, { version: 1, action: 'read' })).statusCode).toBe(404);
+    const next = new Date(istanbulToday()); next.setUTCDate(next.getUTCDate() + 1);
+    expect((await request('PATCH', `/api/contracts/${contract.id}`, { version: 1, changes: { endDate: next.toISOString().slice(0, 10) } })).statusCode).toBe(200);
+    expect((await request('GET', '/api/notifications?view=all')).json().total).toBe(0);
+    expect((await request('PATCH', `/api/notifications/${rows[2].id}`, { version: 1, action: 'read' })).statusCode).toBe(404);
+    expect(await db.notification.count()).toBe(3); expect(await db.auditLog.count({ where: { entityType: 'Notification' } })).toBe(0);
+  });
+  it('hides notifications after a live parent is deleted and rejects simultaneous stale actions', async () => {
+    const { player, rows } = await reminders(); const path = `/api/notifications/${rows[0].id}`;
+    const replies = await Promise.all([request('PATCH', path, { version: 1, action: 'read' }), request('PATCH', path, { version: 1, action: 'snooze7' })]);
+    expect(replies.map(reply => reply.statusCode).sort()).toEqual([200, 409]);
+    expect(await db.auditLog.count({ where: { entityType: 'Notification' } })).toBe(1);
+    await db.player.update({ where: { id: player.id }, data: { deletedAt: new Date() } });
+    expect((await request('GET', '/api/notifications?view=all')).json().total).toBe(0);
+    expect((await request('PATCH', `/api/notifications/${rows[1].id}`, { version: 1, action: 'read' })).statusCode).toBe(404);
+    expect(await db.notification.count()).toBe(3);
+  });
+  it('enforces route authentication, CSRF, origin and strict mutation schemas', async () => {
+    const { rows } = await reminders(); const path = `/api/notifications/${rows[0].id}`;
+    expect((await app.inject({ url: '/api/notifications' })).statusCode).toBe(401);
+    expect((await app.inject({ method: 'PATCH', url: path, headers: { cookie, origin }, payload: { version: 1, action: 'read' } })).statusCode).toBe(403);
+    expect((await app.inject({ method: 'PATCH', url: path, headers: { cookie, origin: 'https://example.com', 'x-csrf-token': csrf }, payload: { version: 1, action: 'read' } })).statusCode).toBe(403);
+    for (const payload of [{ version: 1, action: 'snooze2' }, { version: 1, action: 'read', status: 'READ' }, { version: 1, action: 'snooze7', snoozedUntil: '2028-01-01' }]) expect((await request('PATCH', path, payload)).statusCode).toBe(400);
+    expect((await request('GET', '/api/notifications?view=all&page=0')).statusCode).toBe(400);
+    expect((await db.notification.findUniqueOrThrow({ where: { id: rows[0].id } })).version).toBe(1);
+  });
+});
+
+describe('sensitive paths: manual contracts', () => {
+  it('uses private contract files and denies downloads while their parent is deleted', async () => {
+    const player = await ownPlayer(); const record = (await request('POST', `/api/players/${player.id}/contracts`, contractDraft())).json();
+    const uploaded = await uploadFile(record.id, pdfFile, 'application/pdf', '', 'Contract');
+    expect(uploaded.statusCode, uploaded.body).toBe(201); const file = uploaded.json();
+    expect((await request('POST', `/api/files/${file.id}/download`, { version: file.version })).statusCode).toBe(200);
+    expect((await request('DELETE', `/api/contracts/${record.id}`, { version: 1 })).statusCode).toBe(200);
+    expect((await request('POST', `/api/files/${file.id}/download`, { version: file.version })).statusCode).toBe(404);
+    const entry = await db.trashEntry.findFirstOrThrow({ where: { entityId: record.id } });
+    expect((await request('POST', `/api/trash/${entry.id}/restore`, { version: entry.version, recordVersion: 2 })).statusCode).toBe(200);
+    expect((await request('GET', `/api/records/Contract/${record.id}/files`)).json().items).toMatchObject([{ id: file.id }]);
+    expect((await request('POST', `/api/files/${file.id}/download`, { version: file.version })).statusCode).toBe(200);
+  });
+  it('encrypts salary and bonuses, preserves omitted fields and records manual evidence without private audit values', async () => {
+    const player = await ownPlayer(); const input = contractDraft();
+    const created = await request('POST', `/api/players/${player.id}/contracts`, input);
+    expect(created.statusCode, created.body).toBe(201); const record = created.json(); const path = `/api/contracts/${record.id}`;
+    const stored = await db.contract.findUniqueOrThrow({ where: { id: record.id } });
+    expect(decrypt(stored.salaryAmount!, 'Contract.salaryAmount')).toBe(input.salaryAmount);
+    expect(stored.salaryAmount).not.toContain(input.salaryAmount); expect(stored.bonuses).not.toContain(input.bonuses);
+    expect(stored.fieldProvenance).toMatchObject({ salaryAmount: { sourceType: 'MANUAL', sourceUrl: input.sourceUrl, verificationStatus: 'UNVERIFIED' } });
+    for (const url of [path, '/api/contracts']) {
+      const result = await request('GET', url); expect(result.statusCode).toBe(200);
+      for (const value of [input.salaryAmount, input.bonuses, stored.salaryAmount!, stored.bonuses!]) expect(result.body).not.toContain(value);
+    }
+    expect((await request('PATCH', path, { version: 1, changes: { name: 'Örnek Yeni Ad' } })).statusCode).toBe(200);
+    expect((await db.contract.findUniqueOrThrow({ where: { id: record.id } })).salaryAmount).toBe(stored.salaryAmount);
+    expect((await request('PATCH', path, { version: 1, changes: { isActive: false } })).statusCode).toBe(409);
+    expect((await request('PATCH', path, { version: 2, changes: { endDate: '2025-01-01' } })).statusCode).toBe(400);
+    expect((await request('PATCH', path, { version: 2, changes: { representation: { scope: '', startDate: '2026-06-01', endDate: '2026-05-01', commissionRate: null, paymentTerms: '' } } })).statusCode).toBe(400);
+    expect((await request('PATCH', path, { version: 2, changes: { bonuses: '   ' } })).statusCode).toBe(400);
+    const changed = await db.timelineEvent.findFirstOrThrow({ where: { entityId: record.id, action: 'update' } });
+    expect(changed.diffs).toMatchObject({ old: { name: input.name }, new: { name: 'Örnek Yeni Ad' } });
+    expect((await request('POST', `${path}/reveal`, { version: 2, field: 'salaryAmount' })).json()).toMatchObject({ value: input.salaryAmount, expiresIn: 60 });
+    expect((await request('POST', `${path}/reveal`, { version: 1, field: 'bonuses' })).statusCode).toBe(409);
+    expect((await request('PATCH', path, { version: 2, changes: { salaryAmount: null, bonuses: null } })).statusCode).toBe(200);
+    expect((await db.contract.findUniqueOrThrow({ where: { id: record.id } })).salaryAmount).toBeNull();
+    const logs = JSON.stringify(await db.auditLog.findMany({ where: { entityId: record.id } }));
+    expect(logs).not.toContain(input.salaryAmount); expect(logs).not.toContain(input.bonuses);
+    expect((await db.auditLog.findFirstOrThrow({ where: { entityId: record.id, action: 'reveal' } })).diffs).toEqual({ field: 'salaryAmount' });
+    expect((await request('GET', `${path}/timeline`)).json().length).toBe(3);
+  });
+
+  it('keeps multiple active contracts and historical records after a player panel changes, but restricts new records', async () => {
+    const player = await ownPlayer(); const path = `/api/players/${player.id}/contracts`;
+    const first = await request('POST', path, contractDraft()); const second = await request('POST', path, contractDraft());
+    expect(first.statusCode).toBe(201); expect(second.statusCode).toBe(201);
+    expect(await db.contract.count({ where: { playerId: player.id, isActive: true } })).toBe(2);
+    await db.player.update({ where: { id: player.id }, data: { status: 'TARGET' } });
+    expect((await request('POST', path, contractDraft())).json().code).toBe('CONTRACT_PLAYER_REQUIRED');
+    expect((await request('PATCH', `/api/contracts/${first.json().id}`, { version: 1, changes: { isActive: false } })).statusCode).toBe(200);
+    expect((await request('GET', `/api/contracts?playerId=${player.id}&active=true`)).json().total).toBe(1);
+    expect((await request('GET', `/api/contracts/${second.json().id}`)).statusCode).toBe(200);
+  });
+
+  it('preserves legacy untyped clauses and hidden salary when editing an unrelated field', async () => {
+    await seedExamples(db);
+    const legacy = await db.contract.findFirstOrThrow(); const path = `/api/contracts/${legacy.id}`;
+    expect((await request('GET', path)).json().legacyGroups).toContain('releaseClause');
+    expect((await request('PATCH', path, { version: legacy.version, changes: { isActive: false } })).statusCode).toBe(200);
+    const after = await db.contract.findUniqueOrThrow({ where: { id: legacy.id } });
+    expect(after.salaryAmount).toBe(legacy.salaryAmount); expect(after.releaseClause).toEqual(legacy.releaseClause); expect(after.type).toBe(legacy.type);
+    expect((await request('PATCH', path, { version: after.version, changes: { salaryAmount: '100.00' } })).statusCode).toBe(400);
+    expect((await request('PATCH', path, { version: after.version, changes: { verificationStatus: 'VERIFIED' } })).statusCode).toBe(400);
+  });
+
+  it('scopes counterpart and parent access and requires a separate audited minor check', async () => {
+    const player = await ownPlayer(); const birthDate = `${Number(istanbulToday().slice(0, 4)) - 17}-01-01`;
+    await db.player.update({ where: { id: player.id }, data: { birthDate: encrypt(birthDate, 'Player.birthDate') } });
+    const agent = await db.agent.create({ data: { name: 'Örnek Taraf Menajeri', countries: [], markets: [], networkMemberships: [] } });
+    const created = await request('POST', `/api/players/${player.id}/contracts`, { ...contractDraft(), agentId: agent.id });
+    expect(created.statusCode, created.body).toBe(201); const path = `/api/contracts/${created.json().id}`;
+    expect((await request('GET', path)).body).not.toContain('minor');
+    const reveal = await request('POST', `${path}/reveal`, { version: 1, field: 'compliance' });
+    expect(reveal.json()).toMatchObject({ minor: true, status: 'NOT REVIEWED', expiresIn: 60, checkpoints: [{ id: 'minors-review', version: '0.1.0' }] });
+    expect(reveal.body).not.toContain(birthDate);
+    expect((await db.auditLog.findFirstOrThrow({ where: { entityId: player.id, action: 'reveal' } })).diffs).toEqual({ field: 'birthDate' });
+    await db.owner.create({ data: { id: 'other', email: encrypt('other@example.com', 'Owner.email') } });
+    const foreign = await db.agent.create({ data: { ownerId: 'other', name: 'Örnek Diğer Sahip Menajeri', countries: [], markets: [], networkMemberships: [] } });
+    expect((await request('POST', `/api/players/${player.id}/contracts`, { ...contractDraft(), agentId: foreign.id })).statusCode).toBe(404);
+    await db.agent.update({ where: { id: agent.id }, data: { deletedAt: new Date() } });
+    for (const suffix of ['', '/notes', '/timeline']) expect((await request('GET', path + suffix)).statusCode).toBe(404);
+    expect((await request('GET', '/api/contracts')).json().items).toEqual([]);
+    expect((await app.inject({ url: path })).statusCode).toBe(401);
+    expect((await app.inject({ method: 'POST', url: path + '/reveal', headers: { cookie, origin }, payload: { version: 1, field: 'salaryAmount' } })).statusCode).toBe(403);
+  });
+
+  it('version-checks private notes, blocks note restore through a deleted contract and preserves links on restore', async () => {
+    const player = await ownPlayer(); const contract = (await request('POST', `/api/players/${player.id}/contracts`, contractDraft())).json();
+    const path = `/api/contracts/${contract.id}`;
+    const created = await request('POST', path + '/notes', { text: 'Örnek sözleşme notu' }); expect(created.statusCode).toBe(201);
+    const note = created.json(); const notePath = `${path}/notes/${note.id}`;
+    expect((await request('PATCH', notePath, { version: 1, text: 'Örnek değiştirilen not' })).statusCode).toBe(200);
+    expect((await request('PATCH', notePath, { version: 1, text: 'Örnek eski sürüm' })).statusCode).toBe(409);
+    expect((await request('DELETE', notePath, { version: 2 })).statusCode).toBe(200);
+    const noteTrash = await db.trashEntry.findFirstOrThrow({ where: { entityId: note.id } });
+    expect((await request('DELETE', path, { version: 1 })).statusCode).toBe(200);
+    expect((await request('POST', `/api/trash/${noteTrash.id}/restore`, { version: noteTrash.version, recordVersion: 3 })).statusCode).toBe(404);
+    const contractTrash = await db.trashEntry.findFirstOrThrow({ where: { entityId: contract.id } });
+    expect((await request('POST', `/api/trash/${contractTrash.id}/restore`, { version: contractTrash.version, recordVersion: 2 })).statusCode).toBe(200);
+    expect((await request('POST', `/api/trash/${noteTrash.id}/restore`, { version: noteTrash.version, recordVersion: 3 })).statusCode).toBe(200);
+    expect((await request('GET', path + '/notes')).json()).toMatchObject([{ id: note.id, text: 'Örnek değiştirilen not', version: 4 }]);
+    expect(JSON.stringify(await db.auditLog.findMany({ where: { entityId: note.id } }))).not.toContain('Örnek değiştirilen not');
+  });
+
+  it('deduplicates concurrent deadline catch-up, honors settings and keeps historical notifications after a date edit', async () => {
+    const player = await ownPlayer();
+    const contract = (await request('POST', `/api/players/${player.id}/contracts`, { ...contractDraft(), endDate: '2026-06-30', salaryAmount: null })).json();
+    const before = new Date('2026-06-29T20:59:59Z'); const after = new Date('2026-06-29T21:00:00Z');
+    const created = await Promise.all([refreshContractReminders(db, before), refreshContractReminders(db, before)]);
+    expect(created.reduce((total, count) => total + count)).toBe(3);
+    expect(await refreshContractReminders(db, after)).toBe(0);
+    expect(await db.notification.count({ where: { entityId: contract.id } })).toBe(3);
+    expect((await request('PATCH', `/api/contracts/${contract.id}`, { version: 1, changes: { endDate: '2026-07-01' } })).statusCode).toBe(200);
+    expect(await refreshContractReminders(db, new Date('2026-07-02T12:00:00Z'))).toBe(3);
+    expect(await db.notification.count({ where: { entityId: contract.id } })).toBe(6);
+    const settings = (await request('GET', '/api/settings')).json();
+    expect((await request('PATCH', '/api/settings', { version: settings.version, notificationThresholds: [] })).statusCode).toBe(200);
+    expect(await refreshContractReminders(db, new Date('2026-07-02T12:00:00Z'))).toBe(0);
+    expect((await request('PATCH', '/api/settings', { version: settings.version + 1, notificationThresholds: [30, 30] })).statusCode).toBe(400);
+    expect(await db.notification.count()).toBe(6);
+  });
+  it('shows only current reminder targets and catches up seven days without replaying older deadlines', async () => {
+    const player = await ownPlayer(); const today = istanbulToday();
+    const offset = (days: number) => { const date = new Date(today); date.setUTCDate(date.getUTCDate() + days); return date.toISOString().slice(0, 10); };
+    const create = async (endDate: string) => (await request('POST', `/api/players/${player.id}/contracts`, { ...contractDraft(), startDate: '1900-01-01', endDate, salaryAmount: null })).json();
+    const record = await create(offset(1));
+    expect(await refreshContractReminders(db)).toBe(3);
+    expect((await request('GET', '/api/contracts/reminders')).json().items).toHaveLength(3);
+    expect((await request('PATCH', `/api/contracts/${record.id}`, { version: 1, changes: { endDate: offset(2) } })).statusCode).toBe(200);
+    expect((await request('GET', '/api/contracts/reminders')).json().items).toEqual([]);
+    expect((await request('GET', '/api/overview')).json().notifications).toBe(0);
+    expect(await refreshContractReminders(db)).toBe(3);
+    expect((await request('GET', '/api/contracts/reminders')).json().items.every((item: { targetDate: string }) => item.targetDate.slice(0, 10) === offset(2))).toBe(true);
+    const missed = await create(offset(-7)); const older = await create(offset(-8));
+    expect(await refreshContractReminders(db)).toBe(3);
+    expect(await db.notification.count({ where: { entityId: missed.id } })).toBe(3);
+    expect(await db.notification.count({ where: { entityId: older.id } })).toBe(0);
+    await db.notification.create({ data: { type: 'CONTRACT_CONTRACT_END', entityType: 'Contract', entityId: older.id, targetDate: new Date(offset(-8)), thresholdDays: 30,
+      dedupeKey: `owner:CONTRACT:CONTRACT_END:${older.id}:30:${offset(-8)}` } });
+    expect((await request('GET', '/api/contracts/reminders')).json().items.some((item: { entityId: string }) => item.entityId === older.id)).toBe(true);
+    expect((await request('GET', '/api/overview')).json().notifications).toBe(7);
+    expect((await request('PATCH', `/api/contracts/${record.id}`, { version: 2, changes: { isActive: false } })).statusCode).toBe(200);
+    expect((await request('GET', '/api/contracts/reminders')).json().items.every((item: { entityId: string }) => item.entityId !== record.id)).toBe(true);
+  });
+});
 describe('sensitive paths: birthday calendar', () => {
   it('shows only live owner birthdays and audits calendar access without birth dates', async () => {
     const now = new Date('2026-12-29T21:00:00Z');
@@ -282,10 +529,10 @@ describe('sensitive paths: people and club network', () => {
   });
 });
 
-function uploadFile(id: string, data = pdfFile, mime = 'application/pdf', extra = '', type: 'Club' | 'Player' = 'Club') {
+function uploadFile(id: string, data = pdfFile, mime = 'application/pdf', extra = '', type: 'Club' | 'Player' | 'Suggestion' | 'Contract' = 'Club') {
   const boundary = 'example-boundary';
   const payload = Buffer.concat([Buffer.from(`--${boundary}\r\nContent-Disposition: form-data; name="file"; filename="Örnek belge.pdf"\r\nContent-Type: ${mime}\r\n\r\n`), data, Buffer.from(`\r\n${extra}--${boundary}--\r\n`)]);
-  return app.inject({ method: 'POST', url: `/api/records/${type}/${id}/files`, payload, headers: { cookie, origin, 'x-csrf-token': csrf, 'content-type': `multipart/form-data; boundary=${boundary}` } });
+  return app.inject({ method: 'POST', url: `/api/records/${type}/${id}/files`, remoteAddress: clientIp, payload, headers: { cookie, origin, 'x-csrf-token': csrf, 'content-type': `multipart/form-data; boundary=${boundary}` } });
 }
 describe('sensitive paths: player card evidence', () => {
   async function createPlayer(name: string, birthDate?: string) {
@@ -454,6 +701,10 @@ describe('sensitive paths: player card evidence', () => {
     expect((await sharp(imageResponse.rawPayload).metadata()).format).toBe('webp');
     const events = await db.auditLog.findMany({ where: { entityId: photo.id, action: 'reveal' } });
     expect(events.map(event => event.diffs)).toEqual([{ field: 'document' }]);
+    const metadata = await db.attachment.findUniqueOrThrow({ where: { id: photo.id } });
+    await fileStorage.remove(metadata.storageKey);
+    expect((await request('GET', url)).statusCode).toBe(404);
+    expect(await db.attachment.count({ where: { id: photo.id } })).toBe(1);
     expect((await request('PATCH', url, { action: 'remove', version: player.version })).statusCode).toBe(409);
     expect((await request('PATCH', url, { action: 'remove', version: selected.json().version })).statusCode).toBe(200);
     expect((await request('GET', url)).statusCode).toBe(404);
@@ -466,6 +717,27 @@ async function processingPreview() {
   expect(res.statusCode, res.body).toBe(201); return { preview: res.json() as ProcessingPreview, file, entity };
 }
 describe('sensitive paths: files and per-document processing', () => {
+  it('keeps suggestion attachments private and rechecks the linked records before download', async () => {
+    await seedExamples(db);
+    const suggestion = await db.suggestion.findFirstOrThrow({ where: { requestId: exampleId('request') } });
+    const files = `/api/records/Suggestion/${suggestion.id}/files`;
+    expect((await app.inject({ url: files })).statusCode).toBe(401);
+    expect((await request('GET', `/api/records/Suggestion/${suggestion.id}`)).statusCode).toBe(400);
+    const uploaded = await uploadFile(suggestion.id, pdfFile, 'application/pdf', '', 'Suggestion');
+    expect(uploaded.statusCode).toBe(201);
+    const file = uploaded.json();
+    expect((await request('GET', files)).json().items).toEqual([file]);
+    expect(await db.attachment.findUniqueOrThrow({ where: { id: file.id } })).toMatchObject({
+      entityType: 'Suggestion', entityId: suggestion.id, isExample: true,
+    });
+    const download = await request('POST', `/api/files/${file.id}/download`, { version: file.version });
+    expect(download.statusCode).toBe(200);
+    expect((await request('GET', download.json().url)).rawPayload).toEqual(pdfFile);
+    await db.person.update({ where: { id: suggestion.personId }, data: { deletedAt: new Date() } });
+    expect((await request('GET', files)).statusCode).toBe(404);
+    expect((await request('GET', download.json().url)).statusCode).toBe(404);
+    expect((await uploadFile(suggestion.id, pdfFile, 'application/pdf', '', 'Suggestion')).statusCode).toBe(404);
+  });
   it('stores an owner upload privately, logs value-free access, and blocks access through a deleted parent', async () => {
     const entity = await club(); const res = await uploadFile(entity.id); expect(res.statusCode, res.body).toBe(201);
     const file = res.json(); expect(res.body).not.toContain('storageKey'); expect(res.body).not.toContain('contentHash');
@@ -890,6 +1162,35 @@ describe('security baseline', () => {
     const logged = await db.timelineEvent.findFirstOrThrow({ where: { entityId: player.id, action: 'export' } });
     expect(logged.diffs).toMatchObject({ format: 'docx', language: 'en', template: 'profile-1', sourceVersions: [{ type: 'Player', id: player.id, version: 1 }], snapshotHash: expect.stringMatching(/^[a-f0-9]{64}$/) });
   });
+  it('exports a live recommendation dossier using only approved document fields', async () => {
+    await seedExamples(db);
+    await db.player.update({ where: { id: exampleId('player-0') }, data: {
+      birthDate: encrypt('2000-02-01', 'Player.birthDate'), notes: 'Örnek özel oyuncu bilgisi',
+    } });
+    await db.request.update({ where: { id: exampleId('request') }, data: { salaryMax: '555123.45', salaryCurrency: 'EUR' } });
+    const suggestion = await db.suggestion.findFirstOrThrow({ where: { requestId: exampleId('request') } });
+    const path = `/api/documents/recommendation/${suggestion.id}`;
+    const input = { format: 'docx', language: 'en', version: suggestion.version };
+    expect((await app.inject({ method: 'POST', url: path, headers: { origin }, payload: input })).statusCode).toBe(401);
+    expect((await request('POST', path, { ...input, version: suggestion.version + 1 })).statusCode).toBe(409);
+    const result = await request('POST', path, input);
+    expect(result.statusCode).toBe(200);
+    expect(result.headers['cache-control']).toBe('no-store');
+    expect(result.headers['content-disposition']).toContain('metodo-recommendation-en.docx');
+    const archive = await JSZip.loadAsync(result.rawPayload);
+    const xml = await archive.file('word/document.xml')!.async('string');
+    expect(xml).toContain('Transfer recommendation dossier');
+    expect(xml).toContain(suggestion.whyGoodTransfer);
+    expect(xml).not.toMatch(/2000-02-01|555123|özel oyuncu bilgisi|v1\.dev\./u);
+    const log = await db.timelineEvent.findFirstOrThrow({ where: { entityId: suggestion.requestId, action: 'export' } });
+    expect(log.diffs).toMatchObject({
+      template: 'recommendation-1',
+      sourceVersions: expect.arrayContaining([{ type: 'Suggestion', id: suggestion.id, version: suggestion.version }]),
+    });
+    await db.person.update({ where: { id: suggestion.personId }, data: { deletedAt: new Date() } });
+    expect((await request('POST', path, input)).statusCode).toBe(404);
+    expect(await db.timelineEvent.count({ where: { entityId: suggestion.requestId, action: 'export' } })).toBe(1);
+  });
   it('keeps procedural migration batches intact and rolls back a failed batch', async () => {
     const adapter = await new MigrationPg({ connectionString: process.env.DATABASE_URL }).connect();
     try {
@@ -1053,6 +1354,193 @@ describe('records and persistence', () => {
   });
 });
 
+describe('transfer request workspace', () => {
+  it('validates request criteria, scopes contacts, lists statuses and preserves historical requesters', async () => {
+    await seedExamples(db);
+    const clubId = exampleId('club-0');
+    const requesterId = exampleId('person-0-1');
+    const outsideContact = await db.person.create({ data: { name: 'Örnek Bağlantısız Kişi', searchName: 'ornek baglantisiz kisi', isExample: true } });
+    await db.relation.create({ data: {
+      fromType: 'Person', fromId: outsideContact.id, toType: 'Club', toId: clubId,
+      relation: 'memberOf', startDate: new Date('2098-01-01'), isExample: true,
+    } });
+    await db.relation.updateMany({ where: { fromId: requesterId, toId: clubId }, data: { endDate: new Date('2098-01-01') } });
+    const contacts = await request('GET', `/api/requests/contacts?clubId=${clubId}`);
+    expect(contacts.statusCode).toBe(200);
+    expect(contacts.json()).toEqual(expect.arrayContaining([expect.objectContaining({ id: requesterId })]));
+    expect(contacts.body).not.toContain(outsideContact.id);
+    const data = {
+      name: 'Örnek ŞİLE Orta Saha', clubId, requesterId, position: 'CM', ageMin: 20, ageMax: 28,
+      salaryMax: '0.00', salaryCurrency: 'EUR', preferredLeagues: ['Örnek Lig'],
+      profileText: 'Örnek profil', deadline: '2031-06-01',
+    };
+    expect((await request('POST', '/api/requests', { ...data, requesterId: outsideContact.id })).statusCode).toBe(400);
+    expect((await request('POST', '/api/requests', { ...data, salaryCurrency: null })).statusCode).toBe(400);
+    const response = await request('POST', '/api/requests', data);
+    expect(response.statusCode).toBe(201);
+    const row = response.json();
+    const path = `/api/records/Request/${row.id}`;
+    expect((await request('GET', '/api/requests?status=OPEN&q=sile')).json().items)
+      .toEqual([expect.objectContaining({ id: row.id, requester: { id: requesterId, name: expect.any(String) }, salaryMax: '0' })]);
+    expect((await request('GET', `/api/requests/${exampleId('request')}/suggestions`)).json().items[0])
+      .toMatchObject({ player: expect.objectContaining({ id: exampleId('player-0') }) });
+    expect((await request('PATCH', path, { version: row.version, changes: { ageMin: 29 } })).statusCode).toBe(400);
+    expect((await request('PATCH', path, { version: row.version, changes: { salaryMax: null } })).statusCode).toBe(400);
+    expect((await request('POST', '/api/suggestions', {
+      requestId: row.id, requestVersion: row.version + 1, personId: requesterId, playerId: exampleId('player-0'), whyGoodTransfer: 'Örnek eşleşme',
+    })).statusCode).toBe(409);
+    await db.relation.updateMany({ where: { fromId: requesterId, toId: clubId }, data: { endDate: new Date(istanbulToday()) } });
+    const moved = await request('PATCH', path, { version: row.version, changes: { status: 'MATCHED', deadline: null } });
+    expect(moved.statusCode).toBe(200);
+    expect(moved.json()).toMatchObject({ status: 'MATCHED', deadline: null, ageMin: 20, ageMax: 28 });
+    expect((await request('PATCH', path, { version: row.version, changes: { status: 'CLOSED' } })).statusCode).toBe(409);
+    expect((await request('GET', '/api/requests?status=MATCHED&q=sile')).json().total).toBe(1);
+    expect(await db.timelineEvent.count({ where: { entityId: row.id, action: 'update' } })).toBe(1);
+  });
+});
+
+describe('sensitive paths: transfer matching', () => {
+  it('uses valid private evidence, masks the response and audit, and recalculates with saved weights', async () => {
+    await seedExamples(db);
+    const clubId = exampleId('club-0');
+    const row = await db.request.update({
+      where: { id: exampleId('request') },
+      data: { ageMin: 20, ageMax: 40, preferredFoot: 'LEFT', salaryMax: '13000', salaryCurrency: 'EUR', feeMax: '1000', feeCurrency: 'EUR' },
+    });
+    const player = await db.player.create({ data: {
+      name: 'Örnek Eşleşme Oyuncusu', searchName: 'ornek eslesme oyuncusu', isExample: true,
+      primaryPosition: 'CM', preferredFoot: 'RIGHT', birthDate: encrypt('2000-01-01', 'Player.birthDate'),
+      currentClubId: clubId, marketValue: '125.00', marketValueCurrency: 'EUR',
+    } });
+    const contract = await db.contract.create({ data: {
+      name: 'Örnek Eşleşme Sözleşmesi', isExample: true, playerId: player.id, clubId, type: 'EMPLOYMENT',
+      startDate: new Date('2020-01-01'), endDate: new Date('2098-01-01'),
+      salaryAmount: encrypt('12345.67', 'Contract.salaryAmount'), salaryCurrency: 'EUR', salaryBasis: 'GROSS', salaryPeriod: 'YEAR',
+    } });
+    const path = `/api/requests/${row.id}/matches`;
+    const query = { q: 'eslesme', sort: 'score', page: 1 };
+    expect((await app.inject({ method: 'POST', url: path, headers: { origin }, payload: query })).statusCode).toBe(401);
+    expect((await app.inject({ method: 'POST', url: path, headers: { origin, cookie }, payload: query })).statusCode).toBe(403);
+    const first = await request('POST', path, query);
+    expect(first.statusCode).toBe(200);
+    expect(first.headers['cache-control']).toBe('no-store');
+    expect(first.json().items).toEqual([expect.objectContaining({ id: player.id, score: 75, coverage: 67 })]);
+    expect(first.json().items[0].criteria).toContainEqual({ criterion: 'fee', points: null, reason: 'missing' });
+    expect(first.body).not.toMatch(/12345|2000-01-01|salaryAmount|birthDate|125\.00/);
+    const audits = await db.auditLog.findMany({ where: { action: 'reveal', entityId: { in: [player.id, contract.id] } }, select: { diffs: true } });
+    expect(audits).toEqual(expect.arrayContaining([{ diffs: { field: 'birthDate' } }, { diffs: { field: 'salaryAmount' } }]));
+    expect((await request('POST', path, { ...query, page: 2 })).json().items).toEqual([]);
+    expect(await db.auditLog.count({ where: { action: 'reveal', entityId: { in: [player.id, contract.id] } } })).toBe(4);
+    await db.salesListing.create({ data: {
+      name: 'Örnek Bonservis İlanı', isExample: true, playerId: player.id, clubId,
+      status: 'OPEN', scope: 'OWNER', askingAmount: '876.54', currency: 'EUR',
+    } });
+    const mandate = await db.mandate.create({ data: {
+      name: 'Örnek Bonservis Yetkisi', isExample: true, playerId: player.id, clubId,
+      startDate: new Date('2020-01-01'), endDate: new Date('2098-01-01'), scope: 'Örnek kapsam',
+    } });
+    const prefs = (await request('GET', '/api/settings')).json();
+    const updated = await request('PATCH', '/api/settings', { version: prefs.version, matchingWeights: {
+      weights: { position: 1, age: 1, foot: 0, passport: 1, salary: 1, fee: 1, level: 1, availability: 1 }, levelMinimum: null,
+    } });
+    expect(updated.statusCode).toBe(200);
+    const second = await request('POST', path, query);
+    expect(second.json().items).toEqual([expect.objectContaining({ id: player.id, score: 100, coverage: 80 })]);
+    expect(second.body).not.toContain('876.54');
+    await db.contract.update({ where: { id: contract.id }, data: { salaryPeriod: null } });
+    const final = await request('POST', path, query);
+    expect(final.json().items[0].criteria).toContainEqual({ criterion: 'salary', points: null, reason: 'missing' });
+    await db.mandate.update({ where: { id: mandate.id }, data: { deletedAt: new Date() } });
+    expect((await request('POST', path, query)).json().items[0].criteria).toContainEqual({ criterion: 'fee', points: null, reason: 'missing' });
+    expect((await db.request.findUniqueOrThrow({ where: { id: row.id } })).version).toBe(row.version);
+    expect(await db.suggestion.count()).toBe(1);
+  });
+});
+
+
+describe('presentation workspace', () => {
+  it('shows the latest result on both matrix axes with deterministic ties and scoped peers', async () => {
+    await seedExamples(db);
+    const input = {
+      name: 'Örnek Sunum', clubId: exampleId('club-0'), personId: exampleId('person-0-1'), playerId: exampleId('player-0'),
+      date: new Date('2026-01-01'), followUpDate: new Date('2026-01-10'), note: 'Örnek özel sunum notu', isExample: true,
+    };
+    await db.presentation.create({ data: { ...input, result: 'REJECTED' } });
+    const newest = await db.presentation.create({ data: { ...input, date: new Date('2098-01-01'), result: 'INTERESTED', createdAt: new Date('2098-01-01') } });
+    await db.presentation.create({ data: { ...input, date: newest.date, result: 'WAITING', createdAt: new Date('2097-01-01') } });
+    for (const axis of ['Club', 'Person']) {
+      const response = await request('GET', `/api/presentation-matrix?axis=${axis}`);
+      expect(response.statusCode, response.body).toBe(200);
+      expect(response.json().cells).toContainEqual(expect.objectContaining({ id: newest.id, result: 'INTERESTED' }));
+      expect(response.body).not.toContain(input.note);
+    }
+    expect((await app.inject({ url: '/api/presentation-matrix' })).statusCode).toBe(401);
+    expect((await request('GET', '/api/presentation-matrix?ownerId=other')).statusCode).toBe(400);
+    expect((await request('GET', '/api/presentation-matrix?rowPage=2')).json().rows).toEqual([]);
+    await db.person.update({ where: { id: input.personId }, data: { deletedAt: new Date() } });
+    expect((await request('GET', '/api/presentation-matrix')).json().cells).toEqual([]);
+    expect((await request('GET', `/api/presentations/${newest.id}`)).statusCode).toBe(404);
+  });
+  it('records manual presentations and versioned updates and excludes resolved follow-ups', async () => {
+    await seedExamples(db);
+    const input = {
+      clubId: exampleId('club-0'), personId: exampleId('person-0-1'), playerId: exampleId('player-0'),
+      date: istanbulToday(), followUpDate: '2020-01-01', channel: 'IN_PERSON', result: 'WAITING', note: 'Örnek manuel sunum',
+    };
+    expect((await request('POST', '/api/presentations', { ...input, personId: exampleId('person-1-1') })).statusCode).toBe(400);
+    const result = await request('POST', '/api/presentations', input);
+    expect(result.statusCode, result.body).toBe(201);
+    const record = result.json();
+    expect((await request('GET', '/api/presentations?overdue=true')).json().items.some((row: { id: string }) => row.id === record.id)).toBe(true);
+    expect((await request('GET', '/api/overview')).json().followUps).toContainEqual(expect.objectContaining({ id: record.id }));
+    const data = { version: record.version, date: input.date, followUpDate: input.followUpDate, channel: 'VIDEO', result: 'REJECTED', note: 'Örnek kapalı sunum' };
+    expect((await request('PATCH', `/api/presentations/${record.id}`, data)).statusCode).toBe(200);
+    expect((await request('PATCH', `/api/presentations/${record.id}`, data)).statusCode).toBe(409);
+    expect((await request('GET', '/api/overview')).json().followUps.some((row: { id: string }) => row.id === record.id)).toBe(false);
+    expect((await request('GET', '/api/presentations?overdue=true')).json().items.some((row: { id: string }) => row.id === record.id)).toBe(false);
+    const events = await db.timelineEvent.findMany({ where: { entityId: record.id, action: 'update' } });
+    expect(events).toHaveLength(1);
+    expect(JSON.stringify(events)).not.toContain(data.note);
+  });
+});
+
+describe('sensitive paths: authorized club sales', () => {
+  it('requires a current exact club mandate, prevents duplicate open listings and preserves decimal amounts', async () => {
+    await seedExamples(db);
+    const clubId = exampleId('club-0'); const playerId = exampleId('player-0');
+    const listing = { askingAmount: '9007199254740991.99', currency: 'EUR', status: 'OPEN', confidentiality: 'PRIVATE', scope: 'Örnek satış kapsamı' };
+    const path = `/api/clubs/${clubId}/sales`;
+    expect((await request('POST', path, { ...listing, playerId })).json()).toMatchObject({ code: 'MANDATE_REQUIRED' });
+    const mandateInput = {
+      name: 'Örnek Kulüp Yetkisi', scope: 'Örnek kapsam', startDate: '2020-01-01', endDate: '2098-01-01',
+      exclusive: false, sourceUrl: 'https://example.com/mandate', documentRef: null,
+    };
+    expect((await request('POST', `/api/clubs/${clubId}/mandates`, { ...mandateInput, playerId, endDate: '2019-01-01' })).statusCode).toBe(400);
+    const mandate = await request('POST', `/api/clubs/${clubId}/mandates`, { ...mandateInput, playerId });
+    expect(mandate.statusCode).toBe(201);
+    const results = await Promise.all([request('POST', path, { ...listing, playerId }), request('POST', path, { ...listing, playerId })]);
+    expect(results.map(row => row.statusCode).sort()).toEqual([201, 409]);
+    const listed = (await request('GET', path)).json().items.find((row: { playerId: string }) => row.playerId === playerId);
+    expect(listed).toMatchObject({ askingAmount: listing.askingAmount, authorized: true, confidentiality: 'PRIVATE' });
+    expect((await request('POST', path, { ...listing, playerId, status: 'CLOSED' })).statusCode).toBe(201);
+    const salesView = `/api/clubs/${clubId}/sections/players?players=sales`;
+    expect((await request('GET', salesView)).json().items).toContainEqual(expect.objectContaining({ id: playerId }));
+    const changes = { ...mandateInput, endDate: '2020-12-31', version: 1 };
+    expect((await request('PATCH', `/api/mandates/${mandate.json().id}`, changes)).statusCode).toBe(200);
+    expect((await request('PATCH', `/api/mandates/${mandate.json().id}`, changes)).statusCode).toBe(409);
+    expect((await request('GET', path)).json().items.find((row: { id: string }) => row.id === listed.id).authorized).toBe(false);
+    expect((await request('GET', salesView)).json().items.some((row: { id: string }) => row.id === playerId)).toBe(false);
+    expect((await request('PATCH', `/api/sales/${listed.id}`, { ...listing, status: 'OPEN', version: 1 })).json().code).toBe('MANDATE_REQUIRED');
+    expect((await request('PATCH', `/api/sales/${listed.id}`, { ...listing, status: 'CLOSED', version: 1 })).statusCode).toBe(200);
+    expect((await request('GET', '/api/export/Player')).body).not.toContain(listing.askingAmount);
+    expect(JSON.stringify(await db.auditLog.findMany({ where: { entityId: listed.id } }))).not.toContain(listing.askingAmount);
+    expect((await app.inject({ url: path })).statusCode).toBe(401);
+    expect((await db.mandate.findUniqueOrThrow({ where: { id: mandate.json().id } })).fieldProvenance).toMatchObject({
+      scope: { sourceType: 'MANUAL' }, sourceUrl: { sourceType: 'MANUAL' },
+    });
+  });
+});
+
 describe('example seed and suggestion transaction', () => {
   it('is repeatable, labeled and encrypted', async () => {
     await seedExamples(db); await seedExamples(db);
@@ -1063,11 +1551,34 @@ describe('example seed and suggestion transaction', () => {
   });
   it('writes all four timelines and relations in one batch (R3)', async () => {
     await seedExamples(db);
+    const original = await db.request.findUniqueOrThrow({ where: { id: exampleId('request') }, include: { requester: true } });
     const res = await request('POST', '/api/suggestions', { requestId: exampleId('request'), playerId: exampleId('player-1'), personId: exampleId('person-0-1'), whyGoodTransfer: 'Örnek uyum' });
     expect(res.statusCode).toBe(201); expect(res.json().matchScore).toBeNull();
-    expect(await db.timelineEvent.count({ where: { batchId: res.json().batchId } })).toBe(4);
-    expect(await db.presentation.count({ where: { playerId: exampleId('player-1'), result: 'PENDING' } })).toBe(1);
-    expect((await db.request.findUniqueOrThrow({ where: { id: exampleId('request') } })).status).toBe('SUGGESTED');
+    const entries = await db.timelineEvent.findMany({ where: { batchId: res.json().batchId }, orderBy: { entityType: 'asc' } });
+    expect(entries.map(entry => entry.entityType)).toEqual(['Club', 'Person', 'Player', 'Request']);
+    const presentation = await db.presentation.findFirstOrThrow({ where: { playerId: exampleId('player-1') } });
+    expect(presentation).toMatchObject({ channel: 'EMAIL', result: 'PENDING', requestId: original.id });
+    expect(presentation.followUpDate.getTime() - presentation.date.getTime()).toBe(5 * 86400_000);
+    const day = presentation.date.toISOString().slice(0, 10);
+    const relation = await db.relation.findFirstOrThrow({ where: { fromId: presentation.playerId, relation: 'suggestedTo' } });
+    expect(relation.note).toBe(`${original.requester?.name} · ${original.name} · ${day}`);
+    expect(entries.every(entry => entry.summaryTr.endsWith(day) && entry.summaryEn.endsWith(day))).toBe(true);
+    expect(await db.request.findUniqueOrThrow({ where: { id: original.id } })).toMatchObject({ status: 'SUGGESTED', version: original.version + 1 });
+  });
+  it('records the selected presentation channel and follow-up with the suggestion', async () => {
+    await seedExamples(db);
+    const data = {
+      requestId: exampleId('request'), playerId: exampleId('player-1'), personId: exampleId('person-0-1'),
+      whyGoodTransfer: 'Örnek görüşme', matchScore: 0, followUpDate: '2098-11-19', channel: 'VIDEO',
+    };
+    expect((await request('POST', '/api/suggestions', { ...data, channel: 'UNKNOWN' })).statusCode).toBe(400);
+    const res = await request('POST', '/api/suggestions', data);
+    expect(res.statusCode).toBe(201);
+    expect(res.json().matchScore).toBe('0');
+    expect(await db.presentation.findFirstOrThrow({ where: { playerId: data.playerId } })).toMatchObject({
+      clubId: exampleId('club-0'), personId: data.personId, requestId: data.requestId, channel: data.channel,
+      result: 'PENDING', followUpDate: new Date(data.followUpDate), note: data.whyGoodTransfer,
+    });
   });
   it('rolls back every row when a later insert fails', async () => {
     await seedExamples(db); const count = await db.suggestion.count(); const timelines = await db.timelineEvent.count();

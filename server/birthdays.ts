@@ -3,29 +3,44 @@ import { birthdayOccurrence, birthdayThresholds, daysBetween, defaultBirthdayThr
 import { isoDate, istanbulToday } from '../shared/domain.js';
 import { live, type Tx } from './core.js';
 import { decrypt } from './crypto.js';
+import { agendaExport } from '../shared/meetings.js';
 
 export const birthdayRule = 'BIRTHDAY';
 export const calendarPageSize = 50;
 export const sensitiveViewSeconds = 60;
 
 const subjectSelect = { id: true, name: true, birthDate: true, hideBirthYear: true, isExample: true, version: true } as const;
+async function birthdaySubjects(tx: Tx) {
+  const query = { where: { ...live, birthDate: { not: null } }, select: subjectSelect };
+  const [people, players, agents] = await Promise.all([tx.person.findMany(query), tx.player.findMany(query), tx.agent.findMany(query)]);
+  return [...people.map(row => ({ ...row, kind: 'Person' as const })), ...players.map(row => ({ ...row, kind: 'Player' as const })), ...agents.map(row => ({ ...row, kind: 'Agent' as const }))];
+}
+// This collector has no notification or canonical writes. Callers audit only
+// the selected, explicitly revealed page and never return the original DOB.
+export async function birthdayRangeCandidates(tx: Tx, from: string, to: string, today: string) {
+  agendaExport.parse({ from, to });
+  const subjects = await birthdaySubjects(tx); const rows = [];
+  for (const { birthDate, kind, id, name, isExample } of subjects) {
+    const birthday = decrypt(birthDate!, `${kind}.birthDate`);
+    if (!isoDate.safeParse(birthday).success || birthday > today) continue;
+    for (let year = Number(from.slice(0, 4)); year <= Number(to.slice(0, 4)); year++) {
+      const date = birthdayOccurrence(birthday.slice(5), year);
+      if (date >= from && date <= to && date >= birthday) rows.push({ id, kind, name, isExample, date });
+    }
+  }
+  return rows;
+}
 export function birthdayRecord(tx: Tx, kind: BirthdayKind, id: string) {
   const query = { where: { ...live, id }, select: { ...subjectSelect, fieldProvenance: true } };
   return kind === 'Person' ? tx.person.findFirst(query) : kind === 'Player' ? tx.player.findFirst(query) : tx.agent.findFirst(query);
 }
 
 async function calendarCandidates(tx: Tx, today: string, reminders: boolean) {
-  const query = { where: { ...live, birthDate: { not: null } }, select: subjectSelect };
-  const [people, players, agents, settings] = await Promise.all([
-    tx.person.findMany(query), tx.player.findMany(query), tx.agent.findMany(query),
+  const [subjects, settings] = await Promise.all([
+    birthdaySubjects(tx),
     reminders ? tx.userSettings.findUnique({ where: { ownerId: live.ownerId }, select: { birthdayThresholds: true } }) : null,
   ]);
   const thresholds = reminders ? birthdayThresholds.parse(settings?.birthdayThresholds ?? defaultBirthdayThresholds).sort((a, b) => b - a) : [];
-  const subjects = [
-    ...people.map(row => ({ ...row, kind: 'Person' as const })),
-    ...players.map(row => ({ ...row, kind: 'Player' as const })),
-    ...agents.map(row => ({ ...row, kind: 'Agent' as const })),
-  ];
   const year = Number(today.slice(0, 4));
   return subjects.flatMap(({ birthDate, kind, ...row }) => {
     const birthday = decrypt(birthDate!, `${kind}.birthDate`);
