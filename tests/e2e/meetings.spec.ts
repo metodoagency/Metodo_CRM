@@ -49,9 +49,14 @@ for (const language of ['tr', 'en']) test(`meeting agenda and approved task crea
   panel = page.getByRole('region', { name: tr ? 'Görüşme ayrıntıları' : 'Meeting details', exact: true });
   const axe = await new AxeBuilder({ page }).analyze(); expect(axe.violations.filter(issue => ['serious', 'critical'].includes(issue.impact ?? ''))).toEqual([]);
   await panel.getByRole('button', { name: tr ? 'Görüşmeyi sil' : 'Delete meeting', exact: true }).click();
+  const deletion = page.waitForResponse(response => response.url().endsWith(`/api/meetings/${id}`) && response.request().method() === 'DELETE');
   await page.getByRole('dialog').getByRole('button', { name: tr ? 'Görüşmeyi sil' : 'Delete meeting', exact: true }).click();
+  expect((await deletion).status()).toBe(200);
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await expect(page).not.toHaveURL(new RegExp(`meeting=${id}`));
   await expect(page.getByRole('region', { name: tr ? 'Görüşme ayrıntıları' : 'Meeting details', exact: true })).toHaveCount(0);
   const trash = (await (await page.request.get('/api/trash')).json()).find((item: { entityId: string }) => item.entityId === id);
+  expect(trash).toBeDefined();
   expect((await page.request.post(`/api/trash/${trash.id}/restore`, { headers, data: { version: trash.version, recordVersion: 3 } })).status()).toBe(200);
   await page.goto(`/agenda?meeting=${id}`); await expect(page.getByRole('heading', { name, exact: true })).toBeVisible();
 });
