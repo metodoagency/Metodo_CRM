@@ -10,6 +10,7 @@
 
 .text-accent{color:var(--accent)}
 .primary{color:var(--primary-text)}
+:root:not(.dark) .badge-high,:root:not(.dark) .badge-target{color:#80500b;background:#f7eddc}
 .club-explorer { display: grid; grid-template-columns: minmax(14rem, 18rem) minmax(0, 1fr); gap: 1rem; align-items: start; }
 .club-map { height: clamp(18rem, 45vh, 30rem); background: #102b3b; isolation: isolate; z-index: 0; }
 .area-button { display: flex; width: 100%; align-items: center; justify-content: space-between; gap: .75rem; padding: .45rem .55rem; text-align: left; border-radius: .4rem; }

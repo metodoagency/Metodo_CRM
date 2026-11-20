@@ -1,5 +1,6 @@
 const strings = {
   dashboardClubCount: ['Kayıtlı kulüpler', 'Recorded clubs'],
+  dashboardEmptyView: ['Bu görünümde kayıt yok.', 'No records in this view.'], dashboardRecentLimit: ['En son {{count}} hareket gösteriliyor. Ayrıntılar için ilgili kaydı açın.', 'Showing the latest {{count}} activities. Open the linked record for details.'],
   dashboardCustomize: ['Ana ekranı düzenle', 'Customize dashboard'], dashboardLayoutHelp: ['Bileşenleri sürükleyerek veya taşıma düğmeleriyle sıralayın. Görünürlük ve sıralama hesabınıza kaydedilir.', 'Reorder widgets by dragging or using the move buttons. Visibility and order are saved to your account.'],
   dashboard_summary: ['Ofis özeti', 'Office summary'], dashboard_todayTasks: ['Bugünkü açık görevler', 'Open tasks due today'], dashboard_tasks: ['Açık görevler · en yakın tarihler', 'Open tasks · earliest due dates'],
   dashboard_todayMeetings: ['Bugünkü görüşmeler', 'Meetings today'], dashboard_weekMeetings: ['Bu haftaki görüşmeler · Pazartesi–Pazar', 'Meetings this week · Monday–Sunday'], dashboard_deadlines: ['Hafta sonuna kadar sözleşme tarihleri', 'Contract dates through the end of this week'],

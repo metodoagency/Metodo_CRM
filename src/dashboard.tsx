@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { Plus, ArrowDown, ArrowUp, ArrowUpRight, GripVertical } from 'lucide-react';
 import { api, body } from './api';
-import { Badge, Empty, ErrorMessage, Modal } from './components';
+import { Badge, ErrorMessage, Modal } from './components';
 import { PresentationResult } from './presentations';
 import { moveDashboardWidget, resolveDashboardLayout, type DashboardLayout, type DashboardWidgetId } from '../shared/dashboard';
 import type { AgendaDeadlines } from '../shared/agenda-overlays';
@@ -22,8 +22,8 @@ export function Dashboard({ onCreate }: { onCreate: () => void }) {
   const d = overview.data;
   const deadlines = useQuery({ queryKey: ['dashboard-deadlines', d?.today, d?.weekTo], enabled: !!d && resolved.layout.some(row => row.id === 'deadlines' && row.visible), queryFn: () => api<AgendaDeadlines>(`/api/agenda/deadlines?${new URLSearchParams({ from: d!.today, to: d!.weekTo })}`), refetchInterval: 60000 });
   const date = (value: string) => new Intl.DateTimeFormat(i18n.language === 'tr' ? 'tr-TR' : 'en-GB', { timeZone: 'Europe/Istanbul', day: '2-digit', month: i18n.language === 'tr' ? '2-digit' : 'short', year: 'numeric' }).format(new Date(value));
-  function list(rows: ReactNode[], to: string, limit: number) {
-    return <>{rows.length ? rows : <Empty />}<div className="mt-3"><Link className="text-accent" to={to}>{t('allRecords')}</Link></div>{rows.length >= limit && <p className="muted text-sm mt-2">{t('dashboardListLimit', { count: limit })}</p>}</>;
+  function list(rows: ReactNode[], to: string | undefined, limit: number) {
+    return <>{rows.length ? rows : <p className="muted py-5">{t('dashboardEmptyView')}</p>}{to && <div className="mt-3"><Link className="text-accent" to={to}>{t('allRecords')}</Link></div>}{rows.length >= limit && <p className="muted text-sm mt-2">{to ? t('dashboardListLimit', { count: limit }) : t('dashboardRecentLimit', { count: limit })}</p>}</>;
   }
   function tasks(rows: Overview['tasks']) {
     return list(rows.map(row => <Link className="list-line" key={row.id} to={`/tasks?task=${row.id}`}><span className="flex-1">{row.name}<small className="muted block">{date(row.dueDate)}</small></span><Badge value={row.priority} /></Link>), '/tasks', 5);
@@ -41,7 +41,7 @@ export function Dashboard({ onCreate }: { onCreate: () => void }) {
     if (id === 'deadlines') return <>{deadlines.isError && <ErrorMessage />}{deadlines.isPending && <p role="status">{t('loading')}</p>}{deadlines.data && <>{list(deadlines.data.items.slice(0, 6).map(row => <Link className="list-line" key={`${row.contractId}:${row.kind}:${row.date}`} to={`/contracts/${row.contractId}`}><span>{row.name}<small className="muted block">{t(`contractRule_${row.kind}`)} · {date(row.date)}</small></span></Link>), '/agenda', 6)}{!!deadlines.data.warningTotal && <Link className="notice block mt-3" to="/agenda">{t('dashboardDateWarning')}</Link>}</>}</>;
     if (id === 'proposals') return list(d.pendingUpdates.map(row => <Link className="list-line" key={row.id} to={`/proposals?proposal=${row.id}`}>{row.type === 'injury' ? t('clubUpdate_injury') : row.name}</Link>), '/proposals', 5);
     if (id === 'followUps') return list(d.followUps.map(row => <Link className="list-line" key={row.id} to={`/presentations?presentation=${row.id}`}><span className="flex-1">{row.name}<small className="muted block">{date(row.followUpDate)}</small></span><PresentationResult value={row.result} /></Link>), '/presentations?overdue=true', 5);
-    return list(d.recent.map(row => <Link className="list-line" key={row.id} to={activityLink(row)}><span>{i18n.language === 'tr' ? row.summaryTr : row.summaryEn}<small className="muted block">{date(row.createdAt)}</small></span></Link>), '/tasks', 6);
+    return list(d.recent.map(row => <Link className="list-line" key={row.id} to={activityLink(row)}><span>{i18n.language === 'tr' ? row.summaryTr : row.summaryEn}<small className="muted block">{date(row.createdAt)}</small></span></Link>), undefined, 6);
   }
   return <>
     <div className="flex justify-between gap-4 flex-wrap items-center"><div><div className="eyebrow">{t('today')} · {date(d?.today ?? new Date().toISOString())}</div><h1>{t('overview')}</h1><p className="subtitle">{t('overviewSub')}</p></div><div className="flex gap-3 flex-wrap"><button className="secondary" disabled={!settings.data} onClick={() => { setAnnouncement(''); setEditor({ version: settings.data!.version, dashboardLayout: settings.data!.dashboardLayout }); }}>{t('dashboardCustomize')}</button><button className="primary" onClick={onCreate}><Plus size={16} />{t('new')}</button></div></div>

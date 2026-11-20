@@ -7,6 +7,13 @@ test.use({ actionTimeout: 10000 });
 for (const language of ['tr', 'en']) test(`dashboard layout survives reload, protects a stale draft and recovers from all hidden (${language})`, async ({ page }) => {
   test.setTimeout(90000); await signIn(page); const tr = language === 'tr';
   const headers = { origin: 'http://localhost:5173', 'x-csrf-token': (await (await page.request.get('/api/me')).json()).csrfToken };
+  // Keep a real example HIGH badge in the final light-theme scan, even when
+  // another suite completed the seed task. Test data stays in metodo_e2e.
+  const today = (await (await page.request.get('/api/overview')).json()).today;
+  const fixture = (await (await page.request.get('/api/tasks?' + new URLSearchParams({ status: 'all', q: 'Örnek portföy değerlendirmesi' }))).json()).items.find((row: { isExample: boolean }) => row.isExample);
+  expect(fixture).toBeTruthy();
+  const changed = await page.request.patch(`/api/tasks/${fixture.id}`, { headers, data: { version: fixture.version, changes: { priority: 'HIGH', dueDate: today } } }); expect(changed.status()).toBe(200); const task = await changed.json();
+  if (task.status === 'DONE') expect((await page.request.post(`/api/tasks/${task.id}/reopen`, { headers, data: { version: task.version } })).status()).toBe(200);
   const initial = await (await page.request.get('/api/settings')).json();
   expect((await page.request.patch('/api/settings', { headers, data: { version: initial.version, dashboardLayout: [] } })).status()).toBe(200); await page.reload();
   if (!tr) await page.getByRole('button', { name: 'English', exact: true }).click();
@@ -32,6 +39,7 @@ for (const language of ['tr', 'en']) test(`dashboard layout survives reload, pro
   await customize.click(); dialog = page.getByRole('dialog'); const firstRow = dialog.locator('li').first(); const secondRow = dialog.locator('li').nth(1); const secondLabel = await secondRow.locator('label').innerText(); await secondRow.dragTo(firstRow); await expect(dialog.locator('li').first().locator('label')).toHaveText(secondLabel);
   await dialog.getByRole('button', { name: tr ? 'Vazgeç' : 'Cancel', exact: true }).click();
   const finalSettings = await (await page.request.get('/api/settings')).json(); expect((await page.request.patch('/api/settings', { headers, data: { version: finalSettings.version, dashboardLayout: [] } })).status()).toBe(200); await page.reload();
+  await expect(page.locator('.badge-high').first()).toBeVisible();
   const finalAxe = await new AxeBuilder({ page }).analyze(); expect(finalAxe.violations.filter(row => ['serious', 'critical'].includes(row.impact ?? ''))).toEqual([]);
 });
 
