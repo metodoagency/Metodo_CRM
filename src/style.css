@@ -55,3 +55,27 @@
   overflow-y: auto;
   overscroll-behavior: contain;
 }
+
+/* Shared premium foundation, applied to existing working screens. */
+.skip-link{position:fixed;left:1rem;top:-6rem;z-index:100;background:var(--accent);color:var(--primary-text);padding:.8rem 1rem;border-radius:.5rem}
+.skip-link:focus{top:1rem}
+.sidebar{background:linear-gradient(180deg,color-mix(in srgb,var(--accent) 3%,var(--panel)),var(--panel) 35%)}
+.brand{font-weight:700;letter-spacing:-1.25px}
+.topbar{background:color-mix(in srgb,var(--panel) 70%,var(--bg))}
+.content{padding-block:2.6rem 3.5rem}
+h1{font-weight:600;letter-spacing:-.045em;line-height:1.2}
+.panel{border-radius:14px;box-shadow:var(--surface-shadow)}
+.panel-header{padding-block:1.35rem}
+.metric-value{font-variant-numeric:tabular-nums;letter-spacing:-.06em}
+.primary{color:var(--primary-text)}
+.primary,.secondary,.danger,.icon-button{min-height:40px}
+.danger,.error{color:var(--danger-text)}
+.badge-active,.badge-own,.badge-suggested{background:color-mix(in srgb,var(--accent) 10%,var(--panel))}
+.login-wrap{background:radial-gradient(ellipse at 25% 10%,color-mix(in srgb,var(--accent) 9%,transparent),transparent 65%),var(--bg)}
+.field input,.field select,.field textarea{border-radius:8px;min-height:42px}
+.nav-item.active{box-shadow:inset 2px 0 var(--accent)}
+.club-tabs [aria-pressed="true"]{border-color:var(--accent);box-shadow:inset 0 -2px var(--accent)}
+:root:not(.dark) .badge-warm{color:#65498c;background:#f1eaf7}
+:root:not(.dark) .badge-intermediary{color:#285b82;background:#e8f1f8}
+@media(max-width:767px){.content{padding:1.5rem 1.1rem 2.5rem}.primary,.secondary,.danger,.icon-button{min-height:44px}.icon-button{min-width:40px}}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important;scroll-behavior:auto!important}}

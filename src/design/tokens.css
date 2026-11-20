@@ -1,0 +1,31 @@
+/* Owner-approved palette. Fonts are bundled locally, with no font service. */
+:root {
+  --bg: #10151e;
+  --panel: #18212d;
+  --field: #121a25;
+  --border: #364251;
+  --text: #f4f0e9;
+  --muted: #adb7c4;
+  --accent: #d5bd91;
+  --primary-text: #191710;
+  --danger-text: #ffb6b8;
+  --surface-shadow: 0 12px 36px #00000014;
+  font-family: 'Noto Sans', ui-sans-serif, system-ui, sans-serif;
+  color: var(--text);
+  background: var(--bg);
+  font-synthesis: none;
+  color-scheme: dark;
+}
+:root:not(.dark) {
+  --bg: #f5f2ed;
+  --panel: #fffefa;
+  --field: #f8f5f0;
+  --border: #c8c2b8;
+  --text: #202a36;
+  --muted: #58616c;
+  --accent: #74572b;
+  --primary-text: #ffffff;
+  --danger-text: #a02535;
+  --surface-shadow: 0 12px 36px #302b2008;
+  color-scheme: light;
+}

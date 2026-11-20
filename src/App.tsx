@@ -89,6 +89,7 @@ export function App() {
   if (privacy.isError) return <main className="login-wrap"><ErrorMessage /><button className="secondary" onClick={() => { void privacy.refetch(); }}>{t('privacyRetry')}</button></main>;
   if (privacy.data.acknowledgementRequired) return <main className="p-6"><PrivacyNotice state={privacy.data} required /></main>;
   return <>
+    <a href="#main-content" className="skip-link">{t('skipToContent')}</a>
     {menu && <button className="mobile-scrim" aria-label={t('close')} onClick={() => setMenu(false)} />}
     <aside className={`sidebar ${menu ? 'open' : ''}`}>
       <Link to="/" className="brand"><Globe2 size={27} className="text-accent" />{t('brand')}<span>{t('crm')}</span></Link>
@@ -100,7 +101,7 @@ export function App() {
     <div className="main"><header className="topbar">
       <div className="flex gap-3 items-center"><button className="icon-button mobile-menu" aria-label={t('menu')} onClick={() => setMenu(true)}><Menu size={18} /></button><button className="search-box" onClick={() => setSearch(true)}><Search size={17} /><span>{t('search')}</span><span className="shortcut">{t('searchLabel')}</span></button></div>
       <div className="flex items-center gap-3"><button className="secondary" title={t('language')} onClick={() => { void preference({ language: i18n.language === 'tr' ? 'en' : 'tr' }); }}>{t(i18n.language === 'tr' ? 'en' : 'tr')}</button><button className="icon-button" aria-label={t(settings.data?.theme === 'dark' ? 'light' : 'dark')} onClick={() => { void preference({ theme: settings.data?.theme === 'dark' ? 'light' : 'dark' }); }}>{settings.data?.theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}</button><Link to="/notifications" className="icon-button" aria-label={t('notification')}><Bell size={16} /></Link></div>
-    </header><main className="content"><Routes>
+    </header><main id="main-content" tabIndex={-1} className="content"><Routes>
       <Route path="/" element={<Dashboard onCreate={() => setCreate('Club')} />} />
       <Route path="/clubs" element={<Records type="Club" onCreate={() => setCreate('Club')} />} />
       <Route path="/players" element={<PlayerDatabase onCreate={() => setCreate('Player')} />} />
