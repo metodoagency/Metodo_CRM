@@ -21,7 +21,7 @@ Local full189/189 unit/integration,79/79 security (110 unrelated skips),5/5 agen
 ## Remaining implementation
 
 1. The immutable Meeting snapshot02a5854 passed PostgreSQL16/17 CI run44567970465:209 application,87 security and28 browser scenarios per version. The Task checkpoint is already accepted at f0ea3fd. Do not rebuild the now implemented CRUD, approval command or ICS, and do not extend generic entityTypes/delegate (unknown types fall through to Request).
-2. Add current contract overlays and the explicit audited60-second protected birthday overlay to the agenda. Future transfer-window/licence/scout overlays remain pending until those modules exist.
+2. Current contract and protected birthday overlays are implemented in the2026-11-20 checkpoint; verify that snapshot, then preserve the implementation. Future transfer-window/licence/scout overlays remain pending until those modules exist.
 3. Dashboard widget order/visibility via existing UserSettings.dashboardLayout; keyboard-accessible reorder, today/week tasks/meetings/current deadlines/proposals/follow-ups. Add future module widgets only with real backing behavior.
 4. Remaining idempotent internal task adapters for presentations, contract alerts and approvals, and any remaining scheduled Meeting rules. The implemented previewed Meeting→Task command does not claim all automatic rules. Blocked transfer steps follow their later module. No outbound messaging or scheduled TFF requests.
 5. Complete applicable fixed-clock R4 tests, full TR/EN browser/axe, database16/17 CI and final milestone security review. B must also satisfy its independent open gate before any milestone merges. Package15 stays IN_PROGRESS.
@@ -55,3 +55,11 @@ Independent parser is pinned dev-only ical.js2.2.1; runtime ICS has no added dep
 Package25 backup/restore must preserve Meeting.utcOffsetSeconds as well as Task generation metadata, so a restored historical fold retains the selected instant.
 
 Next: current contract overlays and explicit protected birthday overlay, configurable dashboard widgets, remaining supported automatic task adapters, fixed-clock rules and final C security/CI acceptance. Package15 remains IN_PROGRESS.
+
+## Contract and protected birthday layers —2026-11-20
+
+No new migration or canonical data model. /api/agenda/deadlines uses the existing live owner Contract/Player/counterpart scope, active contracts and explicit date-only DTOs. A pure wrapper enumerates every intersecting month (up to four for62 inclusive days), deduplicates kind/date and filters range; reminder settings do not control calendar visibility. Bad legacy payment/date rows get linked warnings rather than crashing other contracts; skipped monthly dates are not invented.
+
+/api/agenda/birthdays/view requires explicit authenticated CSRF-protected POST. It uses the shared encrypted subject collector, range years only, existing Feb29→Mar1 semantics and rejects occurrences before actual birth. Only selected-page occurrence/id/kind/name are returned and audited by field name; no original DOB/year/age, canonical changes or reminder generation. The UI never puts these responses in query/mutation caches or browser storage; expiry is capped to request start, and hide/focus/visibility/range/query/page/record navigation clear the state. Tests also ignore AbortSignal deliberately to establish late-success rejection by generation/mount identity. ICS remains meetings-only and explicitly excludes both layers.
+
+The low-year Feb29 fallback is now padded.12 focused tests,221 full application tests,3 new browser cases and2 route-wide TR/EN axe checks passed before the separate dependency security fix. Final snapshot results and the scoped Effect fix are recorded in PROGRESS.md; exact-head CI remains required. Existing future-module overlays, configurable dashboard and automatic source-task adapters are still open.

@@ -21,6 +21,7 @@ const strings = {
   contractLegacy: ['Eski biçimli koşullar var. Koruma seçimi bunları aynen saklar; yeni değer girmek tüm grubu değiştirir.', 'Legacy terms exist. Keep preserves them exactly; entering a new value replaces the entire group.'],
   contractPaymentHelp: ['29–31. gün her ay bulunmaz. Geçersiz aylar atlanıp listelenir; gün kendiliğinden değiştirilmez.', 'Days 29–31 do not exist in every month. Invalid months are skipped and listed; the day is never changed automatically.'],
   contractSkippedMonths: ['Ödeme günü bulunmayan aylar: {{months}}', 'Months without this payment day: {{months}}'], contractDateIssue: ['Tarih aralığını kontrol edin: {{field}}', 'Check the date range: {{field}}'],
+  contractPaymentDayIssue: ['Aylık ödeme günü geçersiz. Kaydı düzenleyip 1–31 arasında bir gün seçin veya alanı temizleyin.', 'The monthly payment day is invalid. Edit the record to choose a day from 1 to 31 or clear the field.'],
   contractPeriod_YEAR: ['Yıllık', 'Yearly'], contractPeriod_MONTH: ['Aylık', 'Monthly'], contractPeriod_WEEK: ['Haftalık', 'Weekly'], contractPeriod_DAY: ['Günlük', 'Daily'], contractPeriod_ONE_OFF: ['Tek sefer', 'One-off'],
   contractBasis_GROSS: ['Brüt', 'Gross'], contractBasis_NET: ['Net', 'Net'], contractMet_YES: ['Evet', 'Yes'], contractMet_NO: ['Hayır', 'No'], contractMet_UNKNOWN: ['Bilinmiyor', 'Unknown'],
   contractAgent: ['Menajer tarafı', 'Agent counterpart'], contractCounterpart: ['Karşı taraf', 'Counterparty'],

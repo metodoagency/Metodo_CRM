@@ -36,6 +36,7 @@ import { registerContracts } from './player-contracts.js';
 import { registerNotifications, unreadNotificationCount } from './notifications.js';
 import { registerTasks } from './tasks.js';
 import { registerMeetings } from './meetings.js';
+import { registerAgendaOverlays } from './agenda-overlays.js';
 
 const idParams = z.object({ id: z.string().uuid() });
 const entityParams = z.object({ type: z.enum(entityTypes), id: z.string().uuid() });
@@ -69,6 +70,7 @@ export async function registerRoutes(app: FastifyInstance, db: PrismaClient) {
   await registerNotifications(app, db);
   await registerTasks(app, db);
   await registerMeetings(app, db);
+  await registerAgendaOverlays(app, db);
   app.get('/api/me', async req => ({ id: 'owner', csrfToken: csrfToken(req.cookies[sessionCookie]!) }));
   app.get('/api/settings', async () => masked(await db.userSettings.upsert({ where: { ownerId: 'owner' }, create: { ownerId: 'owner' }, update: {} })));
   app.patch('/api/settings', async req => {

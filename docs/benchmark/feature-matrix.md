@@ -2,7 +2,7 @@
 
 This matrix covers the baseline feature categories plus the linked SPEC update1 matrix, not just the implemented foundation. A schema/table or seed is not a built module.
 
-Updated2026-11-19 against the requirement acceptance matrix. Baseline category summary: BUILT:7, PARTIAL:8, NOT BUILT:18, OUT OF SCOPE:0. This is a category count, not an effort or overall completion percentage. Authoritative M/R/G/innovation assignments, immutable CI links and remaining clauses are in [the acceptance matrix](../acceptance-matrix.md); session gates are in [SESSION_PLAN.md](../../SESSION_PLAN.md). Overall accepted progress:10% (A only);10/54 packages are DONE. B still needs its TFF and final review gate, while C/package15 is in progress. SPEC update1 and the approved execution plan override legacy milestone names.
+Updated2026-11-19 against the requirement acceptance matrix. Baseline category summary: BUILT:7, PARTIAL:8, NOT BUILT:18, OUT OF SCOPE:0. This is a category count, not an effort or overall completion percentage. Authoritative M/R/G/innovation assignments, immutable CI links and remaining clauses are in [the acceptance matrix](../acceptance-matrix.md); session gates are in [SESSION_PLAN.md](../../SESSION_PLAN.md). Baseline A–J accepted progress:10% (A only); K/L accepted0/2;10/66 packages are DONE (original54 preserved plus12 owner-extension packages). B still needs its TFF and final review gate, while C/package15 is in progress. SPEC update1 and the approved execution plan override legacy milestone names.
 
 New G1–G15 requirements are tracked individually in that matrix. Former G/H/I is now H/I/J. Live licensed providers are deferred by owner instruction; permitted owner-supplied file import remains in J/package47.
 
@@ -49,3 +49,7 @@ Competitor descriptions were not fetched or relied on. No competitive claims, pr
 ## Differentiators
 
 Implemented controls include masked timelines, field encryption, explicit owner approval/version boundaries, per-field provenance verification, explainable matching, private-by-default exports and Sites embedding headers. Commercial-site acquisition and automated contact messaging remain forbidden. Owner-reviewed compliance text, generalized protected backups, future workflows and live deployment acceptance remain open. The category table must not count schema-only features as implemented or treat unfinished milestone gates as accepted.
+
+## Approved sponsorship and media extension
+
+SPEC update2 (2026-11-20) adds K/SP1–SP8 and L/MO1–MO10, mapped to packages55–66 in [the extension scope](../COMMERCIAL_MEDIA_SCOPE.md). These18 requirements remain NOT_STARTED; no panel is claimed built. The baseline33-category count above is preserved separately. Player sponsorship/obligations/receivables, media jobs/design counts, stored-fixture timed matchday work and extended recovery/live acceptance are mandatory before expanded final delivery.

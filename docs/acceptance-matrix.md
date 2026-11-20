@@ -1,6 +1,6 @@
 # Requirement acceptance matrix
 
-Updated 2026-11-19. Each M row incorporates **every bullet** of its matching baseline subsection; each R/G row incorporates its entire rule in SPEC.md/baseline. A row becomes DONE only after all its clauses pass, with exact tests/commit/CI. PARTIAL evidence is not completion. 54-package ledger: [SESSION_PLAN.md](../SESSION_PLAN.md). Accepted progress remains10% (A gate);10 packages DONE,5 in progress,39 pending.
+Updated2026-11-20. Each M row incorporates **every bullet** of its matching baseline subsection; each R/G row incorporates its entire rule in SPEC.md/baseline. A row becomes DONE only after all its clauses pass, with exact tests/commit/CI. PARTIAL evidence is not completion. 66-package ledger (original01–54 preserved): [SESSION_PLAN.md](../SESSION_PLAN.md). Accepted progress remains10% (A gate);10 packages DONE,5 in progress,51 pending. K/L extension acceptance0/2; baseline A–J10% stays separate.
 
 Live commercial/provider implementation is explicitly deferred by SPEC update1. M35 covers licensed owner-supplied files and interfaces only. Optional features remain disabled until configured and verified. No real minor/medical production data until H.
 
@@ -106,3 +106,28 @@ Live commercial/provider implementation is explicitly deferred by SPEC update1. 
 | N12 | Portfolio health | 50 | NOT_DONE | — |
 | N13 | Extended next actions | 50 | NOT_DONE | — |
 | N14 | Anomaly checks | 10,17,51 | NOT_DONE | — |
+
+## Owner extension K/L —SPEC update2,2026-11-20
+
+Every clause in [the normative extension](COMMERCIAL_MEDIA_SCOPE.md) and [full owner instruction](OWNER_EXTENSION_20261120.md) is incorporated. Documentation alone gives no runtime acceptance.
+
+| Requirement | Scope | Packages | Status | Evidence |
+|---|---|---|---|---|
+| SP1 | Sponsor/brand, existing contacts and links | 55 | NOT_STARTED | Scope mapped; no runtime acceptance. |
+| SP2 | Dated opportunity pipeline and next action | 55 | NOT_STARTED | Scope mapped; no runtime acceptance. |
+| SP3 | Offers/agreements/versions/source/files | 56 | NOT_STARTED | Scope mapped; no runtime acceptance. |
+| SP4 | Cash/in-kind original-currency consideration | 57 | NOT_STARTED | Scope mapped; no runtime acceptance. |
+| SP5 | Partial receipts/receivables/agency finance | 57 | NOT_STARTED | Scope mapped; no runtime acceptance. |
+| SP6 | Deliverables and manual completion evidence | 58 | NOT_STARTED | Scope mapped; no runtime acceptance. |
+| SP7 | Rights, potential conflict review and current reminders | 58 | NOT_STARTED | Scope mapped; no runtime acceptance. |
+| SP8 | Player/central panel, reports and K integration | 59 | NOT_STARTED | Scope mapped; no runtime acceptance. |
+| MO1 | Social-account metadata/preferences | 60 | NOT_STARTED | Scope mapped; no runtime acceptance. |
+| MO2 | Content briefs, categories and links | 60 | NOT_STARTED | Scope mapped; no runtime acceptance. |
+| MO3 | Workspace, logical designs/revisions/adaptations | 61 | NOT_STARTED | Scope mapped; no runtime acceptance. |
+| MO4 | Owner approval and manual publication evidence | 61 | NOT_STARTED | Scope mapped; no runtime acceptance. |
+| MO5 | Stored-fixture timed matchday tasks | 62 | NOT_STARTED | Scope mapped; no runtime acceptance. |
+| MO6 | Source/rule idempotency and versioned schedule changes | 62 | NOT_STARTED | Scope mapped; no runtime acceptance. |
+| MO7 | Player service/office unique-asset counts | 63 | NOT_STARTED | Scope mapped; no runtime acceptance. |
+| MO8 | Work Log/cost/capacity reuse | 64 | NOT_STARTED | Scope mapped; no runtime acceptance. |
+| MO9 | Manual/file metrics and explainable readiness | 65 | NOT_STARTED | Scope mapped; no runtime acceptance. |
+| MO10 | Full extended safety/recovery/live/Sites delivery | 66 | NOT_STARTED | Scope mapped; no runtime acceptance. |

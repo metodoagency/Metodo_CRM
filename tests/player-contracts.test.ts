@@ -13,6 +13,12 @@ const input = {
 };
 const dates: ContractDates = { ...input };
 describe('manual contract validation', () => {
+  it('keeps valid deadlines readable when a legacy payment day is corrupt', () => {
+    const result = contractDeadlines({ ...dates, paymentDay: 0 }, '2026-11-01', []);
+    expect(result.deadlines).toContainEqual({ kind: 'CONTRACT_END', date: dates.endDate, thresholds: [] });
+    expect(result.deadlines.some(row => row.kind === 'PAYMENT_DAY')).toBe(false);
+    expect(result.issues).toContainEqual({ field: 'paymentDay', code: 'INVALID_PAYMENT_DAY' });
+  });
   it('substitutes every contract UI variable in Turkish and English', async () => {
     const i18n = i18next.createInstance(); await i18n.init({ resources: { tr: { translation: contractTr }, en: { translation: contractEn } }, lng: 'tr' });
     for (const language of ['tr', 'en']) {

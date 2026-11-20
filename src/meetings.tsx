@@ -7,6 +7,7 @@ import { agendaRange, meetingFields, meetingParticipantTypes, meetingPatch, meet
 import { taskDate, taskFields, taskLinkPath, taskPriorities, taskRecurrences, type TaskInput } from '../shared/tasks';
 import { api, apiBlob, ApiError, body } from './api';
 import { Empty, ErrorMessage, Modal } from './components';
+import { AgendaDays } from './agenda-overlays';
 
 type AgendaList = { items: MeetingSummary[]; total: number; pageSize: number };
 const blank = (): MeetingInput => ({ name: '', date: istanbulToday(), time: '10:00', durationMin: 60, utcOffsetSeconds: null, locationOrUrl: null, participants: [], agenda: '', notes: '', outcome: null });
@@ -43,7 +44,7 @@ export function Meetings() {
       {list.isPending && <p role="status">{t('loading')}</p>}{list.isError && <ErrorMessage />}
       {list.data && <>
         {list.data.total > list.data.items.length && <p className="notice mb-4">{t('meetingListPartial', { count: list.data.items.length, total: list.data.total })}</p>}
-        <div className={view === 'month' ? 'grid gap-3 sm:grid-cols-2 xl:grid-cols-3' : 'space-y-3'}>{range.days.map(date => <section key={date} className="rounded border border-[var(--border)] p-3"><h3 className="mb-2">{day(date)}</h3>{list.data.items.filter(row => row.date === date).map(row => <p key={row.id} className="my-2"><Link className="text-accent" to={`/agenda?meeting=${row.id}`}>{row.time} · {row.name}</Link>{row.isExample && <small className="muted block">{t('example')}</small>}</p>)}{!list.data.items.some(row => row.date === date) && <p className="muted text-sm">{list.data.total > list.data.items.length ? t('meetingListPartial', { count: list.data.items.length, total: list.data.total }) : t('meetingEmptyDay')}</p>}</section>)}</div>
+        <AgendaDays key={`${range.from}:${range.to}:${view}:${q}:${page}:${focus}`} range={range} view={view} q={q} meetings={list.data.items} partial={list.data.total > list.data.items.length} />
         <div className="pagination"><span>{t('page', { page, total: list.data.total })}</span><div className="flex gap-2"><button className="secondary" disabled={page === 1} onClick={() => setPage(page - 1)}>{t('previous')}</button><button className="secondary" disabled={page * list.data.pageSize >= list.data.total} onClick={() => setPage(page + 1)}>{t('next')}</button></div></div>
       </>}
     </section>

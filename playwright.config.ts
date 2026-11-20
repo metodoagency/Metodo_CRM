@@ -17,6 +17,7 @@ export default defineConfig({
     { name: 'contract-workspace', testMatch: '**/contracts.spec.ts' },
     { name: 'agenda-workspace', testMatch: ['**/agenda.spec.ts', '**/tasks.spec.ts'] },
     { name: 'meeting-workspace', testMatch: '**/meetings.spec.ts' },
+    { name: 'agenda-layers', testMatch: '**/agenda-layers.spec.ts' },
     { name: 'a11y', testMatch: '**/a11y.spec.ts' },
   ],
 });

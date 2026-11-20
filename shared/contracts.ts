@@ -61,6 +61,8 @@ export type ApiContract = { method: 'get' | 'post' | 'patch' | 'delete'; path: s
 export const apiContracts: ApiContract[] = [
   { method: 'get', path: '/api/tasks', query: taskQuery },
   { method: 'get', path: '/api/agenda', query: agendaQuery },
+  { method: 'get', path: '/api/agenda/deadlines', query: agendaQuery },
+  { method: 'post', path: '/api/agenda/birthdays/view', body: agendaQuery },
   { method: 'post', path: '/api/agenda/ics', body: agendaExport, download: ['text/calendar'] },
   { method: 'post', path: '/api/meetings/:id/ics', params: idParams, body: versionInput, download: ['text/calendar'] },
   { method: 'post', path: '/api/meetings/time-preview', body: meetingTimeInput },

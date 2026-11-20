@@ -78,7 +78,7 @@ function ContractView({ record }: { record: ContractRecord }) {
       <div className="grid md:grid-cols-3 gap-4">{(['salaryAmount', 'bonuses', 'compliance'] as const).map(field => <ContractPrivate key={`${record.id}:${record.version}:${field}`} record={record} field={field} />)}</div>
     </section>
     {groups.map(group => <section className="panel panel-body mt-4" key={group}><h2>{t(`contract_${group}`)}</h2>{record.legacyGroups.includes(group) && <p className="notice my-3">{t('contractLegacy')}</p>}<ContractTerms value={record[group]} /></section>)}
-    <section className="panel panel-body mt-4"><h2>{t('contractDeadlineTitle')}</h2>{record.dates.issues.map(issue => <p className="notice my-2" key={issue.field}>{t('contractDateIssue', { field: t(`contract_${issue.field}`) })}</p>)}
+    <section className="panel panel-body mt-4"><h2>{t('contractDeadlineTitle')}</h2>{record.dates.issues.map(issue => <p className="notice my-2" key={issue.field}>{issue.code === 'INVALID_PAYMENT_DAY' ? t('contractPaymentDayIssue') : t('contractDateIssue', { field: t(`contract_${issue.field}`) })}</p>)}
       {!!record.dates.skippedPaymentMonths.length && <p className="notice my-3">{t('contractSkippedMonths', { months: record.dates.skippedPaymentMonths.join(', ') })}</p>}
       {record.dates.deadlines.map(row => <div className="list-line" key={`${row.kind}:${row.date}`}><span>{t(`contractRule_${row.kind}`)}</span><span>{displayDay(row.date, i18n.language)}</span></div>)}
     </section>

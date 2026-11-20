@@ -11,7 +11,7 @@
 | 08 | Personel CSV akışını koru; temsili anonim TFF personel sayfası veya sahibin başlattığı kesin sayfa kontrolüyle robots izinli kontrolü tamamla. Zamanlanmış veya ticari site isteği ekleme. |
 | 11 | M14/M15 tamam. Kalan M4 ve B güvenlik/CI kapısı doğrulandıktan sonra B kabulünü kapat. |
 
-Bu erişim işleri, bağımsız CRM geliştirmelerini durdurmaz. Paket 13, eşzamanlı satış düzeltmesi dahil, 8edb823 için PostgreSQL 16/17 CI geçtikten sonra tamamlandı. Paket 14 de 5c516b4 için PostgreSQL 16/17 CI geçtikten sonra tamamlandı. 10/54 paket tamam, 5 paket devam ediyor (15 dahil), 39 paket başlamadı. Resmî aşama kabulü A kapısı nedeniyle %10.
+Bu erişim işleri, bağımsız CRM geliştirmelerini durdurmaz. Paket 13, eşzamanlı satış düzeltmesi dahil, 8edb823 için PostgreSQL 16/17 CI geçtikten sonra tamamlandı. Paket 14 de 5c516b4 için PostgreSQL 16/17 CI geçtikten sonra tamamlandı. 10/66 paket tamam,5 paket devam ediyor (15 dahil),51 paket başlamadı. İlk54 paket korunur; K/L genişlemesi55–66 numaralarını kullanır. Temel A–J kabulü A kapısı nedeniyle%10; K/L ek kapsam kabulü0/2.
 
 ## Geliştirme sırası
 
@@ -63,3 +63,7 @@ Bu erişim işleri, bağımsız CRM geliştirmelerini durdurmaz. Paket 13, eşza
 Mevcut projede aynı checkout ile devam edin. Tek kod yazan çalışma korunur; alt ajanlar bağımsız salt okunur incelemeler yapabilir. Her paket uygulama, ilgili testler, commit ve PROGRESS kaydıyla tamamlanır. Sonraki bağımsız paket için ayrıca “devam” beklenmez. Kesintide `SESSION_PLAN.md ve PROGRESS.md üzerinden son tamamlanmamış paketi sürdür` demeniz yeterlidir.
 
 Kabul kapıları: A %10; B %20; C %30; D %40; E %50; F/pilot %60; G %70; H %80; I %90; J/son teslim %100. Bu yüzde harcanan emek veya yazılan kod yüzdesi değildir. Ücretsiz kaynak sınırı, ticari scraping yasağı, Gmail gönderim yasağı, onay ve hassas veri korumaları tüm oturumlarda geçerlidir.
+
+## Onaylı sponsorluk ve medya genişlemesi
+
+2026-11-20: K paket55–59 sponsorluk; L paket60–66 medya/matchday/hizmet raporu. Ayrıntılı bitiş ölçütleri [COMMERCIAL_MEDIA_SCOPE.md](COMMERCIAL_MEDIA_SCOPE.md) ve [SESSION_PLAN.md](../SESSION_PLAN.md) içindedir. Önce yarım ajanda katmanlarını doğrula,15 kapsamında dashboard/görev adaptörlerine devam et. Yeni paneller mevcut Person/finans/Campaign/dosya/zamanlı bildirim temellerini yeniden kullanır; kaynak politikası değişmez.66 paket sayısı teslim süresi garantisi değildir.

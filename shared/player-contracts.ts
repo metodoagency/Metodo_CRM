@@ -84,12 +84,12 @@ function shiftMonth(month: string, offset: number): string | undefined {
 // Pure calendar arithmetic. No fetch, canonical write, inference or legal outcome.
 // Legacy undated clauses stay undated. Invalid monthly days are skipped, never clamped.
 export function contractDeadlines(input: ContractDates, today: string, thresholds: readonly number[]): {
-  deadlines: ContractDeadline[]; skippedPaymentMonths: string[]; issues: { field: string; code: 'DATE_ORDER' }[];
+  deadlines: ContractDeadline[]; skippedPaymentMonths: string[]; issues: { field: string; code: 'DATE_ORDER' | 'INVALID_PAYMENT_DAY' }[];
 } {
   isoDate.parse(today); isoDate.parse(input.startDate); isoDate.parse(input.endDate);
   contractThresholds.parse(thresholds);
   const deadlines: ContractDeadline[] = []; const skippedPaymentMonths: string[] = [];
-  const issues: { field: string; code: 'DATE_ORDER' }[] = [];
+  const issues: { field: string; code: 'DATE_ORDER' | 'INVALID_PAYMENT_DAY' }[] = [];
   if (input.startDate > input.endDate) issues.push({ field: 'endDate', code: 'DATE_ORDER' });
   if (!input.isActive || issues.length) return { deadlines, skippedPaymentMonths, issues };
   const add = (kind: ContractDeadline['kind'], date?: string | null) => {
@@ -109,8 +109,9 @@ export function contractDeadlines(input: ContractDates, today: string, threshold
   const representationFrom = dateAt(input.representation, 'startDate'); const representationTo = dateAt(input.representation, 'endDate');
   if (representationFrom && representationTo && representationFrom > representationTo) issues.push({ field: 'representation', code: 'DATE_ORDER' });
   else add('REPRESENTATION_END', representationTo);
-  if (input.paymentDay !== null) {
-    z.number().int().min(1).max(31).parse(input.paymentDay);
+  const validPaymentDay = input.paymentDay === null || z.number().int().min(1).max(31).safeParse(input.paymentDay).success;
+  if (!validPaymentDay) issues.push({ field: 'paymentDay', code: 'INVALID_PAYMENT_DAY' });
+  if (input.paymentDay !== null && validPaymentDay) {
     // Show the next month as well so invalid current-month dates are visible.
     // Reminder horizon is at most365 days; never expand a historical interval.
     const count = Math.max(1, Math.ceil(Math.max(0, ...thresholds) / 28));
