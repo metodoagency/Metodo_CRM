@@ -32,7 +32,7 @@ These16 rows are execution slices, not replacement package IDs. Feature acceptan
 | Order | Slice | Required evidence | Status |
 |---:|---|---|---|
 |1|WIP preservation and CI recovery|9-file hash checkpoint;8c2cde1 exact16/17 CI44759716743 passed|DONE|
-|2|Persist consolidated plan|Original approval committed b91a159; later managed-vault update recorded2026-11-23|IN_PROGRESS|
+|2|Persist consolidated plan|Original approval b91a159; full owner instruction, DESIGN.md and67–72 amendment committed e74f703|DONE|
 |3|Premium real core screens|Navigation/dashboard/player/table/form TR/EN dark/light/mobile/keyboard/axe|IN_PROGRESS|
 |4|Drive schema/API/security|Migration/encryption/typed joins/version/safe URL; no acquisition|IN_PROGRESS|
 |5|Library/record panels|Create/search/link/unlink/reveal/Trash/restore and late-response/lifecycle tests|IN_PROGRESS|

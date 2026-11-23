@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { externalResourceCreate, externalResourcePatch, externalResourceQuery, resourceLinkInput, resourceUnlinkInput, resourceLinkParams, resourceDeleteInput } from './external-resources.js';
 import { fileVersion, processingApprovalInput, processingPreviewInput } from './files.js';
 import { documentInput, documentMime } from './documents.js';
 import { areaInput, clubFilters, clubLocationInput, clubMapQuery, clubNoteInput, clubSectionParams, clubSectionQuery } from './club-network.js';
@@ -144,7 +145,18 @@ export const apiContracts: ApiContract[] = [
   { method: 'post', path: '/api/documents/profile/:id', params: idParams, body: documentInput, download: Object.values(documentMime) },
   { method: 'post', path: '/api/documents/recommendation/:id', params: idParams, body: documentInput, download: Object.values(documentMime) },
   { method: 'get', path: '/api/records/:type/:id/files', params: fileParentParams },
+  { method: 'get', path: '/api/resources', query: externalResourceQuery },
+  { method: 'post', path: '/api/resources', body: externalResourceCreate, success: 201 },
+  { method: 'patch', path: '/api/resources/:id', params: idParams, body: externalResourcePatch },
+  { method: 'delete', path: '/api/resources/:id', params: idParams, body: resourceDeleteInput },
+  { method: 'get', path: '/api/resources/:id/delete-preview', params: idParams },
+  { method: 'post', path: '/api/resources/:id/reveal', params: idParams, body: fileVersion },
+  { method: 'get', path: '/api/records/:type/:id/resources', params: fileParentParams, query: externalResourceQuery.pick({ page: true }) },
+  { method: 'post', path: '/api/resources/:id/links', params: idParams, body: resourceLinkInput, success: 201 },
+  { method: 'get', path: '/api/resources/:id/links', params: idParams, query: externalResourceQuery.pick({ page: true }) },
+  { method: 'delete', path: '/api/resources/:id/links/:linkId', params: resourceLinkParams, body: resourceUnlinkInput },
   { method: 'post', path: '/api/records/:type/:id/files', params: fileParentParams, multipart: true, success: 201 },
+  { method: 'post', path: '/api/players/:id/photo-files', params: idParams, multipart: true, success: 201 },
   { method: 'post', path: '/api/files/:id/download', params: idParams, body: fileVersion },
   { method: 'get', path: '/api/files/:id/content', params: idParams },
   { method: 'post', path: '/api/admin/files/cleanup' },

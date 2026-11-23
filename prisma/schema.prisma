@@ -213,6 +213,8 @@ enum NotificationStatus {
 }
 
 model Owner {
+ externalResourceLinks ExternalResourceLink[]
+ externalResources ExternalResource[]
  birthdayGreetings BirthdayGreeting[]
  significantDates SignificantDate[]
  processingConsents ProcessingConsent[]
@@ -412,6 +414,7 @@ model League {
 }
 
 model Club {
+ externalResourceLinks ExternalResourceLink[]
  @@index([ownerId, deletedAt, name, id])
  clubFinancialProfileLinks ClubFinancialProfile[]
  clubStakeholderLinks ClubStakeholder[]
@@ -491,6 +494,7 @@ model AgeTeam {
 }
 
 model Person {
+ externalResourceLinks ExternalResourceLink[]
  @@index([ownerId, deletedAt, name, id])
  mediaContactLinks MediaContact[]
  clubStakeholderLinks ClubStakeholder[]
@@ -570,6 +574,7 @@ model Agent {
 }
 
 model Player {
+ externalResourceLinks ExternalResourceLink[]
  @@index([ownerId, deletedAt, status, name, id])
  @@index([ownerId, deletedAt, name, id])
  watchlistEntryLinks WatchlistEntry[]
@@ -659,6 +664,7 @@ model Player {
 }
 
 model Contract {
+ externalResourceLinks ExternalResourceLink[]
  agentId String? @db.Uuid
  agent Agent? @relation(fields: [agentId], references: [id], onDelete: Restrict)
  sourceDate DateTime? @db.Date
@@ -752,6 +758,7 @@ model PerformanceRecord {
 }
 
 model Request {
+ externalResourceLinks ExternalResourceLink[]
  id String @id @default(uuid()) @db.Uuid
  ownerId String @default("owner")
  owner Owner @relation(fields: [ownerId], references: [id])
@@ -798,6 +805,7 @@ model Request {
 }
 
 model Suggestion {
+ externalResourceLinks ExternalResourceLink[]
  id String @id @default(uuid()) @db.Uuid
  ownerId String @default("owner")
  owner Owner @relation(fields: [ownerId], references: [id])
@@ -1462,6 +1470,79 @@ model SignificantDate {
  name String
  date DateTime @db.Date
  @@index([ownerId, deletedAt, date, id])
+}
+
+model ExternalResource {
+ id String @id @default(uuid()) @db.Uuid
+ ownerId String @default("owner")
+ owner Owner @relation(fields: [ownerId], references: [id])
+ isExample Boolean @default(false)
+ deletedAt DateTime?
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+ createdBy String @default("owner")
+ updatedBy String @default("owner")
+ version Int @default(1)
+ fieldProvenance Json @default("{}")
+ sourceUrl String?
+ sourceType SourceType @default(MANUAL)
+ retrievedAt DateTime @default(now())
+ verificationStatus VerificationStatus @default(UNVERIFIED)
+ name String
+ searchName String
+ kind String
+ externalUrl String
+ links ExternalResourceLink[]
+ @@index([ownerId, deletedAt])
+ @@index([ownerId])
+ @@index([ownerId, deletedAt, createdAt, id])
+}
+
+model ExternalResourceLink {
+ id String @id @default(uuid()) @db.Uuid
+ ownerId String @default("owner")
+ owner Owner @relation(fields: [ownerId], references: [id])
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+ deletedAt DateTime?
+ createdBy String @default("owner")
+ updatedBy String @default("owner")
+ version Int @default(1)
+ isExample Boolean @default(false)
+ fieldProvenance Json @default("{}")
+ sourceUrl String?
+ sourceType SourceType @default(MANUAL)
+ retrievedAt DateTime @default(now())
+ verificationStatus VerificationStatus @default(UNVERIFIED)
+ name String
+ resourceId String @db.Uuid
+ resource ExternalResource @relation(fields: [resourceId], references: [id])
+ clubId String? @db.Uuid
+ club Club? @relation(fields: [clubId], references: [id], onDelete: Restrict)
+ playerId String? @db.Uuid
+ player Player? @relation(fields: [playerId], references: [id], onDelete: Restrict)
+ personId String? @db.Uuid
+ person Person? @relation(fields: [personId], references: [id], onDelete: Restrict)
+ requestId String? @db.Uuid
+ request Request? @relation(fields: [requestId], references: [id], onDelete: Restrict)
+ suggestionId String? @db.Uuid
+ suggestion Suggestion? @relation(fields: [suggestionId], references: [id], onDelete: Restrict)
+ contractId String? @db.Uuid
+ contract Contract? @relation(fields: [contractId], references: [id], onDelete: Restrict)
+ @@unique([resourceId, clubId])
+ @@unique([resourceId, playerId])
+ @@unique([resourceId, personId])
+ @@unique([resourceId, requestId])
+ @@unique([resourceId, suggestionId])
+ @@unique([resourceId, contractId])
+ @@index([ownerId, deletedAt])
+ @@index([ownerId])
+ @@index([clubId])
+ @@index([playerId])
+ @@index([personId])
+ @@index([requestId])
+ @@index([suggestionId])
+ @@index([contractId])
 }
 
 model Attachment {

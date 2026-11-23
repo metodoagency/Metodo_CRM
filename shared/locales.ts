@@ -1,4 +1,5 @@
 import { adminTr, adminEn } from './admin-locales.js';
+import { resourceTr, resourceEn } from './resource-locales.js';
 import { clubTr, clubEn } from './club-locales.js';
 import { privacyTr, privacyEn } from './privacy-locales.js';
 import { retentionTr, retentionEn } from './retention-locales.js';
@@ -20,6 +21,7 @@ import { meetingTr, meetingEn } from './meeting-locales.js';
 import { agendaTr, agendaEn } from './agenda-locales.js';
 import { dashboardTr, dashboardEn } from './dashboard-locales.js';
 export const tr = {
+  ...resourceTr,
   skipToContent: 'Ana içeriğe geç',
   ...dashboardTr,
   ...agendaTr,
@@ -251,6 +253,7 @@ export const tr = {
   "suggestionSummary": "{club} kulübüne önerildi · Yetkili: {person} · Talep: {request} · Tarih: {date}"
 } as const;
 export const en: Record<keyof typeof tr, string> = {
+  ...resourceEn,
   skipToContent: 'Skip to main content',
   ...dashboardEn,
   ...agendaEn,

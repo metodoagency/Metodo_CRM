@@ -79,3 +79,11 @@ h1{font-weight:600;letter-spacing:-.045em;line-height:1.2}
 :root:not(.dark) .badge-intermediary{color:#285b82;background:#e8f1f8}
 @media(max-width:767px){.content{padding:1.5rem 1.1rem 2.5rem}.primary,.secondary,.danger,.icon-button{min-height:44px}.icon-button{min-width:40px}}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important;scroll-behavior:auto!important}}
+.resource-heading,.resource-actions{display:flex;gap:.6rem;align-items:center;flex-wrap:wrap}
+.resource-item{display:flex;gap:1rem;padding:1.25rem 0;border-bottom:1px solid var(--border);align-items:flex-start}
+.resource-description{flex:1;min-width:10rem;overflow-wrap:anywhere}
+.resource-description h3{font-size:.95rem;font-weight:600;margin:0 0 .45rem}
+.resource-description p{font-size:.75rem}
+.resource-icon{background:color-mix(in srgb,var(--accent) 10%,var(--panel));color:var(--accent);padding:.7rem;border:1px solid var(--border);border-radius:.7rem}
+.resource-filters{display:grid;grid-template-columns:2fr 1fr;gap:1rem}
+@media(max-width:767px){.resource-item{flex-wrap:wrap}.resource-item>.resource-actions{width:100%}.resource-filters{grid-template-columns:1fr}.resource-heading{padding:1rem}}

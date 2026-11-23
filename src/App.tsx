@@ -13,6 +13,8 @@ import { AdminControls, FieldEvidence, ImpactList, type Impact } from './admin';
 import { IncidentChecklist, PrivacyNotice } from './privacy';
 import { RetentionControls, SensitiveAccessLog } from './retention';
 import { AttachmentPanel, FileMaintenance } from './files';
+import { ResourceLibrary } from './external-resources';
+import { FolderOpen } from 'lucide-react';
 import { ProfileExport } from './profile-export';
 import { ClubExplorer, clubSearchParams } from './club-explorer';
 import { ClubWorkspace } from './club-workspace';
@@ -47,6 +49,7 @@ const pages = [
   { path: '/players', key: 'players', icon: Users }, { path: '/people', key: 'people', icon: UserRound },
   { path: '/requests', key: 'requests', icon: ArrowLeftRight }, { path: '/proposals', key: 'proposals', icon: ShieldCheck },
   { path: '/sources', key: 'sourceRegistry', icon: Link2 },
+  { path: '/resources', key: 'resourceLibrary', icon: FolderOpen },
   { path: '/birthdays', key: 'birthdayCalendar', icon: CalendarDays },
   { path: '/presentations', key: 'presentations', icon: ArrowLeftRight },
   { path: '/contracts', key: 'contracts', icon: ShieldCheck },
@@ -110,6 +113,7 @@ export function App() {
       <Route path="/record/:type/:id" element={<RecordDetailRoute />} />
       <Route path="/trash" element={<Trash />} /><Route path="/proposals" element={<Proposals />} />
       <Route path="/sources" element={<ClubSourceRegistry />} />
+      <Route path="/resources" element={<ResourceLibrary />} />
       <Route path="/birthdays" element={<BirthdayCalendar />} />
       <Route path="/presentations" element={<Presentations />} />
       <Route path="/contracts" element={<Contracts />} /><Route path="/contracts/:id" element={<ContractDetail />} />

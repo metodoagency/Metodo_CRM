@@ -10,6 +10,7 @@ describe('environment validation', () => {
     for (const env of [{ E2E_TEST_MODE: 'yes' }, { DATABASE_URL: 'https://example.com' }, { SMTP_PORT: '0' }, { AI_ENABLED: 'true' }, { IMAP_ENABLED: 'true' }, { STORAGE_DRIVER: 's3' }, { DATA_PROVIDER_ENABLED: 'true' }]) expect(() => readConfig(env)).toThrow('Invalid configuration');
   });
   it('reports missing production fields without disclosing supplied secrets', () => {
+    expect(() => readConfig({ NODE_ENV: 'production', FILE_STORAGE_MODE: 'upload' })).toThrow('FILE_STORAGE_MODE');
     expect(() => readConfig({ NODE_ENV: 'production', GOOGLE_CLIENT_SECRET: 'example-secret-never-log', DATABASE_URL: 'postgresql://owner:example-password@localhost/metodo' })).toThrow('GOOGLE_REDIRECT_URI');
     try { readConfig({ FIELD_ENCRYPTION_KEY: 'example-secret-never-log' }); } catch (error) { expect(String(error)).not.toContain('example-secret-never-log'); }
   });

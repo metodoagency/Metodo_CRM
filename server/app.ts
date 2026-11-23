@@ -4,6 +4,7 @@ import helmet from '@fastify/helmet';
 import rateLimit from '@fastify/rate-limit';
 import multipart from '@fastify/multipart';
 import { registerFiles } from './files.js';
+import { registerExternalResources } from './external-resources.js';
 import { createStorage, drainStorageDeletions, type FileStorage } from './storage.js';
 import type { MalwareScanner } from './file-validation.js';
 import { registerProcessing, type DocumentProcessor } from './processing.js';
@@ -103,6 +104,7 @@ export async function buildApp(options: { db?: PrismaClient; config?: Config; st
     await drainStorageDeletions(db, storage).catch(() => app.log.warn('File cleanup deferred'));
   });
   await registerRoutes(app, db);
+  await registerExternalResources(app, db);
   await registerFiles(app, db, config, storage, options.scanner);
   await registerPlayerPhotos(app, db, storage);
   await registerProcessing(app, db, config, options.processors);

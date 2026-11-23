@@ -59,4 +59,5 @@ export const encryptedFields: Record<string, readonly string[]> = {
   Player: ['birthDate', 'phone', 'email', 'healthNotes', 'injuryNotes'], Guardian: ['phone', 'email'],
   MedicalRecord: ['summary'], Contract: ['salaryAmount', 'bonuses'], Mandate: ['commissionTerms'], UserSettings: ['breachContact'],
   ProcessingConsent: ['processingPayload', 'processingResult'],
+  ExternalResource: ['externalUrl'],
 };

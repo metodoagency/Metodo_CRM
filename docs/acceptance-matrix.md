@@ -138,3 +138,17 @@ Every clause in [the normative extension](COMMERCIAL_MEDIA_SCOPE.md) and [full o
 | MO8 | Work Log/cost/capacity reuse | 64 | NOT_STARTED | Scope mapped; no runtime acceptance. |
 | MO9 | Manual/file metrics and explainable readiness | 65 | NOT_STARTED | Scope mapped; no runtime acceptance. |
 | MO10 | Full extended safety/recovery/live/Sites delivery | 66 | NOT_STARTED | Scope mapped; no runtime acceptance. |
+
+
+## Managed vault extension - 2026-11-23
+
+All clauses in [MEDIA_VAULT_SCOPE.md](MEDIA_VAULT_SCOPE.md) and the preserved owner instruction apply. Resource-link groundwork is not full vault acceptance.
+
+| Requirement | Capability | Packages | Status | Evidence / remaining |
+|---|---|---|---|---|
+| V1 | Canonical metadata, immutable document versions, legacy private sources | 67 | NOT_STARTED | Encrypted external references are groundwork; immutable version/vault acceptance pending. |
+| V2 | Private documents/native designs, batch/drop and local redaction | 68 | NOT_STARTED | Production adapter/capacity and identifier policy pending. |
+| V3 | Quota-reserved resumable direct media uploads | 69 | NOT_STARTED | No runtime upload provider implemented. |
+| V4 | Private range player, timed notes and local processing | 70 | NOT_STARTED | Actual media metadata/rights/player tests pending. |
+| V5 | Encrypted object-aware backup and recovery | 71 | NOT_STARTED | DB and file-object manifests/temporary restore pending. |
+| V6 | Expanded integrated final acceptance | 72 | NOT_STARTED | Includes all retained01–66 gates, vault recovery and verified app/Sites. |

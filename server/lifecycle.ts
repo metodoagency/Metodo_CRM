@@ -4,6 +4,8 @@ import { AppError, live, logEvent, type Tx } from './core.js';
 import { retentionPeriods, type RetentionPlan } from '../shared/retention.js';
 import { requireContract } from './contract-parent.js';
 import { requireTaskLink } from './task-parent.js';
+import { requireFileParent } from './file-parent.js';
+import { resourceLinkParent } from '../shared/external-resources.js';
 
 // Identifiers come exclusively from the compiled Prisma schema. All data values
 // are parameters; no request value can become a SQL identifier.
@@ -146,7 +148,7 @@ export async function cleanupExamples(db: PrismaClient, expected: string) {
     return plan.result;
   }, { isolationLevel: 'Serializable', timeout: 30000 });
 }
-const ancillary = new Set(['Relation', 'Note', 'Attachment', 'ProcessingConsent', 'Task', 'Notification', 'UpdateProposal', 'ShareLink', 'TrashEntry', 'BirthdayGreeting']);
+const ancillary = new Set(['Relation', 'Note', 'Attachment', 'ProcessingConsent', 'Task', 'Notification', 'UpdateProposal', 'ShareLink', 'TrashEntry', 'BirthdayGreeting', 'ExternalResourceLink']);
 export async function deletionPreview(tx: Tx, type: string, id: string) {
   const graph = await loadGraph(tx);
   if (!graph.get(type)?.some(row => row.id === id)) throw new AppError('NOT_FOUND', 404);
@@ -172,6 +174,13 @@ export async function restoreTrash(db: PrismaClient, id: string, version: number
     if (item.entityType === 'BirthdayGreeting' && !graph.get(String(record.entityType))?.some(row => row.id === record.entityId && !row.deletedAt)) throw new AppError('LINKED_RECORDS', 409);
     if (['Note', 'Attachment'].includes(item.entityType) && record.entityType === 'Contract') await requireContract(tx, String(record.entityId));
     if (item.entityType === 'Task') await requireTaskLink(tx, typeof record.entityType === 'string' ? record.entityType : null, typeof record.entityId === 'string' ? record.entityId : null);
+    if (item.entityType === 'ExternalResourceLink') {
+      const parent = resourceLinkParent(record);
+      if (!parent) throw new AppError('LINKED_RECORDS', 409);
+      await requireFileParent(tx, parent.type, parent.id);
+      const resource = await tx.externalResource.updateMany({ where: { ...live, id: String(record.resourceId) }, data: { version: { increment: 1 } } });
+      if (resource.count !== 1) throw new AppError('LINKED_RECORDS', 409);
+    }
     const changed = await tx.$executeRaw(Prisma.sql`UPDATE ${table(item.entityType)} SET "deletedAt" = NULL, "version" = "version" + 1, "updatedAt" = CURRENT_TIMESTAMP WHERE "id" = ${item.entityId}::uuid AND "ownerId" = ${'owner'} AND "version" = ${recordVersion} AND "deletedAt" IS NOT NULL`);
     if (changed !== 1 || (await tx.trashEntry.deleteMany({ where: { ...live, id, version } })).count !== 1) throw new AppError('STALE_VERSION', 409);
     await logEvent(tx, { entityType: item.entityType, entityId: item.entityId, action: 'restore', name: item.label, isExample: item.isExample });

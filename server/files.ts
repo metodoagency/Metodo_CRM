@@ -1,26 +1,13 @@
-import type { FastifyInstance } from 'fastify';
+import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import type { PrismaClient } from '@prisma/client';
-import type { z } from 'zod';
 import type { Config } from './config.js';
-import { AppError, live, logEvent, requireEntity, type Tx } from './core.js';
+import { AppError, live, logEvent, type Tx } from './core.js';
 import { fileParentParams, idParams } from '../shared/contracts.js';
 import { fileVersion, maxFileBytes } from '../shared/files.js';
 import { originalFilename, prepareFile, type MalwareScanner } from './file-validation.js';
 import { drainStorageDeletions, newStorageKey, type FileStorage } from './storage.js';
-import { requireContract } from './contract-parent.js';
-
-type FileParentType = z.infer<typeof fileParentParams.shape.type>;
-
-async function requireFileParent(tx: Tx, type: FileParentType, id: string) {
-  if (type === 'Contract') return requireContract(tx, id);
-  if (type !== 'Suggestion') return requireEntity(tx, type, id);
-  const row = await tx.suggestion.findFirst({
-    where: { ...live, id, request: live, player: live, club: live, person: live },
-    select: { name: true, isExample: true },
-  });
-  if (!row) throw new AppError('NOT_FOUND', 404);
-  return row;
-}
+import { requireFileParent, type FileParentType } from './file-parent.js';
+import { playerImageMimes } from '../shared/player-photo.js';
 
 export async function requireAttachment(tx: Tx, id: string) {
   const row = await tx.attachment.findFirst({ where: { ...live, id } });
@@ -35,10 +22,10 @@ export async function registerFiles(app: FastifyInstance, db: PrismaClient, conf
   function available(driver?: string) { if (!storage || driver && storage.driver !== driver) throw new AppError('STORAGE_UNAVAILABLE', 503); return storage; }
   app.get('/api/records/:type/:id/files', async req => {
     const { type, id } = fileParentParams.parse(req.params); await requireFileParent(db, type, id);
-    return { items: (await db.attachment.findMany({ where: { ...live, entityType: type, entityId: id }, orderBy: { createdAt: 'desc' }, take: 100 })).map(metadata), uploadAvailable: !!storage };
+    return { items: (await db.attachment.findMany({ where: { ...live, entityType: type, entityId: id }, orderBy: { createdAt: 'desc' }, take: 100 })).map(metadata), uploadAvailable: config.FILE_STORAGE_MODE === 'upload' && !!storage, portraitUploadAvailable: type === 'Player' && !!storage, mode: config.FILE_STORAGE_MODE };
   });
-  app.post('/api/records/:type/:id/files', { bodyLimit: maxFileBytes + 65536 }, async (req, reply) => {
-    const { type, id } = fileParentParams.parse(req.params); await requireFileParent(db, type, id); const target = available();
+  async function upload(req: FastifyRequest, reply: FastifyReply, type: FileParentType, id: string, portrait = false) {
+    await requireFileParent(db, type, id); const target = available();
     if (config.CLAMAV_ENABLED === 'true' && !scanner) throw new AppError('SCANNER_UNAVAILABLE', 503);
     let input: { data: Buffer; mime: string; name: string } | undefined;
     // Exactly one bounded file part; extra files/fields reject the whole upload.
@@ -48,7 +35,9 @@ export async function registerFiles(app: FastifyInstance, db: PrismaClient, conf
       input = { data, mime: part.mimetype, name: originalFilename(part.filename) };
     }
     if (!input) throw new AppError('INVALID_FILE');
+    if (portrait && !playerImageMimes.some(mime => mime === input.mime)) throw new AppError('INVALID_FILE');
     const file = await prepareFile(input.data, input.mime, config.CLAMAV_ENABLED === 'true' ? scanner : undefined);
+    if (portrait && !playerImageMimes.some(mime => mime === file.mime)) throw new AppError('INVALID_FILE');
     const key = newStorageKey();
     const cleanup = await db.storageDeletion.create({ data: { driver: target.driver, storageKey: key, notBefore: new Date(Date.now() + 3600_000) } });
     try {
@@ -66,6 +55,13 @@ export async function registerFiles(app: FastifyInstance, db: PrismaClient, conf
       // Durable outbox survives process/database/storage failure; no orphan is lost.
       throw new AppError('UPLOAD_FAILED', 503);
     }
+  }
+  app.post('/api/records/:type/:id/files', { bodyLimit: maxFileBytes + 65536 }, async (req, reply) => {
+    if (config.FILE_STORAGE_MODE !== 'upload') throw new AppError('EXTERNAL_FILES_ONLY', 409);
+    const { type, id } = fileParentParams.parse(req.params); return upload(req, reply, type, id);
+  });
+  app.post('/api/players/:id/photo-files', { bodyLimit: maxFileBytes + 65536 }, async (req, reply) => {
+    const { id } = idParams.parse(req.params); return upload(req, reply, 'Player', id, true);
   });
   app.post('/api/files/:id/download', async req => {
     const { id } = idParams.parse(req.params); const { version } = fileVersion.parse(req.body);
