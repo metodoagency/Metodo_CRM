@@ -1,11 +1,12 @@
 import { z } from 'zod';
+import { isPrivateSourceUrl } from './private-links.js';
 import { fieldSource, withProvenance } from './provenance.js';
 import { manualSourceUrl } from './club-sources.js';
 
 export const positions = ['GK', 'CB', 'FB', 'DM', 'CM', 'AM', 'WF', 'CF'] as const;
 export const statuses = ['OWN', 'TARGET', 'INTERMEDIARY', 'MANDATED'] as const;
 export const sensitiveKeys = new Set(['birthDate', 'phone', 'email', 'healthNotes', 'injuryNotes', 'guardian', 'medicalRecords', 'salaryAmount', 'salary', 'bonuses', 'commissionTerms', 'birthDateIndex', 'phoneIndex', 'emailIndex', 'breachContact']);
-for (const field of ['document', 'processingPayload', 'processingResult', 'greetingNote', 'externalUrl']) sensitiveKeys.add(field);
+for (const field of ['document', 'processingPayload', 'processingResult', 'greetingNote', 'externalUrl', 'documentLink', 'privateDocumentLink', 'privateSourceEvidence']) sensitiveKeys.add(field);
 export function normalizeSearch(value: string): string {
   return value.toLocaleLowerCase('tr').replace(/ı/g, 'i').normalize('NFD').replace(/\p{Diacritic}/gu, '');
 }
@@ -21,6 +22,7 @@ export function ageOn(birthDate: string, today = istanbulToday()): number {
   return Number(today.slice(0, 4)) - Number(birthDate.slice(0, 4)) - (today.slice(5) < birthDate.slice(5) ? 1 : 0);
 }
 export function maskSensitive(value: unknown): unknown {
+  if (isPrivateSourceUrl(value)) return '***';
   if (Array.isArray(value)) return value.map(maskSensitive);
   if (value && typeof value === 'object' && !(value instanceof Date)) {
     // Hydrated Decimal values serialize as strings. Traversing their internal
@@ -30,9 +32,9 @@ export function maskSensitive(value: unknown): unknown {
       if (key === 'fieldProvenance' && v && typeof v === 'object') {
         // Evidence carries metadata only. Re-validate instead of treating field
         // names as values, or sensitive-field provenance would become "***".
-        return [key, Object.fromEntries(Object.entries(v).flatMap(([field, source]) => { const parsed = fieldSource.safeParse(source); return parsed.success ? [[field, parsed.data]] : []; }))];
+        return [key, Object.fromEntries(Object.entries(v).flatMap(([field, source]) => { const parsed = fieldSource.safeParse(source); return parsed.success && !isPrivateSourceUrl(parsed.data.sourceUrl) ? [[field, parsed.data]] : []; }))];
       }
-      return [key, sensitiveKeys.has(key) ? '***' : maskSensitive(v)];
+      return [key, sensitiveKeys.has(key) || isPrivateSourceUrl(v) ? '***' : maskSensitive(v)];
     }));
   }
   return value;

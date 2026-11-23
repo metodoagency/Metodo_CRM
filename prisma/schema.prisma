@@ -707,6 +707,8 @@ model Contract {
  noticeDeadline DateTime? @db.Date
  representation Json?
  documentLink String?
+ privateDocumentLink String?
+ privateSourceEvidence String?
  isActive Boolean @default(true)
  @@index([ownerId, deletedAt])
  @@index([ownerId])
@@ -1394,6 +1396,7 @@ model TimelineEvent {
  @@index([ownerId])
  @@index([entityId])
  @@index([batchId])
+ privateSourceEvidence String?
 }
 
 model Notification {
@@ -1718,6 +1721,7 @@ model AuditLog {
  @@index([ownerId, deletedAt])
  @@index([ownerId])
  @@index([entityId])
+ privateSourceEvidence String?
 }
 
 model TrashEntry {

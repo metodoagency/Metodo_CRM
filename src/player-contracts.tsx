@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
+import { useCallback, useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
@@ -22,7 +22,7 @@ function displayDay(value: string | null | undefined, language: string) {
 function Failure({ error }: { error: unknown }) { const { t } = useTranslation(); return <p role="alert" className="error">{t(error instanceof ApiError && error.status === 409 ? 'contractConflict' : 'contractInvalid')}</p>; }
 function ExternalValue({ value }: { value: string | null }) {
   const url = value && URL.canParse(value) ? new URL(value) : null;
-  return url && ['https:', 'http:'].includes(url.protocol) && !url.username && !url.password ? <a href={value!} className="text-accent" target="_blank" rel="noopener noreferrer">{value}</a> : <>{value}</>;
+  return url && ['https:', 'http:'].includes(url.protocol) && !url.username && !url.password ? <a href={value!} className="text-accent" target="_blank" rel="noopener noreferrer" referrerPolicy="no-referrer">{value}</a> : <>{value}</>;
 }
 export function PlayerContracts({ id }: { id: string }) { const { t } = useTranslation(); return <section className="panel panel-body mt-5"><h2>{t('contracts')}</h2><p className="notice my-3">{t('contractStatement')}</p><Link className="secondary" to={`/contracts?playerId=${id}`}>{t('contracts')}</Link></section>; }
 export function Contracts() {
@@ -74,8 +74,8 @@ function ContractView({ record }: { record: ContractRecord }) {
       <div><dt>{t('contractCounterpart')}</dt><dd>{record.club ? <Link to={`/record/Club/${record.club.id}`}>{record.club.name}</Link> : record.agent?.name}</dd></div>
     </dl>
       {record.endDate < istanbulToday() && <p className="notice mb-3">{t('contractOverdue')}</p>}
-      {(!record.sourceUrl || !record.sourceDate || !record.methodNote) && <p className="notice mb-3">{t('contractMissingSource')}</p>}
-      <div className="grid md:grid-cols-3 gap-4">{(['salaryAmount', 'bonuses', 'compliance'] as const).map(field => <ContractPrivate key={`${record.id}:${record.version}:${field}`} record={record} field={field} />)}</div>
+      {(!(record.sourceUrl || record.hasPrivateSource) || !record.sourceDate || !record.methodNote) && <p className="notice mb-3">{t('contractMissingSource')}</p>}
+      <div className="grid md:grid-cols-3 gap-4">{(['salaryAmount', 'bonuses', 'compliance', ...(record.hasDocumentLink ? ['documentLink' as const] : []), ...(record.hasPrivateSource ? ['sourceUrl' as const] : [])] as const).map(field => <ContractPrivate key={`${record.id}:${record.version}:${field}`} record={record} field={field} />)}</div>
     </section>
     {groups.map(group => <section className="panel panel-body mt-4" key={group}><h2>{t(`contract_${group}`)}</h2>{record.legacyGroups.includes(group) && <p className="notice my-3">{t('contractLegacy')}</p>}<ContractTerms value={record[group]} /></section>)}
     <section className="panel panel-body mt-4"><h2>{t('contractDeadlineTitle')}</h2>{record.dates.issues.map(issue => <p className="notice my-2" key={issue.field}>{issue.code === 'INVALID_PAYMENT_DAY' ? t('contractPaymentDayIssue') : t('contractDateIssue', { field: t(`contract_${issue.field}`) })}</p>)}
@@ -98,15 +98,31 @@ function ContractTerms({ value }: { value: unknown }) {
       : /Date|validFrom|validTo|deadline/.test(key) ? displayDay(String(field), i18n.language) : String(field)}</dd>
   </div>)}</dl>;
 }
-function ContractPrivate({ record, field }: { record: ContractRecord; field: 'salaryAmount' | 'bonuses' | 'compliance' }) {
+type ContractDisclosure = { value?: string | null; minor?: boolean | null; status?: string; checkpoints?: { id: string; text: { tr: string; en: string }; version: string }[]; expiresAt: string };
+function ContractPrivate({ record, field }: { record: ContractRecord; field: 'salaryAmount' | 'bonuses' | 'compliance' | 'documentLink' | 'sourceUrl' }) {
   const { t, i18n } = useTranslation(); const timer = useRef<ReturnType<typeof setTimeout>>();
-  const view = useMutation({ gcTime: 0, mutationFn: () => api<{ value?: string | null; minor?: boolean | null; status?: string; checkpoints?: { id: string; text: { tr: string; en: string }; version: string }[]; expiresIn: number }>(`/api/contracts/${record.id}/reveal`, { method: 'POST', body: body({ version: record.version, field }) }), onSuccess: data => { clearTimeout(timer.current); timer.current = setTimeout(() => view.reset(), data.expiresIn * 1000); } });
-  useEffect(() => () => clearTimeout(timer.current), []);
+  const [data, setData] = useState<ContractDisclosure>(); const [error, setError] = useState<unknown>(); const [busy, setBusy] = useState(false);
+  const controller = useRef<AbortController>(); const generation = useRef(0);
+  const hide = useCallback(() => { generation.current++; controller.current?.abort(); clearTimeout(timer.current); setData(undefined); setBusy(false); }, []);
+  useEffect(() => {
+    window.addEventListener('blur', hide); window.addEventListener('focus', hide); document.addEventListener('visibilitychange', hide);
+    return () => { generation.current++; controller.current?.abort(); clearTimeout(timer.current); window.removeEventListener('blur', hide); window.removeEventListener('focus', hide); document.removeEventListener('visibilitychange', hide); };
+  }, [hide]);
+  async function reveal() {
+    hide(); setError(undefined); const current = ++generation.current; const started = Date.now(); const abort = new AbortController(); controller.current = abort; setBusy(true);
+    try {
+      const result = await api<ContractDisclosure>(`/api/contracts/${record.id}/reveal`, { method: 'POST', body: body({ version: record.version, field }), signal: abort.signal });
+      const expires = Math.min(started + 60_000, Date.parse(result.expiresAt));
+      if (current !== generation.current || abort.signal.aborted || document.visibilityState !== 'visible' || !Number.isFinite(expires) || expires <= Date.now()) return;
+      setData(result); timer.current = setTimeout(hide, expires - Date.now());
+    } catch (cause) { if (current === generation.current) setError(cause); }
+    finally { if (current === generation.current) setBusy(false); }
+  }
   const label = t(field === 'compliance' ? 'contractCompliance' : `contract_${field}`);
-  return <div className="panel panel-body"><h3>{label}</h3>{view.data ? <>
-    {field === 'compliance' ? <><p className="my-3">{t(view.data.minor === null ? 'contractUnknownAge' : view.data.minor ? 'contractMinor' : 'contractAdult')}</p>{view.data.status === 'NOT REVIEWED' && <p className="notice">{t('contractUnreviewed')}</p>}{view.data.checkpoints?.map(rule => <div key={rule.id}><p className="my-2">{rule.text[i18n.language === 'tr' ? 'tr' : 'en']}</p><small>{t('contractVersion', { version: rule.version })}</small></div>)}</> : <p className="my-3 whitespace-pre-wrap break-words">{view.data.value}</p>}
-    <button className="secondary mt-3" onClick={() => { clearTimeout(timer.current); view.reset(); }}>{t('hide')}</button>
-  </> : <><p className="my-3">{field === 'compliance' ? t('private') : record[field]}</p><button className="secondary" disabled={view.isPending} onClick={() => view.mutate()}>{field === 'compliance' ? label : t('reveal')}</button></>}{view.isError && <Failure error={view.error} />}</div>;
+  return <div className="panel panel-body" data-contract-private={field}><h3>{label}</h3>{data ? <>
+    {field === 'compliance' ? <><p className="my-3">{t(data.minor === null ? 'contractUnknownAge' : data.minor ? 'contractMinor' : 'contractAdult')}</p>{data.status === 'NOT REVIEWED' && <p className="notice">{t('contractUnreviewed')}</p>}{data.checkpoints?.map(rule => <div key={rule.id}><p className="my-2">{rule.text[i18n.language === 'tr' ? 'tr' : 'en']}</p><small>{t('contractVersion', { version: rule.version })}</small></div>)}</> : <p className="my-3 whitespace-pre-wrap break-words">{field === 'documentLink' || field === 'sourceUrl' ? <ExternalValue value={data.value ?? null} /> : data.value}</p>}
+    <button className="secondary mt-3" onClick={hide}>{t('hide')}</button>
+  </> : <><p className="my-3">{field === 'compliance' || field === 'documentLink' || field === 'sourceUrl' ? t('private') : record[field]}</p><button className="secondary" onClick={() => { if (busy) hide(); else void reveal(); }}>{busy ? t('cancel') : field === 'compliance' ? label : t('reveal')}</button></>}{error !== undefined && <Failure error={error} />}</div>;
 }
 function ContractPicker({ kind, value, onChange, optional = false }: { kind: 'Player' | 'Club' | 'Agent'; value?: Named; onChange: (value?: Named) => void; optional?: boolean }) {
   const { t } = useTranslation(); const [search, setSearch] = useState(''); const [q, setQ] = useState('');
@@ -127,7 +143,14 @@ function ContractEditor({ record, initialPlayer, onClose }: { record?: ContractR
   const [player, setPlayer] = useState<Named | undefined>(record?.player ?? initialPlayer);
   const [party, setParty] = useState<'none' | 'Club' | 'Agent'>(record?.club ? 'Club' : record?.agent ? 'Agent' : 'none');
   const [counterpart, setCounterpart] = useState<Named | undefined>(record?.club ?? record?.agent ?? undefined);
-  const save = useMutation({ mutationFn: (data: unknown) => api<{ id: string }>(record ? `/api/contracts/${record.id}` : `/api/players/${player!.id}/contracts`, { method: record ? 'PATCH' : 'POST', body: body(data) }), onSuccess: result => { void client.invalidateQueries(); onClose(); navigate(`/contracts/${result.id}`); } });
+  const [saving, setSaving] = useState(false); const [saveError, setSaveError] = useState<unknown>(); const controller = useRef<AbortController>();
+  useEffect(() => () => controller.current?.abort(), []);
+  async function save(data: unknown) {
+    const abort = new AbortController(); controller.current = abort; setSaving(true); setSaveError(undefined);
+    try { const result = await api<{ id: string }>(record ? `/api/contracts/${record.id}` : `/api/players/${player!.id}/contracts`, { method: record ? 'PATCH' : 'POST', body: body(data), signal: abort.signal });
+      if (!abort.signal.aborted) { void client.invalidateQueries(); onClose(); navigate(`/contracts/${result.id}`); }
+    } catch (error) { if (!abort.signal.aborted) setSaveError(error); } finally { if (!abort.signal.aborted) setSaving(false); }
+  }
   const defaultValue = (key: string) => {
     if (key === 'salaryAmount' || key === 'bonuses') return '';
     const [group, sub] = key.split('.'); const root = (record as unknown as Record<string, unknown> | undefined)?.[group];
@@ -144,23 +167,25 @@ function ContractEditor({ record, initialPlayer, onClose }: { record?: ContractR
     if (['salaryAmount', 'bonuses'].some(key => text(`${key}Mode`) === 'replace' && !text(key))) { setInvalid(true); return; }
     const fields: Record<string, unknown> = { name: text('name'), type: text('type'), startDate: text('startDate'), endDate: text('endDate'), isActive: data.has('isActive'),
       signedDate: nullable('signedDate'), noticeDeadline: nullable('noticeDeadline'), paymentDay: text('paymentDay') ? Number(text('paymentDay')) : null,
-      sourceUrl: nullable('sourceUrl'), sourceDate: nullable('sourceDate'), methodNote: nullable('methodNote'), documentLink: nullable('documentLink'),
+      sourceUrl: nullable('sourceUrl'), sourceDate: nullable('sourceDate'), methodNote: nullable('methodNote'),
       clubId: party === 'Club' ? counterpart?.id ?? null : null, agentId: party === 'Agent' ? counterpart?.id ?? null : null,
     };
-    for (const key of ['salaryAmount', 'bonuses', ...groups]) {
+    if (record?.hasPrivateSource && !text('sourceUrl')) delete fields.sourceUrl;
+    for (const key of ['salaryAmount', 'bonuses', 'documentLink', ...groups]) {
       const mode = text(`${key}Mode`); if (mode === 'keep') continue;
       if (key === 'salaryAmount') {
         fields.salaryAmount = mode === 'clear' ? null : nullable('salaryAmount');
         if (mode === 'replace' || !record) for (const name of ['salaryCurrency', 'salaryPeriod', 'salaryBasis']) fields[name] = mode === 'clear' ? null : nullable(name);
-      } else if (key === 'bonuses') fields.bonuses = mode === 'clear' ? null : nullable('bonuses');
+      } else if (key === 'bonuses' || key === 'documentLink') fields[key] = mode === 'clear' ? null : nullable(key);
       else if (mode === 'clear') fields[key] = null;
       else if (key === 'releaseClause' || key === 'buyout') fields[key] = { amount: nullable(`${key}.amount`), currency: nullable(`${key}.currency`), validFrom: nullable(`${key}.validFrom`), validTo: nullable(`${key}.validTo`), conditions: text(`${key}.conditions`), met: text(`${key}.met`) || 'UNKNOWN' };
       else if (key === 'extensionOption') fields[key] = { deadline: nullable(`${key}.deadline`), terms: text(`${key}.terms`) };
       else fields[key] = { scope: text(`${key}.scope`), startDate: nullable(`${key}.startDate`), endDate: nullable(`${key}.endDate`), commissionRate: nullable(`${key}.commissionRate`), paymentTerms: text(`${key}.paymentTerms`) };
     }
     const changes = record ? Object.fromEntries(Object.entries(fields).filter(([key, value]) => JSON.stringify(value) !== JSON.stringify((record as unknown as Record<string, unknown>)[key]))) : fields;
+    if (record && text('documentLinkMode') === 'clear') changes.documentLink = null;
     const parsed = record ? contractPatch.safeParse({ version: record.version, changes }) : contractInput.safeParse(fields);
-    setInvalid(!parsed.success || !player || party !== 'none' && !counterpart); if (parsed.success && player && (party === 'none' || counterpart)) save.mutate(parsed.data);
+    setInvalid(!parsed.success || !player || party !== 'none' && !counterpart); if (parsed.success && player && (party === 'none' || counterpart)) void save(parsed.data);
   }
   return <Modal title={t(record ? 'contractEdit' : 'contractAdd')} onClose={onClose}><form onSubmit={submit}>
     <p className="notice mb-4">{t('contractStatement')}</p><p className="subtitle mb-4">{t('contractPlayerHelp')}</p>
@@ -174,8 +199,9 @@ function ContractEditor({ record, initialPlayer, onClose }: { record?: ContractR
     <EditGroup name="bonuses" editing={!!record}><label className="field">{t('contract_bonuses')}<textarea name="bonuses" required maxLength={4000} /></label></EditGroup>
     {!!record?.legacyGroups.length && <p className="notice my-4">{t('contractLegacy')}</p>}
     {groups.map(group => <EditGroup key={group} name={group} editing={!!record}>{group === 'releaseClause' || group === 'buyout' ? <>{input(`${group}.amount`)}{options(`${group}.currency`, marketCurrencies)}{input(`${group}.validFrom`, 'date')}{input(`${group}.validTo`, 'date')}{input(`${group}.conditions`)}{options(`${group}.met`, ['YES', 'NO', 'UNKNOWN'], 'contractMet')}</> : group === 'extensionOption' ? <>{input(`${group}.deadline`, 'date')}{input(`${group}.terms`)}</> : <>{input(`${group}.scope`)}{input(`${group}.startDate`, 'date')}{input(`${group}.endDate`, 'date')}{input(`${group}.commissionRate`)}{input(`${group}.paymentTerms`)}</>}</EditGroup>)}
-    <fieldset><legend>{t('contractSource')}</legend>{input('sourceUrl', 'url', !record || !!record.sourceUrl)}{input('sourceDate', 'date', !record || !!record.sourceDate)}{input('methodNote', 'text', !record || !!record.methodNote)}{input('documentLink', 'url')}</fieldset>
-    {invalid && <p role="alert" className="error">{t('contractInvalid')}</p>}{save.isError && <Failure error={save.error} />}<div className="form-footer"><button type="button" className="secondary" onClick={onClose}>{t('cancel')}</button><button className="primary" disabled={save.isPending}>{t('save')}</button></div>
+    <fieldset><legend>{t('contractSource')}</legend>{input('sourceUrl', 'url', !record || !!record.sourceUrl)}{record?.hasPrivateSource && <p className="notice">{t('contractPrivateSourceKeep')}</p>}{input('sourceDate', 'date', !record || !!record.sourceDate)}{input('methodNote', 'text', !record || !!record.methodNote)}</fieldset>
+    <EditGroup name="documentLink" editing={!!record}>{input('documentLink', 'url', true)}</EditGroup>
+    {invalid && <p role="alert" className="error">{t('contractInvalid')}</p>}{saveError !== undefined && <Failure error={saveError} />}<div className="form-footer"><button type="button" className="secondary" onClick={onClose}>{t('cancel')}</button><button className="primary" disabled={saving}>{t('save')}</button></div>
   </form></Modal>;
 }
 function ContractNotes({ id }: { id: string }) {

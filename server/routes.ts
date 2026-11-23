@@ -219,7 +219,7 @@ export async function registerRoutes(app: FastifyInstance, db: PrismaClient) {
   app.get('/api/records/:type/:id/timeline', async req => {
     const { type, id } = entityParams.parse(req.params); await requireEntity(db, type, id);
     const { page } = listQuery.parse(req.query);
-    return db.timelineEvent.findMany({ where: { ...live, entityType: type, entityId: id }, orderBy: { createdAt: 'desc' }, skip: (page - 1) * 50, take: 50 });
+    return masked(await db.timelineEvent.findMany({ where: { ...live, entityType: type, entityId: id }, orderBy: { createdAt: 'desc' }, skip: (page - 1) * 50, take: 50 }));
   });
   app.post('/api/records/:type/:id/verify-field', async req => {
     const { type, id } = entityParams.parse(req.params);

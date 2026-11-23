@@ -1,4 +1,5 @@
 const strings = {
+  contractPrivateSourceKeep: ['Özel kaynak bağlantısı gizlidir. Boş bırakmak mevcut bağlantıyı korur; yeni bağlantı girerek değiştirebilirsiniz.', 'The private source link is hidden. Leave it blank to preserve it, or enter a replacement.'],
   contracts: ['Sözleşmeler', 'Contracts'], contractAdd: ['Sözleşme ekle', 'Add contract'], contractEdit: ['Sözleşmeyi düzenle', 'Edit contract'], contractOpen: ['Sözleşmeyi aç', 'Open contract'],
   contractStatement: ['Bu modül kayıt ve takip amaçlıdır, hukuki tavsiye değildir.', 'This module is for record-keeping and tracking only and does not constitute legal advice.'],
   contractPlayerHelp: ['Yeni sözleşmeler kendi ve aracılık oyuncuları için kaydedilir. Mevcut kayıtlar panel değişikliğinde korunur.', 'New contracts are for own and intermediary players. Existing records survive panel changes.'],

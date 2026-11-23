@@ -13,6 +13,8 @@ import { decrypt, encrypt } from './crypto.js';
 import { contractScope, requireContract } from './contract-parent.js';
 import { contractCatchupDays, contractReminderPrefix, currentContractNotificationKeys, refreshContractReminders } from './contract-reminders.js';
 import { provenanceFor } from '../shared/provenance.js';
+import { isPrivateSourceUrl } from '../shared/private-links.js';
+import { contractDocumentLink, contractSourceEvidence, contractSourceUrl, protectedContractEvidence } from './contract-evidence.js';
 
 const date = (value: Date | null) => value?.toISOString().slice(0, 10) ?? null;
 const named = { id: true, name: true } as const;
@@ -44,7 +46,8 @@ function dto(row: Contract & Prisma.ContractGetPayload<{ include: typeof peers }
     salaryBasis: row.salaryBasis, bonuses: row.bonuses ? '***' : null, paymentDay: row.paymentDay,
     releaseClause: projectedTerms(row.releaseClause, jsonKeys.releaseClause), buyout: projectedTerms(row.buyout, jsonKeys.buyout),
     extensionOption: projectedTerms(row.extensionOption, jsonKeys.extensionOption), representation: projectedTerms(row.representation, jsonKeys.representation),
-    noticeDeadline: date(row.noticeDeadline), documentLink: row.documentLink, sourceUrl: row.sourceUrl, sourceDate: date(row.sourceDate), methodNote: row.methodNote,
+    noticeDeadline: date(row.noticeDeadline), documentLink: null, hasDocumentLink: !!(row.privateDocumentLink || row.documentLink),
+    sourceUrl: isPrivateSourceUrl(row.sourceUrl) ? null : row.sourceUrl, hasPrivateSource: !!(contractSourceEvidence(row).sourceUrl || isPrivateSourceUrl(row.sourceUrl)), sourceDate: date(row.sourceDate), methodNote: row.methodNote,
     legacyGroups: (Object.keys(jsonKeys) as (keyof typeof jsonKeys)[]).filter(key => row[key] !== null && !contractFields.shape[key].safeParse(row[key]).success),
     dates: contractDeadlines(asDates(row), istanbulToday(), limits),
   };
@@ -60,17 +63,9 @@ function changedData(changes: Partial<ContractInput>) {
     if (dateKeys.has(key)) result[key] = value === null ? null : new Date(value as string);
     else if (key === 'salaryAmount' || key === 'bonuses') result[key] = value === null ? null : encrypt(value as string, `Contract.${key}`);
     else if (key in jsonKeys) result[key] = value === null ? Prisma.DbNull : value;
-    else result[key] = value;
+    else if (key !== 'documentLink' && key !== 'sourceUrl') result[key] = value;
   }
   return result;
-}
-function provenance(changes: Partial<ContractInput>, before?: Contract) {
-  const previous = before?.fieldProvenance;
-  const result = previous && typeof previous === 'object' && !Array.isArray(previous) ? { ...previous } : {};
-  for (const key of Object.keys(changes)) result[key] = {
-    sourceUrl: changes.sourceUrl ?? before?.sourceUrl ?? null, sourceType: 'MANUAL', retrievedAt: new Date().toISOString(), verificationStatus: 'UNVERIFIED',
-  };
-  return result as Prisma.InputJsonValue;
 }
 function auditValues(changes: Record<string, unknown>) {
   return Object.fromEntries(Object.entries(changes).map(([key, value]) => [key, privateAudit.has(key) ? '***' : value]));
@@ -136,7 +131,7 @@ export async function registerContracts(app: FastifyInstance, db: PrismaClient) 
       const player = await tx.player.findFirst({ where: { ...live, id, status: { in: ['OWN', 'INTERMEDIARY'] } } });
       if (!player) throw new AppError('CONTRACT_PLAYER_REQUIRED');
       await counterpart(tx, input.clubId, input.agentId);
-      const row = await tx.contract.create({ data: { ...changedData(input), playerId: id, isExample: player.isExample, fieldProvenance: provenance(input) } as Prisma.ContractUncheckedCreateInput });
+      const row = await tx.contract.create({ data: { ...changedData(input), ...protectedContractEvidence(input), playerId: id, isExample: player.isExample } as Prisma.ContractUncheckedCreateInput });
       await history(tx, row, 'create', input); return { id: row.id, version: row.version };
     }, { isolationLevel: 'Serializable' });
     return reply.code(201).send(result);
@@ -148,7 +143,7 @@ export async function registerContracts(app: FastifyInstance, db: PrismaClient) 
       if (before.version !== version) throw new AppError('STALE_VERSION', 409);
       validateChanges(before, changes);
       await counterpart(tx, changes.clubId === undefined ? before.clubId : changes.clubId, changes.agentId === undefined ? before.agentId : changes.agentId);
-      const row = await tx.contract.update({ where: { ...live, id, version }, data: { ...changedData(changes), fieldProvenance: provenance(changes, before), version: { increment: 1 } } });
+      const row = await tx.contract.update({ where: { ...live, id, version }, data: { ...changedData(changes), ...protectedContractEvidence(changes, before), version: { increment: 1 } } });
       await history(tx, row, 'update', changes, before); return { id, version: row.version };
     }, { isolationLevel: 'Serializable' });
   });
@@ -162,18 +157,24 @@ export async function registerContracts(app: FastifyInstance, db: PrismaClient) 
   });
   app.post('/api/contracts/:id/reveal', async req => {
     const { id } = idParams.parse(req.params); const { field, version } = contractReveal.parse(req.body);
+    const expiresAt = new Date(Date.now() + 60_000).toISOString();
     return db.$transaction(async tx => {
       const row = await requireContract(tx, id); if (row.version !== version) throw new AppError('STALE_VERSION', 409);
+      if (field === 'documentLink' || field === 'sourceUrl') {
+        const value = field === 'documentLink' ? contractDocumentLink(row) : contractSourceUrl(row);
+        await tx.auditLog.create({ data: { entityType: 'Contract', entityId: id, actor: 'owner', action: 'reveal', diffs: { field }, isExample: row.isExample } });
+        return { field, value, expiresIn: 60, expiresAt };
+      }
       if (field !== 'compliance') {
         await tx.auditLog.create({ data: { entityType: 'Contract', entityId: id, actor: 'owner', action: 'reveal', diffs: { field }, isExample: row.isExample } });
-        return { field, value: row[field] ? decrypt(row[field]!, `Contract.${field}`) : null, expiresIn: 60 };
+        return { field, value: row[field] ? decrypt(row[field]!, `Contract.${field}`) : null, expiresIn: 60, expiresAt };
       }
       const player = await tx.player.findFirstOrThrow({ where: { ...live, id: row.playerId }, select: { birthDate: true } });
       await tx.auditLog.create({ data: { entityType: 'Player', entityId: row.playerId, actor: 'owner', action: 'reveal', diffs: { field: 'birthDate' }, isExample: row.isExample } });
       const birth = player.birthDate ? decrypt(player.birthDate, 'Player.birthDate') : null;
       const minor = birth && isoDate.safeParse(birth).success && birth <= istanbulToday() ? ageOn(birth) < 18 : null;
       const rules = z.object({ status: z.string(), entries: z.array(z.object({ id: z.string(), text: z.object({ tr: z.string(), en: z.string() }), appliesWhen: z.string(), version: z.string(), reviewedAt: z.string() })) }).parse(JSON.parse(await readFile(resolve('config/compliance/minors.json'), 'utf8')));
-      return { field, minor, status: rules.status, checkpoints: minor ? rules.entries.filter(entry => entry.appliesWhen === 'player.age < 18') : [], expiresIn: 60 };
+      return { field, minor, status: rules.status, checkpoints: minor ? rules.entries.filter(entry => entry.appliesWhen === 'player.age < 18') : [], expiresIn: 60, expiresAt };
     });
   });
   app.get('/api/contracts/:id/timeline', async req => {

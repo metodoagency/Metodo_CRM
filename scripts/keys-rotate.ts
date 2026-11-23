@@ -1,9 +1,11 @@
 import { db } from '../server/db.js';
 import { decrypt, encrypt, encryptedFields, keyring } from '../server/crypto.js';
 import { logEvent } from '../server/core.js';
+import { protectLegacyContractLinks } from '../server/contract-evidence.js';
 // Environment access authorizes this owner-only maintenance command. Keep old
 // keys configured until the complete database and backups have been rotated.
 try {
+  await protectLegacyContractLinks(db);
   const ring = keyring(); let count = 0;
   if (!/^[a-zA-Z0-9_-]+$/.test(ring.active)) throw new Error('Invalid key id');
   for (const [model, fields] of Object.entries(encryptedFields)) {

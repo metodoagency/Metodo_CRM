@@ -49,12 +49,13 @@ export const contractListQuery = z.object({
   page: z.coerce.number().int().min(1).max(100000).default(1), q: z.string().max(100).default(''),
   playerId: z.uuid().optional(), active: z.enum(['true', 'false']).optional(),
 }).strict();
-export const contractReveal = z.object({ version: z.number().int().positive(), field: z.enum(['salaryAmount', 'bonuses', 'compliance']) }).strict();
+export const contractReveal = z.object({ version: z.number().int().positive(), field: z.enum(['salaryAmount', 'bonuses', 'compliance', 'documentLink', 'sourceUrl']) }).strict();
 export const contractNote = z.object({ text: z.string().trim().min(1).max(4000) }).strict();
 export const contractNotePatch = contractNote.extend({ version: z.number().int().positive() });
 export const contractNoteParams = z.object({ id: z.uuid(), noteId: z.uuid() }).strict();
 export type ContractRecord = Omit<ContractInput, 'salaryPeriod' | 'salaryBasis' | 'sourceUrl' | 'sourceDate' | 'methodNote' | 'releaseClause' | 'buyout' | 'extensionOption' | 'representation'> & {
   id: string; version: number; playerId: string; player: { id: string; name: string; status: string };
+  hasDocumentLink: boolean; hasPrivateSource: boolean;
   club: { id: string; name: string } | null; agent: { id: string; name: string } | null;
   salaryPeriod: string | null; salaryBasis: string | null; sourceUrl: string | null; sourceDate: string | null; methodNote: string | null;
   releaseClause: unknown; buyout: unknown; extensionOption: unknown; representation: unknown;

@@ -8151,7 +8151,9 @@
                     "enum": [
                       "salaryAmount",
                       "bonuses",
-                      "compliance"
+                      "compliance",
+                      "documentLink",
+                      "sourceUrl"
                     ]
                   }
                 },
