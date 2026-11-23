@@ -2,7 +2,7 @@
 
 ## Owner amendment 2026-11-23 — managed documents and full-match videos
 
-The complete owner instruction in docs/OWNER_EXTENSION_20261123.md and normative docs/MEDIA_VAULT_SCOPE.md are incorporated by reference. This later instruction explicitly replaces earlier Drive-only/no-video-upload requirements. Private managed documents, native designs, clips and full-match uploads are in scope alongside the working external Drive option. Do not remove the safe existing reference path or enable unvalidated generic production uploads. Use per-type validation, private durable storage, actual quota/reservation checks, resumable direct uploads, owner-controlled processing and verified file-object recovery. No unlimited-free-storage claim or paid activation. Preserve all01–66 clauses; append67–72 and milestone M for vault delivery. Earlier54/J and66/L are retained gates; expanded final acceptance also needs72/M. Current ledger10 DONE,5 IN_PROGRESS,57 NOT_STARTED of72; A–J10%, K/L/M0/3, independent private-pilot checklist. Documentation grants no feature acceptance. Commercial scraping/Gmail sending/automatic posting restrictions, human approval, sensitive protections and H real-minor/medical limits stay in force. Original contracts containing prohibited identifiers need local redaction or an explicit owner decision; do not silently store an unmodified copy. Keep signed originals immutable and redacted derivatives separate. Team access is not implicitly added: responsible Person records are not login accounts.
+The complete owner instruction in docs/OWNER_EXTENSION_20261123.md and normative docs/MEDIA_VAULT_SCOPE.md are incorporated by reference. This later instruction explicitly replaces earlier Drive-only/no-video-upload requirements. Private managed documents, native designs, clips and full-match uploads are in scope alongside the working external Drive option. Do not remove the safe existing reference path or enable unvalidated generic production uploads. Use per-type validation, private durable storage, actual quota/reservation checks, resumable direct uploads, owner-controlled processing and verified file-object recovery. No unlimited-free-storage claim or paid activation. Preserve all01–66 clauses; append67–72 and milestone M for vault delivery. Earlier54/J and66/L are retained gates; expanded final acceptance also needs72/M. Current ledger10 DONE,7 IN_PROGRESS,55 NOT_STARTED of72; A–J10%, K/L/M0/3, independent private-pilot checklist. Documentation grants no feature acceptance. Commercial scraping/Gmail sending/automatic posting restrictions, human approval, sensitive protections and H real-minor/medical limits stay in force. Original contracts containing prohibited identifiers need local redaction or an explicit owner decision; do not silently store an unmodified copy. Keep signed originals immutable and redacted derivatives separate. Team access is not implicitly added: responsible Person records are not login accounts.
 
 
 Owner approved2026-11-20. Preserve every M1–M45, R1–R26, G1–G15, original innovation and SP1–SP8/MO1–MO10 clause. Existing01–66 package IDs remain acceptance units, not a message count or deadline. Completed features are not rebuilt; partial slices never close their whole package.
@@ -34,10 +34,10 @@ These16 rows are execution slices, not replacement package IDs. Feature acceptan
 |1|WIP preservation and CI recovery|9-file hash checkpoint;8c2cde1 exact16/17 CI44759716743 passed|DONE|
 |2|Persist consolidated plan|Original approval b91a159; full owner instruction, DESIGN.md and67–72 amendment committed e74f703|DONE|
 |3|Premium real core screens|Navigation/dashboard/player/table/form TR/EN dark/light/mobile/keyboard/axe|IN_PROGRESS|
-|4|Drive schema/API/security|Migration/encryption/typed joins/version/safe URL; no acquisition|IN_PROGRESS|
-|5|Library/record panels|Create/search/link/unlink/reveal/Trash/restore and late-response/lifecycle tests|IN_PROGRESS|
+|4|Drive schema/API/security|014 + protected legacy015; exact8fce1d3 PostgreSQL16/17 CI45268855893|DONE|
+|5|Library/record panels|Source6 + Contract5 browser regressions; full43 browser/axe per PG at8fce1d3|DONE|
 |6|Small-image exception|Portrait/logo-only validation/re-encoding/private storage/legacy compatibility|IN_PROGRESS|
-|7|Early recovery backup|Used types/keys/references/image bytes; temporary counts/checksums restore|NOT_STARTED|
+|7|Early recovery backup|Encrypted CLI, isolated temporary PG and file-byte proof implemented; exact CI/production custody verification pending|IN_PROGRESS|
 |8|Owner HTTPS core|Real OIDC/durable writes/restart/outsider deny/no test-auth/headers|NOT_STARTED|
 |9|Package15 source adapters|Presentation first; opted-in previewed durable rules; Meeting/R1/recurrence preserved|NOT_STARTED|
 |10|Brands/contacts/opportunities|Person/Campaign links, global/per-player stages, next action/reasons|NOT_STARTED|
@@ -64,6 +64,6 @@ Each slice records usable behavior, migration/API change, actual relevant tests,
 
 Required regressions: acquisition/TFF fallback; first-login privacy/version; unapproved contract writes blocked; per-document external consent; sensitive URL/log/cache/export absence and late replies; multi-player counting/money; fixture/task retry/purge/restore; equal-count checksum corruption; Sites CSP/auth/cookie fallback. Local10k-player p95 is separate from host cold start.
 
-Report four measures: DONE/66; A–J gates; K/L gates; private-pilot passed/pending rows. Starting totals10 DONE/5 IN_PROGRESS/51 NOT_STARTED, A–J10%, K/L0/2 do not change from documenting the plan.
+Report four measures: DONE/72; A–J gates; K/L/M gates; private-pilot passed/pending rows. Current10 DONE/7 IN_PROGRESS/55 NOT_STARTED, A–J10%, K/L/M0/3. Pilot4/16 accepted (rows1/2/4/5),3 in progress (3/6/7),9 not started. Partial25/67 are in progress, not accepted.
 
 Final delivery: verified app/Sites URLs; real local commands; free deployment/migration/backup/key custody/restore/rollback/maintenance. Assigned but unverified addresses are not delivered releases. Preserve resumable work and record the next exact action on interruption.

@@ -21,6 +21,7 @@ import { meetingTr, meetingEn } from './meeting-locales.js';
 import { agendaTr, agendaEn } from './agenda-locales.js';
 import { dashboardTr, dashboardEn } from './dashboard-locales.js';
 export const tr = {
+  recoveryBackupCreated: 'Şifreli kurtarma yedeği oluşturuldu',
   ...resourceTr,
   skipToContent: 'Ana içeriğe geç',
   ...dashboardTr,
@@ -253,6 +254,7 @@ export const tr = {
   "suggestionSummary": "{club} kulübüne önerildi · Yetkili: {person} · Talep: {request} · Tarih: {date}"
 } as const;
 export const en: Record<keyof typeof tr, string> = {
+  recoveryBackupCreated: 'Encrypted recovery backup created',
   ...resourceEn,
   skipToContent: 'Skip to main content',
   ...dashboardEn,

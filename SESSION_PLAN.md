@@ -2,7 +2,7 @@
 
 ## Owner amendment 2026-11-23 — managed documents and full-match videos
 
-The complete owner instruction in docs/OWNER_EXTENSION_20261123.md and normative docs/MEDIA_VAULT_SCOPE.md are incorporated by reference. This later instruction explicitly replaces earlier Drive-only/no-video-upload requirements. Private managed documents, native designs, clips and full-match uploads are in scope alongside the working external Drive option. Do not remove the safe existing reference path or enable unvalidated generic production uploads. Use per-type validation, private durable storage, actual quota/reservation checks, resumable direct uploads, owner-controlled processing and verified file-object recovery. No unlimited-free-storage claim or paid activation. Preserve all01–66 clauses; append67–72 and milestone M for vault delivery. Earlier54/J and66/L are retained gates; expanded final acceptance also needs72/M. Current ledger10 DONE,5 IN_PROGRESS,57 NOT_STARTED of72; A–J10%, K/L/M0/3, independent private-pilot checklist. Documentation grants no feature acceptance. Commercial scraping/Gmail sending/automatic posting restrictions, human approval, sensitive protections and H real-minor/medical limits stay in force. Original contracts containing prohibited identifiers need local redaction or an explicit owner decision; do not silently store an unmodified copy. Keep signed originals immutable and redacted derivatives separate. Team access is not implicitly added: responsible Person records are not login accounts.
+The complete owner instruction in docs/OWNER_EXTENSION_20261123.md and normative docs/MEDIA_VAULT_SCOPE.md are incorporated by reference. This later instruction explicitly replaces earlier Drive-only/no-video-upload requirements. Private managed documents, native designs, clips and full-match uploads are in scope alongside the working external Drive option. Do not remove the safe existing reference path or enable unvalidated generic production uploads. Use per-type validation, private durable storage, actual quota/reservation checks, resumable direct uploads, owner-controlled processing and verified file-object recovery. No unlimited-free-storage claim or paid activation. Preserve all01–66 clauses; append67–72 and milestone M for vault delivery. Earlier54/J and66/L are retained gates; expanded final acceptance also needs72/M. Current ledger10 DONE,7 IN_PROGRESS,55 NOT_STARTED of72; A–J10%, K/L/M0/3, independent private-pilot checklist. Documentation grants no feature acceptance. Commercial scraping/Gmail sending/automatic posting restrictions, human approval, sensitive protections and H real-minor/medical limits stay in force. Original contracts containing prohibited identifiers need local redaction or an explicit owner decision; do not silently store an unmodified copy. Keep signed originals immutable and redacted derivatives separate. Team access is not implicitly added: responsible Person records are not login accounts.
 
 
 Baseline owner-approved2026-11-03; sponsorship/media extension approved2026-11-20. An oturum is a verified work package, not a message count or time guarantee. Pilot:29. Baseline delivery:54. Expanded final delivery:66. Work may continue across chats without waiting for 'devam'. Preserve the current checkout; one writer, no new worktree. This file and PROGRESS.md are durable state.
@@ -52,7 +52,7 @@ Owner consolidated amendment2026-11-20: [PRIVATE_PILOT_PLAN.md](docs/PRIVATE_PIL
 | 22 | Etkinlikler ve konuşmacılar | M18/M19: tarihli pipeline, program, masraf ve takip görevleri. | NOT_STARTED |
 | 23 | Scout raporları | M20: rapor, puan, kaynak ve serbest isimden onaylı oyuncu kaydı. | NOT_STARTED |
 | 24 | Asistan | M22 R13: kaynak kayıtlı sorgu, yoksa bilgi yok; AI kapalı varsayılan ve tam yük onayı; E kabul. | NOT_STARTED |
-| 25 | Yedek ve yönetim | M25 R12: tablo CSV import, şifreli hassas yedek, sürümlü önizlemeli restore, eksik hassas alanı koruma. | NOT_STARTED |
+| 25 | Yedek ve yönetim | M25 R12: tablo CSV import, şifreli hassas yedek, sürümlü önizlemeli restore, eksik hassas alanı koruma. | IN_PROGRESS |
 | 26 | İlişki sıcaklığı ve özet | Açıklanabilir sıcaklık/aksiyon ve timeline tabanlı toplantı özeti; G13 ortak uygulaması. | NOT_STARTED |
 | 27 | Digest, vCard ve PWA | Haftalık uygulama özeti, vCard, shell-only cache, mobil capture ve başarısız formu koruma; G14. | NOT_STARTED |
 | 28 | Çekirdek kalite | TR/EN tüm ana yollar axe; mobil/klavye/global arama; 10.000 oyuncuda yerel p95 <500ms. | NOT_STARTED |
@@ -126,7 +126,7 @@ Normative requirements and dependencies: docs/MEDIA_VAULT_SCOPE.md.
 
 | No | Work | Status |
 |---|---|---|
-| 67 | Canonical document metadata/versions/multiple links and protected legacy source migration | NOT_STARTED |
+| 67 | Canonical document metadata/versions/multiple links and protected legacy source migration | IN_PROGRESS |
 | 68 | Secure managed document/native-design uploads, batch/drop and local redaction | NOT_STARTED |
 | 69 | Quota-reserved resumable direct uploads | NOT_STARTED |
 | 70 | Private video library/range player/timed notes/local metadata | NOT_STARTED |

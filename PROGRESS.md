@@ -15,7 +15,7 @@ Read and preserved the full new owner instruction in docs/OWNER_EXTENSION_202611
 Next: complete current resource/portrait/connection and nested-parent regression checks, commit/push the foundation and require new exact16/17 CI; secure old Contract.documentLink/private Drive sourceUrl/provenance before pilot. Continue backup/auth and sponsorship/media independently. Real raw-original identifier policy and capacity/configuration must be explicit before managed upload activation. No paid service, commercial acquisition, outbound sending or production test-auth.
 
 
-Updated2026-11-20, Europe/Istanbul. SPEC.md and docs/REQUIREMENTS.md define the scope. See the [session plan](SESSION_PLAN.md) and [requirement acceptance matrix](docs/acceptance-matrix.md) for the current records. Earlier checkpoints are available in Git history.
+Updated2026-11-24, Europe/Istanbul. SPEC.md and docs/REQUIREMENTS.md define the scope. See the [session plan](SESSION_PLAN.md) and [requirement acceptance matrix](docs/acceptance-matrix.md) for the current records. Earlier checkpoints are available in Git history.
 
 ## Resource foundation verification - 2026-11-23
 
@@ -31,7 +31,7 @@ Next: normal fast-forward push and exact PostgreSQL16/17 CI, then protect legacy
 
 ## Current state
 
-- Baseline A–J accepted milestone progress: **10%** (A complete out of10). K/L/M extension: **0 of3 accepted**. Work packages: **10 of72 complete**,5 in progress and57 pending. B has 6 of its 7 feature modules accepted. C has accepted requests, matching/recommendations, presentations, authorized sales and manual contracts. Package14 is DONE; package15 is IN_PROGRESS. Package counts are separate from effort and milestone acceptance. Remaining session list: [NEXT_SESSIONS.md](docs/NEXT_SESSIONS.md).
+- Baseline A–J accepted milestone progress: **10%** (A complete out of10). K/L/M extension: **0 of3 accepted**. Work packages: **10 of72 complete**,7 in progress and55 pending. B has 6 of its 7 feature modules accepted. C has accepted requests, matching/recommendations, presentations, authorized sales and manual contracts. Package14 is DONE; package15 is IN_PROGRESS. Package counts are separate from effort and milestone acceptance. Remaining session list: [NEXT_SESSIONS.md](docs/NEXT_SESSIONS.md).
 - A merged in PR #1 as db76f90 after exact-head CI: 67 tests,17 security tests,6 browser/axe scenarios. Completed security review plus rate-control corrections; no X-Frame-Options and required Google CSP retained.
 - B remains draft PR #2 on milestone/b-clubs. M1, M3, M5, M6, M14 and M15 are accepted. M4 has the staff CSV workflow and still requires the owner-triggered TFF implementation and live verification. R5/R6 checks for the current B application passed on PostgreSQL 16 and 17. [CI for fc7d0eb](https://github.com/metodoagency/Metodo_CRM/actions/runs/43971815199)
 - C started on milestone/c-requests from the verified B checkpoint f5eb5a8. Package12 implements transfer requests and matching. Package13 covers the recommendation dossier, presentation matrix and authorized sales list.

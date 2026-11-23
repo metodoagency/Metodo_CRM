@@ -1,5 +1,6 @@
 import { randomBytes } from 'node:crypto';
-import { mkdir, open, readFile, unlink } from 'node:fs/promises';
+import { constants } from 'node:fs';
+import { lstat, mkdir, open, realpath, unlink } from 'node:fs/promises';
 import { resolve, sep } from 'node:path';
 import { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
@@ -30,7 +31,17 @@ export class LocalFileStorage implements FileStorage {
     const handle = await open(this.path(key), 'wx', 0o600);
     try { await handle.writeFile(data); } finally { await handle.close(); }
   }
-  async read(key: string) { return readFile(this.path(key)); }
+  async read(key: string) {
+    const path = this.path(key); const before = await lstat(path); const root = await realpath(this.root); const actual = await realpath(path);
+    if (!before.isFile() || before.isSymbolicLink() || before.nlink !== 1 || !actual.startsWith(root + sep)) throw new AppError('INVALID_FILE');
+    if (before.size > maxFileBytes) throw new AppError('FILE_TOO_LARGE', 413);
+    const handle = await open(path, constants.O_RDONLY | (process.platform === 'win32' ? 0 : constants.O_NOFOLLOW ?? 0));
+    try {
+      const current = await handle.stat();
+      if (!current.isFile() || current.dev !== before.dev || current.ino !== before.ino || current.nlink !== 1 || current.size > maxFileBytes) throw new AppError('INVALID_FILE');
+      const bytes = await handle.readFile(); if (bytes.length > maxFileBytes) throw new AppError('FILE_TOO_LARGE', 413); return bytes;
+    } finally { await handle.close(); }
+  }
   async remove(key: string) { try { await unlink(this.path(key)); } catch (e) { if (!(e instanceof Error && 'code' in e && e.code === 'ENOENT')) throw e; } }
 }
 export class S3FileStorage implements FileStorage {

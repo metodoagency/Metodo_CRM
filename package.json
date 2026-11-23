@@ -30,7 +30,9 @@
     "api:docs": "node --import tsx scripts/api-docs.ts",
     "export:subject": "node --import tsx scripts/export-subject.ts",
     "perf:test": "node --import tsx scripts/performance.ts",
-    "data:protect-contract-links": "node --import tsx scripts/protect-contract-links.ts"
+    "data:protect-contract-links": "node --import tsx scripts/protect-contract-links.ts",
+    "backup:create": "node --import tsx scripts/recovery.ts create",
+    "backup:verify": "node --import tsx scripts/recovery.ts verify"
   },
   "dependencies": {
     "@asteasolutions/zod-to-openapi": "^9.1.0",

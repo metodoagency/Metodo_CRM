@@ -2,7 +2,7 @@ import { it, expect } from 'vitest';
 import sharp from 'sharp';
 import { createHash } from 'node:crypto';
 import { createServer } from 'node:http';
-import { mkdir, mkdtemp, rmdir } from 'node:fs/promises';
+import { link, mkdir, mkdtemp, rmdir, symlink, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { LocalFileStorage, S3FileStorage, createStorage, newStorageKey } from '../server/storage.js';
 import { prepareFile, originalFilename } from '../server/file-validation.js';
@@ -39,6 +39,17 @@ it('stores local files under random keys, rejects traversal and never overwrites
     expect(() => new LocalFileStorage('public/uploads')).toThrow();
     expect(createStorage(readConfig({ NODE_ENV: 'test' }))).toBeInstanceOf(LocalFileStorage);
   } finally { await storage.remove(key); await storage.remove(key); await rmdir(root); }
+});
+it('bounds private reads and rejects linked files before reading their contents', async () => {
+  await mkdir('.local/tmp', { recursive: true }); const root = await mkdtemp(resolve('.local/tmp/bounded-files-')); const storage = new LocalFileStorage(root);
+  const original = newStorageKey(); const alias = newStorageKey(); const oversized = newStorageKey(); const symbolic = newStorageKey();
+  try {
+    await storage.put(original, Buffer.from('Example private image')); await link(resolve(root, original), resolve(root, alias));
+    await expect(storage.read(alias)).rejects.toThrow('INVALID_FILE'); await storage.remove(alias);
+    await writeFile(resolve(root, oversized), Buffer.alloc(maxFileBytes + 1)); await expect(storage.read(oversized)).rejects.toThrow('FILE_TOO_LARGE');
+    if (process.platform !== 'win32') { await symlink(resolve(root, original), resolve(root, symbolic)); await expect(storage.read(symbolic)).rejects.toThrow('INVALID_FILE'); }
+    expect(String(await storage.read(original))).toBe('Example private image');
+  } finally { for (const key of [alias, symbolic, oversized, original]) await storage.remove(key); await rmdir(root); }
 });
 it('uses S3 path-style private objects and a signed download lasting exactly 300 seconds', async () => {
   let object = Buffer.alloc(0); const calls: { method: string; path: string; disposition?: string; cache?: string }[] = [];
