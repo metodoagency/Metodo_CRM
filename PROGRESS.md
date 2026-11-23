@@ -1,5 +1,12 @@
 # Metodo CRM progress
 
+## Owner amendment 2026-11-23 — continuation checkpoint
+
+Read and preserved the full new owner instruction in docs/OWNER_EXTENSION_20261123.md. Managed documents/native designs/clips/full-match video uploads explicitly supersede earlier Drive-only rules; the external Drive path is retained. SPEC/AGENTS/plan/matrix/scope/deployment docs and DESIGN.md updated;67–72 added, no feature credit. Current acceptance10/72 DONE,5 IN_PROGRESS,57 NOT_STARTED; A–J10%, K/L/M0/3. Pilot row1 accepted from exact8c2cde1 PostgreSQL16/17 CI44759716743; row2 update in progress; rows3–6 implementation in progress. Earlier20Nov local checks (240 full application tests, focused14 resource/config checks,5 Drive browser cases plus portrait, dashboard3 and main-route axe2) are historical snapshots, not new23Nov passes. Resource connection-list additions were interrupted before final checks/commit. New local/remote Git inspection confirms localc55c422 contains18 commits beyond remote-trackingc795dc1, with no remote-only commits; preserve all WIP and publish only a normal fast-forward after verification. Supabase connector confirms the existing project ACTIVE_HEALTHY on PostgreSQL17.11.0.011; no production data/schema changed. Default sandbox process launch fails Windows1920; authorized normal-user PowerShell works. No approval denial or bypass occurred.
+
+Next: complete current resource/portrait/connection and nested-parent regression checks, commit/push the foundation and require new exact16/17 CI; secure old Contract.documentLink/private Drive sourceUrl/provenance before pilot. Continue backup/auth and sponsorship/media independently. Real raw-original identifier policy and capacity/configuration must be explicit before managed upload activation. No paid service, commercial acquisition, outbound sending or production test-auth.
+
+
 Updated2026-11-20, Europe/Istanbul. SPEC.md and docs/REQUIREMENTS.md define the scope. See the [session plan](SESSION_PLAN.md) and [requirement acceptance matrix](docs/acceptance-matrix.md) for the current records. Earlier checkpoints are available in Git history.
 
 ## Current state

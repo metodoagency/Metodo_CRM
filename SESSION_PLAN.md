@@ -1,4 +1,9 @@
-# Metodo CRM — 54 temel +12 ek iş paketi uygulama planı
+# Metodo CRM — 54 temel +12 ticari/medya +6 kasa iş paketi
+
+## Owner amendment 2026-11-23 — managed documents and full-match videos
+
+The complete owner instruction in docs/OWNER_EXTENSION_20261123.md and normative docs/MEDIA_VAULT_SCOPE.md are incorporated by reference. This later instruction explicitly replaces earlier Drive-only/no-video-upload requirements. Private managed documents, native designs, clips and full-match uploads are in scope alongside the working external Drive option. Do not remove the safe existing reference path or enable unvalidated generic production uploads. Use per-type validation, private durable storage, actual quota/reservation checks, resumable direct uploads, owner-controlled processing and verified file-object recovery. No unlimited-free-storage claim or paid activation. Preserve all01–66 clauses; append67–72 and milestone M for vault delivery. Earlier54/J and66/L are retained gates; expanded final acceptance also needs72/M. Current ledger10 DONE,5 IN_PROGRESS,57 NOT_STARTED of72; A–J10%, K/L/M0/3, independent private-pilot checklist. Documentation grants no feature acceptance. Commercial scraping/Gmail sending/automatic posting restrictions, human approval, sensitive protections and H real-minor/medical limits stay in force. Original contracts containing prohibited identifiers need local redaction or an explicit owner decision; do not silently store an unmodified copy. Keep signed originals immutable and redacted derivatives separate. Team access is not implicitly added: responsible Person records are not login accounts.
+
 
 Baseline owner-approved2026-11-03; sponsorship/media extension approved2026-11-20. An oturum is a verified work package, not a message count or time guarantee. Pilot:29. Baseline delivery:54. Expanded final delivery:66. Work may continue across chats without waiting for 'devam'. Preserve the current checkout; one writer, no new worktree. This file and PROGRESS.md are durable state.
 
@@ -97,7 +102,7 @@ Owner consolidated amendment2026-11-20: [PRIVATE_PILOT_PLAN.md](docs/PRIVATE_PIL
 | 65 | Sosyal metrik ve hazırlık | MO9: yalnız manuel/sahip dosyası kaynaklı ölçümler, açıklanabilir readiness ve eksik veri, canlı provider yok. | NOT_STARTED |
 | 66 | Genişletilmiş nihai kabul | MO10: tüm eski+yeni kapsam, güvenlik/yük/sayım/saat/restore/rollback, TR/EN/mobil, gerçek HTTPS/OAuth/Sites; L ve genişletilmiş teslim. | NOT_STARTED |
 
-Current package count:10 DONE,5 IN_PROGRESS,51 NOT_STARTED of66. Baseline A–J acceptance remains1/10=10%; K/L accepted0/2. These are separate measures, not effort estimates. New package dependencies may be split into more work units if needed, with explicit ledger changes and no dropped clauses.
+Current package count:10 DONE,5 IN_PROGRESS,57 NOT_STARTED of72. Baseline A–J acceptance remains1/10=10%; K/L accepted0/2. These are separate measures, not effort estimates. New package dependencies may be split into more work units if needed, with explicit ledger changes and no dropped clauses.
 
 ## Acceptance and execution contract
 
@@ -114,3 +119,16 @@ Acceptance percentage = accepted milestone gates /10, not effort. A10%; B(sessio
 Kalan oturumlar: [docs/NEXT_SESSIONS.md](docs/NEXT_SESSIONS.md). Paket14 tamamlandı; paket15 devam sınırı: [docs/AGENDA_IMPLEMENTATION.md](docs/AGENDA_IMPLEMENTATION.md).
 
 Read AGENTS.md, SPEC.md, this file, PROGRESS.md and acceptance matrix; inspect Git state. Resume the last unfinished package, preserving owner changes. Do independent work while real owner/provider blocks are recorded. Secrets belong only in ignored local configuration/provider secret settings, never chat/source/logs. If interrupted, commit WIP and save the exact next step. Do not recreate finished work.
+
+## Milestone M — document/video vault, owner update2026-11-23
+
+Normative requirements and dependencies: docs/MEDIA_VAULT_SCOPE.md.
+
+| No | Work | Status |
+|---|---|---|
+| 67 | Canonical document metadata/versions/multiple links and protected legacy source migration | NOT_STARTED |
+| 68 | Secure managed document/native-design uploads, batch/drop and local redaction | NOT_STARTED |
+| 69 | Quota-reserved resumable direct uploads | NOT_STARTED |
+| 70 | Private video library/range player/timed notes/local metadata | NOT_STARTED |
+| 71 | Encrypted object manifests and temporary file/DB recovery | NOT_STARTED |
+| 72 | Full expanded acceptance and verified final delivery | NOT_STARTED |
