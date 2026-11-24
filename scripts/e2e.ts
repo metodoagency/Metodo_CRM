@@ -2,6 +2,7 @@ import 'dotenv/config';
 import { join } from 'node:path';
 import pg from 'pg';
 import { run } from './process.js';
+import playwrightConfig from '../playwright.config.js';
 const url = new URL(process.env.DATABASE_URL || 'postgresql://metodo:metodo_local_only@127.0.0.1:5432/metodo');
 if (!['127.0.0.1', 'localhost'].includes(url.hostname)) throw new Error('E2E requires local PostgreSQL; external database is protected');
 run('npm', ['run', 'db:up']);
@@ -29,7 +30,10 @@ if (args.length) {
   // Restart the test servers between suites so rapid scans do not inherit
   // the earlier Chromium scenarios' API and authentication rate counters.
   const reportRoot = process.env.PLAYWRIGHT_HTML_OUTPUT_DIR ?? 'playwright-report';
-  for (const project of ['chromium', 'club-workspace', 'transfer-workspace', 'contract-workspace', 'agenda-workspace', 'meeting-workspace', 'agenda-layers', 'dashboard-workspace', 'resource-workspace', 'presentation-task-rule', 'sponsorship-workspace', 'a11y']) {
+  // Use the same project inventory as Playwright; newly configured suites must not silently escape CI.
+  const projects = (playwrightConfig.projects ?? []).map(project => { if (!project.name) throw new Error('Browser projects require explicit names'); return project.name; });
+  if (!projects.length || new Set(projects).size !== projects.length) throw new Error('Browser project inventory must be nonempty and unique');
+  for (const project of projects) {
     run('npx', ['playwright', 'test', `--project=${project}`, `--output=test-results/${project}`], {
       ...env, FILE_STORAGE_MODE: legacyUploadProjects.has(project) ? 'upload' : 'drive', PLAYWRIGHT_HTML_OUTPUT_DIR: join(reportRoot, project),
     });
