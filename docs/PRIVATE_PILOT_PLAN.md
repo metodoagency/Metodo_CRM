@@ -40,7 +40,7 @@ These16 rows are execution slices, not replacement package IDs. Feature acceptan
 |7|Early recovery backup|78bd4a4 exact16/17 CI45328619816 passed; production custody/storage verification open|IN_PROGRESS|
 |8|Owner HTTPS core|Free resources exist; local preview confirmed, real OIDC/HTTPS and production verification pending|IN_PROGRESS|
 |9|Package15 source adapters|Presentation opt-in rule/receipts passed8a5417b complete16/17 CI45338129337. Contract/general approval adapters remain open.|IN_PROGRESS|
-|10|Brands/contacts/opportunities|Original bounded criterion: brand/contact/players/current stage/next action visible and managed.6d4821e pipeline verified; membership source CI pending. Full55 Campaign editor/Kanban/account/typed integration stays separate.|IN_PROGRESS|
+|10|Brands/contacts/opportunities|Original brand/person/players/stage/next-action criterion accepted at22d3cf2 exact16/17 CI45447495851:291 app/156 security/51 browser; membership/restore/reassignment and actual recovery included. Full55 account/typed integration and independent Campaign/Kanban follow-up remain separate.|DONE|
 |11|Offer/basic obligations|Versioned offers/Drive agreement/player outcomes/deadlines; finance stays open|NOT_STARTED|
 |12|Content workspace|Accounts/brief/list/Kanban/calendar/design/revision/adaptation/manual evidence|NOT_STARTED|
 |13|Fixtures/package16|Stable identity/CSV preview/reimport/owner-only permitted TFF|NOT_STARTED|
@@ -64,6 +64,6 @@ Each slice records usable behavior, migration/API change, actual relevant tests,
 
 Required regressions: acquisition/TFF fallback; first-login privacy/version; unapproved contract writes blocked; per-document external consent; sensitive URL/log/cache/export absence and late replies; multi-player counting/money; fixture/task retry/purge/restore; equal-count checksum corruption; Sites CSP/auth/cookie fallback. Local10k-player p95 is separate from host cold start.
 
-Report four measures: DONE/72; A–J gates; K/L/M gates; private-pilot passed/pending rows. Current10 DONE/8 IN_PROGRESS/54 NOT_STARTED, A–J10%, K/L/M0/3. Pilot4/16 accepted (rows1/2/4/5),6 in progress (3/6/7/8/9/10),6 not started. Partial15/25/55/67 are in progress, not accepted.
+Report four measures: DONE/72; A–J gates; K/L/M gates; private-pilot passed/pending rows. Current10 DONE/8 IN_PROGRESS/54 NOT_STARTED, A–J10%, K/L/M0/3. Pilot5/16 accepted (rows1/2/4/5/10),5 in progress (3/6/7/8/9),6 not started. Partial15/25/55/67 are in progress, not accepted.
 
 Final delivery: verified app/Sites URLs; real local commands; free deployment/migration/backup/key custody/restore/rollback/maintenance. Assigned but unverified addresses are not delivered releases. Preserve resumable work and record the next exact action on interruption.
