@@ -39,8 +39,8 @@ These16 rows are execution slices, not replacement package IDs. Feature acceptan
 |6|Small-image exception|Portrait/logo-only validation/re-encoding/private storage/legacy compatibility|IN_PROGRESS|
 |7|Early recovery backup|78bd4a4 exact16/17 CI45328619816 passed; production custody/storage verification open|IN_PROGRESS|
 |8|Owner HTTPS core|Free resources exist; local preview confirmed, real OIDC/HTTPS and production verification pending|IN_PROGRESS|
-|9|Package15 source adapters|Presentation opt-in preview/confirmation and protected receipts implemented; source/API/browser/restore checks underway. Contract/general approval adapters and exact CI remain open.|IN_PROGRESS|
-|10|Brands/contacts/opportunities|Brand + existing Person directory/roles/dates implemented and tested; Campaign, global/per-player opportunity stages/actions/reasons remain open|IN_PROGRESS|
+|9|Package15 source adapters|Presentation opt-in rule/receipts passed8a5417b complete16/17 CI45338129337. Contract/general approval adapters remain open.|IN_PROGRESS|
+|10|Brands/contacts/opportunities|Brand/Person roles/dates/lifecycle/recovery passed8a5417b complete16/17 CI45338129337; Campaign/global/per-player opportunity stages/actions/reasons remain open|IN_PROGRESS|
 |11|Offer/basic obligations|Versioned offers/Drive agreement/player outcomes/deadlines; finance stays open|NOT_STARTED|
 |12|Content workspace|Accounts/brief/list/Kanban/calendar/design/revision/adaptation/manual evidence|NOT_STARTED|
 |13|Fixtures/package16|Stable identity/CSV preview/reimport/owner-only permitted TFF|NOT_STARTED|

@@ -120,7 +120,7 @@ Every clause in [the normative extension](COMMERCIAL_MEDIA_SCOPE.md) and [full o
 
 | Requirement | Scope | Packages | Status | Evidence |
 |---|---|---|---|---|
-| SP1 | Sponsor/brand, existing contacts and links | 55 | PARTIAL | Brand directory, typed existing-Person roles/dates, timeline and safe lifecycle implemented24Nov: tests/sponsorship.test.ts, tests/e2e/sponsorship.spec.ts, actual temporary restore in tests/recovery.test.ts. Player/Campaign links and exact new CI remain open. |
+| SP1 | Sponsor/brand, existing contacts and links | 55 | PARTIAL | Brand/Person roles/dates/timeline/lifecycle and actual temporary restore passed [8a5417b complete16/17 CI45338129337](https://github.com/metodoagency/Metodo_CRM/actions/runs/45338129337):272 app/137 security/47 browser per version. Player/Campaign links remain open. |
 | SP2 | Dated opportunity pipeline and next action | 55 | NOT_STARTED | Scope mapped; no runtime acceptance. |
 | SP3 | Offers/agreements/versions/source/files | 56 | NOT_STARTED | Scope mapped; no runtime acceptance. |
 | SP4 | Cash/in-kind original-currency consideration | 57 | NOT_STARTED | Scope mapped; no runtime acceptance. |
