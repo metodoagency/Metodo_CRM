@@ -1,5 +1,15 @@
 # Metodo CRM progress
 
+## Brand directory and continued delivery - 2026-11-24
+
+Previous isolated settings/Presentation source45f1ab2c9dd7206f6ea4e9d163ce8521581ba60b now has successful complete PostgreSQL16/17 CI45336071358:268 application tests,133 selected security checks (135 unrelated skips),45 browser/axe scenarios per version,1240 bilingual keys and lint/type/build/compliance. This closes the prior first-login/retention CI failures; it does not verify the separate Brand source below.
+
+Implemented the first SP1 vertical slice: premium Sponsorship brand directory/search, manual public HTTPS website/sector/relationship status, existing Person links with brand roles and optional known dates, safe metadata projections and related timelines. Added strict owner/live/version checks, dedicated Trash guidance, independent Brand/Person lifecycle, example cleanup and actual recovery rows. All modal versions are frozen on opening and late responses cannot close a newer draft. Shared generic entity/Task/file dispatch was not widened. Migrations017/018 are append-only and local-only. See docs/SPONSORSHIP_DIRECTORY.md.
+
+New Brand/recovery checks passed12/12, including real temporary PostgreSQL restore with Brand/Contact and consumed Task receipts. Two new TR/EN browser cases passed with dark/light/mobile axe and dirty-draft conflict preservation. Corrected first-login privacy TR/EN and retention browser scenarios passed3/3 on isolated5174/3001; the owner's5173 preview stayed available. Build/type/lint/i18n1274 passed; source security gate is running and immutable new CI remains required. Audit has one moderate i18next25.10.10 advisory, no high/critical; source/lock assessment and a proposed separate26.3.4 upgrade are in docs/security/I18NEXT_ALERT_20261124.md. It remains OPEN, not dismissed or falsely reported fixed. Earlier f0d16b0 local267/CI server passes do not apply to these new changes. Formal managed scan remains blocked and PR3 stays draft/unmerged.
+
+Current delivery:10/72 DONE,8 IN_PROGRESS,54 NOT_STARTED; A–J10%, K/L/M0/3. Private pilot4/16 accepted,6 in progress (3/6/7/8/9/10),6 not started. Package55 is now IN_PROGRESS, not accepted. Campaign/account foundation, global/per-player sponsorship opportunities, finance and media are not implemented by this directory slice. Next independent feature: shared Campaign plus explicit multi-player opportunity stages, history, next action and terminal reasons. Production OAuth/storage gates and existing Owner input needed remain open.
+
 ## Presentation follow-up implementation - 2026-11-24
 
 Source f0d16b09f7236f70253a8bcb20eb810d3d56cabf passed267 application tests locally (27 files), final2 TR/EN mobile/dialog-axe scenarios including the held-response/new-editor regression, and build/type/lint/i18n1240/compliance. The preview API was refreshed without resetting data: authenticated rule200, web200, default disabled,4 Players/3 Clubs/1 Task preserved. Actual user-facing route: http://localhost:5173/tasks.

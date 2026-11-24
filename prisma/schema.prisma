@@ -265,6 +265,8 @@ model Owner {
  meetingRecords Meeting[]
  taskRecords Task[]
  taskGenerationReceipts TaskGenerationReceipt[]
+ brandRecords Brand[]
+ brandContacts BrandContact[]
  matchRecords Match[]
  scoutReportRecords ScoutReport[]
  eventRecords Event[]
@@ -495,6 +497,7 @@ model AgeTeam {
 }
 
 model Person {
+ brandContacts BrandContact[]
  externalResourceLinks ExternalResourceLink[]
  @@index([ownerId, deletedAt, name, id])
  mediaContactLinks MediaContact[]
@@ -1008,6 +1011,60 @@ model TaskGenerationReceipt {
  @@unique([ownerId, ruleKey, entityType, entityId, targetDate], map: "TaskGenerationReceipt_occurrence_key")
  @@index([ownerId, taskId])
  @@index([entityId])
+}
+
+model Brand {
+ id String @id @default(uuid()) @db.Uuid
+ ownerId String @default("owner")
+ owner Owner @relation(fields: [ownerId], references: [id])
+ isExample Boolean @default(false)
+ deletedAt DateTime?
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+ createdBy String @default("owner")
+ updatedBy String @default("owner")
+ version Int @default(1)
+ fieldProvenance Json @default("{}")
+ sourceUrl String?
+ sourceType SourceType @default(MANUAL)
+ retrievedAt DateTime @default(now())
+ verificationStatus VerificationStatus @default(UNVERIFIED)
+ name String
+ searchName String
+ sector String @default("")
+ website String?
+ relationStatus RelationStatus @default(NEW)
+ contacts BrandContact[]
+ @@index([ownerId, deletedAt, name, id])
+}
+
+model BrandContact {
+ id String @id @default(uuid()) @db.Uuid
+ ownerId String @default("owner")
+ owner Owner @relation(fields: [ownerId], references: [id])
+ isExample Boolean @default(false)
+ deletedAt DateTime?
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+ createdBy String @default("owner")
+ updatedBy String @default("owner")
+ version Int @default(1)
+ fieldProvenance Json @default("{}")
+ sourceUrl String?
+ sourceType SourceType @default(MANUAL)
+ retrievedAt DateTime @default(now())
+ verificationStatus VerificationStatus @default(UNVERIFIED)
+ name String
+ brandId String @db.Uuid
+ brand Brand @relation(fields: [brandId], references: [id], onDelete: Restrict)
+ personId String @db.Uuid
+ person Person @relation(fields: [personId], references: [id], onDelete: Restrict)
+ roleTitle String @default("")
+ startDate DateTime? @db.Date
+ endDate DateTime? @db.Date
+ @@unique([ownerId, brandId, personId])
+ @@index([ownerId, deletedAt, brandId, id])
+ @@index([personId])
 }
 
 model Match {

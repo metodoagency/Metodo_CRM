@@ -40,7 +40,7 @@ for (const language of ['tr', 'en']) test(`main routes have no serious or critic
   } });
   expect(request.status()).toBe(201);
   const requestPath = `/record/Request/${(await request.json()).id}`;
-  const paths = ['/', '/clubs', '/players', '/people', '/requests', '/proposals', '/sources', '/birthdays', '/presentations', '/trash', '/settings', '/privacy', '/incident',
+  const paths = ['/', '/clubs', '/players', '/people', '/requests', '/proposals', '/sources', '/sponsorship', '/birthdays', '/presentations', '/trash', '/settings', '/privacy', '/incident',
     '/contracts', contractPath, '/notifications', '/tasks', taskPath, '/agenda', meetingPath, requestPath, `/record/Club/${club.id}`, `/record/Person/${person.id}`, `/record/Player/${player.id}`];
   for (const path of paths) {
     await page.goto(path); await expect(page.locator('main h1'), `${language} ${path}`).toBeVisible();

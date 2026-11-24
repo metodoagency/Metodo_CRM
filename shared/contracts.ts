@@ -26,6 +26,7 @@ import { agentBirthdayCreate, agentBirthdayQuery, birthdayChange, birthdayPage, 
 import { notificationAction, notificationQuery } from './notifications.js';
 import { taskCreate, taskLinkQuery, taskPatch, taskQuery } from './tasks.js';
 import { presentationRuleInput, presentationRulePreview } from './presentation-tasks.js';
+import { brandCreate, brandPatch, brandQuery, brandContactCreate, brandContactPatch, brandContactDelete, brandContactParams } from './sponsorship.js';
 import { agendaExport, agendaQuery, meetingCreate, meetingPatch, meetingTaskCommit, meetingTaskPreview, meetingTimeInput, participantQuery } from './meetings.js';
 import { dashboardLayout } from './dashboard.js';
 
@@ -63,6 +64,16 @@ export const patchInput = versionInput.extend({ changes: z.record(z.string(), z.
 export type ApiContract = { method: 'get' | 'post' | 'patch' | 'delete'; path: string; query?: z.ZodType; params?: z.ZodType; body?: z.ZodType; success?: number; public?: boolean; testOnly?: boolean; csv?: boolean; multipart?: boolean; download?: readonly string[] };
 export const apiContracts: ApiContract[] = [
   { method: 'get', path: '/api/tasks', query: taskQuery },
+  { method: 'get', path: '/api/brands', query: brandQuery },
+  { method: 'post', path: '/api/brands', body: brandCreate, success: 201 },
+  { method: 'get', path: '/api/brands/:id', params: idParams },
+  { method: 'patch', path: '/api/brands/:id', params: idParams, body: brandPatch },
+  { method: 'delete', path: '/api/brands/:id', params: idParams, body: versionInput },
+  { method: 'get', path: '/api/brands/:id/contacts', params: idParams, query: brandQuery.pick({ page: true }) },
+  { method: 'post', path: '/api/brands/:id/contacts', params: idParams, body: brandContactCreate, success: 201 },
+  { method: 'patch', path: '/api/brands/:id/contacts/:contactId', params: brandContactParams, body: brandContactPatch },
+  { method: 'delete', path: '/api/brands/:id/contacts/:contactId', params: brandContactParams, body: brandContactDelete },
+  { method: 'get', path: '/api/brands/:id/timeline', params: idParams },
   { method: 'get', path: '/api/task-rules/presentation' },
   { method: 'get', path: '/api/task-rules/presentation/candidates', query: z.object({ page: z.coerce.number().int().min(1).max(100000).default(1) }).strict() },
   { method: 'post', path: '/api/task-rules/presentation/preview', body: presentationRuleInput },

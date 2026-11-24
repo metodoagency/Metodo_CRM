@@ -148,7 +148,7 @@ export async function cleanupExamples(db: PrismaClient, expected: string) {
     return plan.result;
   }, { isolationLevel: 'Serializable', timeout: 30000 });
 }
-const ancillary = new Set(['Relation', 'Note', 'Attachment', 'ProcessingConsent', 'Task', 'Notification', 'UpdateProposal', 'ShareLink', 'TrashEntry', 'BirthdayGreeting', 'ExternalResourceLink', 'TaskGenerationReceipt']);
+const ancillary = new Set(['Relation', 'Note', 'Attachment', 'ProcessingConsent', 'Task', 'Notification', 'UpdateProposal', 'ShareLink', 'TrashEntry', 'BirthdayGreeting', 'ExternalResourceLink', 'TaskGenerationReceipt', 'BrandContact']);
 export async function deletionPreview(tx: Tx, type: string, id: string) {
   const graph = await loadGraph(tx);
   if (!graph.get(type)?.some(row => row.id === id)) throw new AppError('NOT_FOUND', 404);
@@ -181,9 +181,15 @@ export async function restoreTrash(db: PrismaClient, id: string, version: number
       const resource = await tx.externalResource.updateMany({ where: { ...live, id: String(record.resourceId) }, data: { version: { increment: 1 } } });
       if (resource.count !== 1) throw new AppError('LINKED_RECORDS', 409);
     }
+    if (item.entityType === 'BrandContact') {
+      const parent = await tx.brand.findFirst({ where: { ...live, id: String(record.brandId) } });
+      if (!parent) throw new AppError('LINKED_RECORDS', 409);
+      await tx.brand.update({ where: { id: parent.id, ownerId: 'owner', version: parent.version }, data: { version: { increment: 1 } } });
+      for (const [entityType, entityId] of [['Brand', parent.id], ['Person', String(record.personId)]]) await logEvent(tx, { entityType, entityId, name: item.label, action: 'update', isExample: item.isExample, batchId: item.id, diffs: { contactId: record.id, restored: true } });
+    }
     const changed = await tx.$executeRaw(Prisma.sql`UPDATE ${table(item.entityType)} SET "deletedAt" = NULL, "version" = "version" + 1, "updatedAt" = CURRENT_TIMESTAMP WHERE "id" = ${item.entityId}::uuid AND "ownerId" = ${'owner'} AND "version" = ${recordVersion} AND "deletedAt" IS NOT NULL`);
     if (changed !== 1 || (await tx.trashEntry.deleteMany({ where: { ...live, id, version } })).count !== 1) throw new AppError('STALE_VERSION', 409);
-    await logEvent(tx, { entityType: item.entityType, entityId: item.entityId, action: 'restore', name: item.label, isExample: item.isExample });
+    await logEvent(tx, { entityType: item.entityType, entityId: item.entityId, action: 'restore', name: item.label, isExample: item.isExample, ...(item.entityType === 'BrandContact' ? { batchId: item.id } : {}) });
     return { ok: true };
   }, { isolationLevel: 'Serializable', timeout: 30000 });
 }

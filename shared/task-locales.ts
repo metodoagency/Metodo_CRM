@@ -1,5 +1,6 @@
 const strings = {
   presentationTaskRule: ['Sunum takip otomasyonu', 'Presentation follow-up automation'],
+  modelTaskGenerationReceipt: ['Görev üretim kayıtları', 'Task generation receipts'],
   presentationTaskGenerated: ['Sunum takibi', 'Presentation follow-up'],
   presentationTaskCurrent: ['Bu görev sunumun {{date}} takip tarihi için üretildi. Sahibin görev düzenlemeleri korunur.', 'Generated for the presentation follow-up on {{date}}. Owner edits to the task are preserved.'],
   presentationTaskPrevious: ['Bu görev sunumun önceki {{date}} takip tarihi için üretildi; kaynak değişti veya artık kullanılamıyor. Görev kendiliğinden değiştirilmez.', 'Generated for a previous presentation follow-up on {{date}}; the source changed or is unavailable. The task is not changed automatically.'],

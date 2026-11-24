@@ -20,7 +20,9 @@ import { taskTr, taskEn } from './task-locales.js';
 import { meetingTr, meetingEn } from './meeting-locales.js';
 import { agendaTr, agendaEn } from './agenda-locales.js';
 import { dashboardTr, dashboardEn } from './dashboard-locales.js';
+import { sponsorshipTr, sponsorshipEn } from './sponsorship-locales.js';
 export const tr = {
+  ...sponsorshipTr,
   recoveryBackupCreated: 'Şifreli kurtarma yedeği oluşturuldu',
   ...resourceTr,
   skipToContent: 'Ana içeriğe geç',
@@ -254,6 +256,7 @@ export const tr = {
   "suggestionSummary": "{club} kulübüne önerildi · Yetkili: {person} · Talep: {request} · Tarih: {date}"
 } as const;
 export const en: Record<keyof typeof tr, string> = {
+  ...sponsorshipEn,
   recoveryBackupCreated: 'Encrypted recovery backup created',
   ...resourceEn,
   skipToContent: 'Skip to main content',

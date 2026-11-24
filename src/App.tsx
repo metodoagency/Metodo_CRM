@@ -36,6 +36,8 @@ import { Presentations, RecordPicker } from './presentations';
 import { Contracts, ContractDetail, PlayerContracts } from './player-contracts';
 import { Notifications } from './notifications';
 import { Tasks } from './tasks';
+import { Sponsorship } from './sponsorship';
+import { Handshake } from 'lucide-react';
 import { Meetings } from './meetings';
 import { Dashboard } from './dashboard';
 import { hasCoordinates, type ClubFilters } from '../shared/club-network';
@@ -50,6 +52,7 @@ const pages = [
   { path: '/requests', key: 'requests', icon: ArrowLeftRight }, { path: '/proposals', key: 'proposals', icon: ShieldCheck },
   { path: '/sources', key: 'sourceRegistry', icon: Link2 },
   { path: '/resources', key: 'resourceLibrary', icon: FolderOpen },
+  { path: '/sponsorship', key: 'sponsorship', icon: Handshake },
   { path: '/birthdays', key: 'birthdayCalendar', icon: CalendarDays },
   { path: '/presentations', key: 'presentations', icon: ArrowLeftRight },
   { path: '/contracts', key: 'contracts', icon: ShieldCheck },
@@ -114,6 +117,7 @@ export function App() {
       <Route path="/trash" element={<Trash />} /><Route path="/proposals" element={<Proposals />} />
       <Route path="/sources" element={<ClubSourceRegistry />} />
       <Route path="/resources" element={<ResourceLibrary />} />
+      <Route path="/sponsorship" element={<Sponsorship />} />
       <Route path="/birthdays" element={<BirthdayCalendar />} />
       <Route path="/presentations" element={<Presentations />} />
       <Route path="/contracts" element={<Contracts />} /><Route path="/contracts/:id" element={<ContractDetail />} />
