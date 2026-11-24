@@ -89,7 +89,7 @@ Owner consolidated amendment2026-11-20: [PRIVATE_PILOT_PLAN.md](docs/PRIVATE_PIL
 
 | No | İş | Kabul ölçütü | Durum |
 |---|---|---|---|
-| 55 | Sponsor/marka ve fırsatlar | Marka/Person, ortak Campaign, ayrı genel/oyuncu aşama-sonuç, özel aksiyonlar ve önizlemeli üyelik/sorumlu/Trash/restore22d3cf2 tam16/17 CI45447495851 ile doğrulandı; pilot10 kabul edildi. Kampanya düzenleme ve sayfalı Kanban yeni bağımsız dilimde kesin CI bekliyor. Sosyal hesap ve typed Task/dosya temeli açık. | IN_PROGRESS |
+| 55 | Sponsor/marka ve fırsatlar | Marka/Person, ortak Campaign, ayrı genel/oyuncu aşama-sonuç, özel aksiyonlar ve önizlemeli üyelik/sorumlu/Trash/restore22d3cf2 tam16/17 CI45447495851 ile doğrulandı; pilot10 kabul edildi. Kampanya düzenleme ve sayfalı Kanban d33ea2f tam16/17 CI45452199860 ile doğrulandı (294 uygulama/159 güvenlik/54 tarayıcı). Sosyal hesap ve typed Task/dosya temeli açık. | IN_PROGRESS |
 | 56 | Sponsorluk teklif/anlaşma | SP3: kaynaklı, sürümlü teklifler ve anlaşmalar, özel dosyalar, açık bölge/kategori notları. | NOT_STARTED |
 | 57 | Sponsorluk bedel/tahsilat | SP4/5: nakdî/ayni ayrımı, kısmi tahsilat/alacak/komisyon, decimal ve kaynaklı FX; ikinci muhasebe yok. | NOT_STARTED |
 | 58 | Yükümlülük, hak ve yenileme | SP6/7: adet/format/hesap/tarih, onay ve manuel tamamlama kanıtı, gecikme, açıklanabilir olası çakışma ve tekrar üretmeyen iç uyarı. | NOT_STARTED |

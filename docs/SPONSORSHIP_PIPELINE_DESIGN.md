@@ -1,6 +1,6 @@
 # Next sponsorship slice — Campaign and multi-player opportunities
 
-Read-only architecture review recorded2026-11-24. **Core slice implemented; package55 remains partial.** See SPONSORSHIP_PIPELINE.md and PROGRESS.md for actual evidence and pending roster/contact/Kanban/account work. Continue from the working Brand/BrandContact directory; do not create a second directory or finance ledger. This preserves the next concrete package55 step while the current immutable CI runs.
+Read-only architecture review recorded2026-11-24. **Core slice implemented; package55 remains partial.** See SPONSORSHIP_PIPELINE.md and PROGRESS.md for actual evidence and remaining social-account/typed Task/file work; core, membership and Kanban/Campaign evidence is complete for the recorded immutable source commits. Continue from the working Brand/BrandContact directory; do not create a second directory or finance ledger. This preserves the next concrete package55 step while the current immutable CI runs.
 
 ## Data boundaries
 
@@ -22,4 +22,4 @@ Create/update canonical state, dated history and related timeline entries in one
 
 ## Required evidence
 
-Two players, one accepted/one declined; global stage unchanged by either player transition; stale/concurrent/replayed previews create one event only; foreign/deleted/mismatched brand contacts rejected; parent/contact/player cleanup preserves the shared opportunity and other players; changed previews reject confirmation; no sensitive text/URL in ordinary logs/CSV; example/lifecycle/retention/default-no-deletion integration; actual temporary restore preserves all canonical/history rows and checksums; TR/EN mobile/axe and exact16/17 CI. All new tables remain within72-package scope. SP2/player/Campaign links and package55 stay open until this evidence exists.
+Two players, one accepted/one declined; global stage unchanged by either player transition; stale/concurrent/replayed previews create one event only; foreign/deleted/mismatched brand contacts rejected; parent/contact/player cleanup preserves the shared opportunity and other players; changed previews reject confirmation; no sensitive text/URL in ordinary logs/CSV; example/lifecycle/retention/default-no-deletion integration; actual temporary restore preserves all canonical/history rows and checksums; TR/EN mobile/axe and exact16/17 CI. All new tables remain within72-package scope. Core/player/Campaign/membership/Kanban evidence is recorded throughd33ea2f CI45452199860. Full SP1/SP2/package55 remain partial until account foundation and typed Task/file integration are implemented and verified.

@@ -20,7 +20,7 @@ Sahibin onayladığı [birleştirilmiş özel pilot planı](PRIVATE_PILOT_PLAN.m
 | 08 | Personel CSV akışını koru; temsili anonim TFF personel sayfası veya sahibin başlattığı kesin sayfa kontrolüyle robots izinli kontrolü tamamla. Zamanlanmış veya ticari site isteği ekleme. |
 | 11 | M14/M15 tamam. Kalan M4 ve B güvenlik/CI kapısı doğrulandıktan sonra B kabulünü kapat. |
 
-Bu erişim işleri, bağımsız CRM geliştirmelerini durdurmaz. Paket 13, eşzamanlı satış düzeltmesi dahil, 8edb823 için PostgreSQL 16/17 CI geçtikten sonra tamamlandı. Paket 14 de 5c516b4 için PostgreSQL 16/17 CI geçtikten sonra tamamlandı. 24.11.2026 güncel kabul:10/72 paket tamam,8 devam ediyor,54 başlamadı. İlk54 ve55–66 korunur; kasa67–72 ilavedir. A–J%10; K/L/M0/3. Özel pilot5/16 kabul edildi; marka/kişi/oyuncu/aşama/sonraki aksiyon pilot10,22d3cf2 tam16/17 CI45447495851 ile doğrulandı. Kampanya düzenleme/Kanban bağımsız takip dilimi; sosyal hesap ve typed Task/dosya kapsamı55 içinde açık. Önce bu dilimin kesin CI’ını tamamla.
+Bu erişim işleri, bağımsız CRM geliştirmelerini durdurmaz. Paket 13, eşzamanlı satış düzeltmesi dahil, 8edb823 için PostgreSQL 16/17 CI geçtikten sonra tamamlandı. Paket 14 de 5c516b4 için PostgreSQL 16/17 CI geçtikten sonra tamamlandı. 24.11.2026 güncel kabul:10/72 paket tamam,8 devam ediyor,54 başlamadı. İlk54 ve55–66 korunur; kasa67–72 ilavedir. A–J%10; K/L/M0/3. Özel pilot5/16 kabul edildi; marka/kişi/oyuncu/aşama/sonraki aksiyon pilot10,22d3cf2 tam16/17 CI45447495851 ile doğrulandı. Kampanya düzenleme/Kanban bağımsız takip dilimi; sosyal hesap ve typed Task/dosya kapsamı55 içinde açık. Bu bağımsız dilimin kesin16/17 CI45452199860 sonucu d33ea2f için geçti; sonraki iş typed görev/kaynak bağlantılarıdır.
 
 ## Geliştirme sırası
 
@@ -76,3 +76,8 @@ Kabul kapıları: A %10; B %20; C %30; D %40; E %50; F/pilot %60; G %70; H %80; 
 ## Onaylı sponsorluk ve medya genişlemesi
 
 2026-11-20: K paket55–59 sponsorluk; L paket60–66 medya/matchday/hizmet raporu. Ayrıntılı bitiş ölçütleri [COMMERCIAL_MEDIA_SCOPE.md](COMMERCIAL_MEDIA_SCOPE.md) ve [SESSION_PLAN.md](../SESSION_PLAN.md) içindedir. Önce yarım ajanda katmanlarını doğrula,15 kapsamında dashboard/görev adaptörlerine devam et. Yeni paneller mevcut Person/finans/Campaign/dosya/zamanlı bildirim temellerini yeniden kullanır; kaynak politikası değişmez.66 paket sayısı teslim süresi garantisi değildir.
+
+
+## Güncel somut takip —24.11.2026
+
+d33ea2f Kanban/kampanya tam16/17 CI45452199860 geçti:294 uygulama/159 güvenlik/54 tarayıcı. Şimdi [typed görev/kaynak bağlantı tasarımını](SPONSORSHIP_TYPED_LINKS_DESIGN.md) uygula: gerçek FK/migration, açık parent kontrolleri, kalıcı deep link, parent hata durumunda URL gizleme ve yeni şemada geçici kurtarma. Bu tasarım uygulama/kabul sayılmaz; sosyal hesap temeli ve pilot11 teklif/teslimatları ayrıca tamamlanacak.

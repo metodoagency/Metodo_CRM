@@ -40,7 +40,7 @@ These16 rows are execution slices, not replacement package IDs. Feature acceptan
 |7|Early recovery backup|78bd4a4 exact16/17 CI45328619816 passed; production custody/storage verification open|IN_PROGRESS|
 |8|Owner HTTPS core|Free resources exist; local preview confirmed, real OIDC/HTTPS and production verification pending|IN_PROGRESS|
 |9|Package15 source adapters|Presentation opt-in rule/receipts passed8a5417b complete16/17 CI45338129337. Contract/general approval adapters remain open.|IN_PROGRESS|
-|10|Brands/contacts/opportunities|Original brand/person/players/stage/next-action criterion accepted at22d3cf2 exact16/17 CI45447495851:291 app/156 security/51 browser; membership/restore/reassignment and actual recovery included. Full55 account/typed integration and independent Campaign/Kanban follow-up remain separate.|DONE|
+|10|Brands/contacts/opportunities|Original brand/person/players/stage/next-action criterion accepted at22d3cf2 exact16/17 CI45447495851:291 app/156 security/51 browser; membership/restore/reassignment and actual recovery included. Full55 account/typed integration stays open; independent Campaign/Kanban follow-up passed d33ea2f CI45452199860 (294 app/159 security/54 browser per PG).|DONE|
 |11|Offer/basic obligations|Versioned offers/Drive agreement/player outcomes/deadlines; finance stays open|NOT_STARTED|
 |12|Content workspace|Accounts/brief/list/Kanban/calendar/design/revision/adaptation/manual evidence|NOT_STARTED|
 |13|Fixtures/package16|Stable identity/CSV preview/reimport/owner-only permitted TFF|NOT_STARTED|
