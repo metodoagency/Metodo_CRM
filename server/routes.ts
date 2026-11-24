@@ -39,6 +39,7 @@ import { registerPresentationTasks } from './presentation-tasks.js';
 import { registerMeetings } from './meetings.js';
 import { registerAgendaOverlays } from './agenda-overlays.js';
 import { dashboardDates } from '../shared/dashboard.js';
+import { ensureUserSettings } from './user-settings.js';
 
 const idParams = z.object({ id: z.string().uuid() });
 const entityParams = z.object({ type: z.enum(entityTypes), id: z.string().uuid() });
@@ -75,7 +76,7 @@ export async function registerRoutes(app: FastifyInstance, db: PrismaClient) {
   await registerMeetings(app, db);
   await registerAgendaOverlays(app, db);
   app.get('/api/me', async req => ({ id: 'owner', csrfToken: csrfToken(req.cookies[sessionCookie]!) }));
-  app.get('/api/settings', async () => masked(await db.userSettings.upsert({ where: { ownerId: 'owner' }, create: { ownerId: 'owner' }, update: {} })));
+  app.get('/api/settings', async () => masked(await ensureUserSettings(db)));
   app.patch('/api/settings', async req => {
     const { version, ...data } = settingsInput.parse(req.body);
     if (data.retentionDays) validateRetentionPeriods(data.retentionDays);

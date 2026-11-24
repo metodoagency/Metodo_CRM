@@ -2,6 +2,10 @@
 
 ## Presentation follow-up implementation - 2026-11-24
 
+Source f0d16b09f7236f70253a8bcb20eb810d3d56cabf passed267 application tests locally (27 files), final2 TR/EN mobile/dialog-axe scenarios including the held-response/new-editor regression, and build/type/lint/i18n1240/compliance. The preview API was refreshed without resetting data: authenticated rule200, web200, default disabled,4 Players/3 Clubs/1 Task preserved. Actual user-facing route: http://localhost:5173/tasks.
+
+CI45334444825 passed application/security/build on both16/17, but the first Chromium project failed first-login privacy (parallel empty-update UserSettings upserts raced) and the new receipt-selector assertion (protected receipts correctly do not appear among soft-deletable tables). Fix all default-settings routes through native INSERT ON CONFLICT DO NOTHING, add a12-parallel-request regression, and require the receipt to be protected in the catalog/absent from the selector while keeping its65 soft-table count. Full CI is NOT green yet. The new Brand directory work remains a separate uncommitted slice and is not included in this source evidence.
+
 The new attachment fd55f481 is byte-identical (SHA256 checked) to docs/OWNER_EXTENSION_20261123.md; its complete scope and existing authorizations remain in force. No duplicate scope/version plan was created.
 
 Implemented default-OFF owner rule, paged selected historical backfill, signed10-minute session-bound exact previews, dedicated versioned confirmation, server-time future cutoff, atomic manual/R3 Task+receipt+timeline writes, protected durable receipts and stored-data-only startup/daily catch-up. Task history is preserved across source/date/rule changes and ordinary Task purge. Added current-source annotation, localized mobile editor and legacy-date isolation. Review corrected COMMIT conflict normalization, a late modal callback and invalid-date handling. Details: docs/PRESENTATION_TASK_RULE.md. No sponsorship/media/vault completion is claimed by this slice.

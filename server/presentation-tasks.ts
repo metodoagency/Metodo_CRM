@@ -11,14 +11,13 @@ import { hash, sessionCookie } from './auth.js';
 import { presentationLive } from './presentation-parent.js';
 import { createTaskRecord } from './tasks.js';
 import { isCommitWriteConflict } from './runtime-adapter.js';
+import { ensureUserSettings } from './user-settings.js';
 
 const ruleKey = 'presentation-follow-up-v1';
 const eligible = { ...presentationLive, result: { not: 'REJECTED' as const } };
 // The adapter can materialize historical BC values as Invalid Date. Never let one legacy row abort a batch.
 const day = (date: Date) => Number.isFinite(date.getTime()) ? date.toISOString().slice(0, 10) : 'INVALID_DATE';
-async function settings(tx: Tx) {
-  return tx.userSettings.upsert({ where: { ownerId: 'owner' }, create: {}, update: {} });
-}
+const settings = ensureUserSettings;
 function sign(session: string, payload: Omit<PresentationRulePreview, 'previewToken'>) {
   return createHmac('sha256', Buffer.from(keyring().blind, 'base64')).update('PresentationRulePreview:v1:').update(session).update(JSON.stringify(payload)).digest('hex');
 }

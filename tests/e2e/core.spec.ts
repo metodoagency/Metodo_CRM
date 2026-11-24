@@ -105,10 +105,12 @@ test('table retention defaults to indefinite and purges only the confirmed recor
   try { await client.query('UPDATE "Club" SET "deletedAt" = $1, "version" = "version" + 1 WHERE "id" = $2', [new Date('2020-01-01'), id]); } finally { await client.end(); }
   await page.goto('/settings');
   await expect(page.getByLabel('Tablo', { exact: true })).toBeVisible();
-  await expect(page.getByLabel('Tablo', { exact: true }).locator('option')).toHaveCount(66);
+  await expect(page.getByLabel('Tablo', { exact: true }).locator('option')).toHaveCount(65);
   await expect(page.getByLabel('Tablo', { exact: true }).locator('option[value="ExternalResource"]')).toHaveCount(1);
   await expect(page.getByLabel('Tablo', { exact: true }).locator('option[value="ExternalResourceLink"]')).toHaveCount(1);
-  await expect(page.getByLabel('Tablo', { exact: true }).locator('option[value="TaskGenerationReceipt"]')).toHaveCount(1);
+  await expect(page.getByLabel('Tablo', { exact: true }).locator('option[value="TaskGenerationReceipt"]')).toHaveCount(0);
+  const catalog = await (await page.request.get('/api/admin/retention')).json();
+  expect(catalog.tables).toContainEqual({ type: 'TaskGenerationReceipt', mode: 'protected' });
   await page.getByLabel('Tablo', { exact: true }).selectOption('WorkLog');
   await expect(page.getByLabel('Gün', { exact: true })).toHaveValue('');
   await page.getByLabel('Tablo', { exact: true }).selectOption('Club'); await page.getByLabel('Gün', { exact: true }).fill('1');

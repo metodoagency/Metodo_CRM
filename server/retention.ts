@@ -5,10 +5,11 @@ import { sensitiveKeys } from '../shared/domain.js';
 import { retentionPreviewInput, retentionPurgeInput } from '../shared/retention.js';
 import { live } from './core.js';
 import { purgeRetention, retentionPreview, retentionTables, validateRetentionPeriods } from './lifecycle.js';
+import { ensureUserSettings } from './user-settings.js';
 
 export async function registerRetention(app: FastifyInstance, db: PrismaClient) {
   app.get('/api/admin/retention', async () => {
-    const settings = await db.userSettings.upsert({ where: { ownerId: 'owner' }, create: { ownerId: 'owner' }, update: {} });
+    const settings = await ensureUserSettings(db);
     return { version: settings.version, periods: validateRetentionPeriods(settings.retentionDays), tables: retentionTables, automaticBusinessDeletion: false };
   });
   app.post('/api/admin/retention/preview', async req => {
