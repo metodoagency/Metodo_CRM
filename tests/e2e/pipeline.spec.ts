@@ -41,4 +41,11 @@ for (const language of ['tr', 'en']) test(`multi-player opportunity confirmation
   const refetched = page.waitForResponse(r => r.url().endsWith(`/api/sponsorship/opportunities/${row.id}`) && r.request().method() === 'GET'); await workspace.getByRole('button', { name: words.pipelineRefresh, exact: true }).click(); await refetched;
   await expect(card).toHaveCount(0); releaseReason(); await reasonFulfilled; await expect(page.getByText(reason, { exact: true })).toHaveCount(0);
   expect((await new AxeBuilder({ page }).analyze()).violations.filter(v => ['serious', 'critical'].includes(v.impact ?? ''))).toEqual([]);
+  // A failed parent refetch cannot retain the old detail data or a pending private disclosure either.
+  let parentReceived!: () => void; const parentArrived = new Promise<void>(resolve => { parentReceived = resolve; }); let releaseParent!: () => void; const parentHeld = new Promise<void>(resolve => { releaseParent = resolve; }); let parentDone!: () => void; const parentFulfilled = new Promise<void>(resolve => { parentDone = resolve; });
+  await page.route('**/api/sponsorship/opportunities/*/reveal', async route => { const result = await route.fetch(); parentReceived(); await parentHeld; await route.fulfill({ response: result }).catch(() => {}); parentDone(); }, { times: 1 });
+  await workspace.getByRole('button', { name: words.reveal, exact: true }).first().click(); await parentArrived;
+  expect((await page.request.delete(`/api/campaigns/${row.campaign!.id}`, { headers, data: { version: 1 } })).ok()).toBe(true);
+  const unavailable = page.waitForResponse(r => r.url().endsWith(`/api/sponsorship/opportunities/${row.id}`) && r.request().method() === 'GET' && r.status() === 404); await workspace.getByRole('button', { name: words.pipelineRefresh, exact: true }).click(); await unavailable;
+  await expect(page.getByRole('heading', { name, exact: true })).toHaveCount(0); releaseParent(); await parentFulfilled; await expect(page.getByText(privateAction, { exact: true })).toHaveCount(0);
 });
