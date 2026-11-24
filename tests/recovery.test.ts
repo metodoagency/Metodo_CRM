@@ -1,4 +1,4 @@
-import { beforeAll, beforeEach, afterEach, afterAll, describe, expect, it } from 'vitest';
+import { beforeAll, beforeEach, afterEach, afterAll, describe, expect, it, vi } from 'vitest';
 import { Prisma } from '@prisma/client';
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
@@ -8,7 +8,7 @@ import pg from 'pg';
 import sharp from 'sharp';
 import { db } from '../server/db.js';
 import { encrypt } from '../server/crypto.js';
-import { captureRecovery, compareRecovery, decryptRecovery, encryptRecovery, recoverySnapshot, restoreRecoveryRows, validateRecovery, verifyRecoveryKeys, type RecoveryBundle } from '../server/recovery.js';
+import { captureRecovery, compareRecovery, decryptRecovery, encryptRecovery, isLocalRecoveryServer, recoverySnapshot, restoreRecoveryRows, validateRecovery, verifyRecoveryKeys, type RecoveryBundle } from '../server/recovery.js';
 import { isolateRecoveryDatabase, localRecoveryAdmin, verifyRecoveryInTemporaryDatabase } from '../server/recovery-verification.js';
 import { LocalFileStorage, newStorageKey } from '../server/storage.js';
 
@@ -45,6 +45,15 @@ async function fixture() {
 }
 
 describe('sensitive paths: encrypted pilot recovery', () => {
+  it('accepts only the exact pinned private container address behind a loopback URL', () => {
+    try {
+      vi.stubEnv('RECOVERY_LOCAL_SERVER_ADDRESS', '172.18.0.4'); expect(isLocalRecoveryServer('172.18.0.4')).toBe(true);
+      expect(isLocalRecoveryServer('172.18.0.5')).toBe(false); expect(isLocalRecoveryServer('10.0.0.4')).toBe(false);
+      expect(isLocalRecoveryServer('127.0.0.1')).toBe(true); expect(isLocalRecoveryServer('::1')).toBe(true);
+      vi.stubEnv('RECOVERY_LOCAL_SERVER_ADDRESS', '203.0.113.4'); expect(isLocalRecoveryServer('203.0.113.4')).toBe(false);
+      expect(() => localRecoveryAdmin('postgresql://owner@172.18.0.4/private')).toThrow('LOCAL_DATABASE_REQUIRED');
+    } finally { vi.unstubAllEnvs(); }
+  });
   it('restores exact Decimal, JSON, dates, relationships and live/trashed file bytes into a new temporary database', async () => {
     const bundle = await fixture(); expect(bundle.tables.Session).toBeUndefined(); expect(bundle.tables.StorageDeletion).toBeUndefined(); expect(bundle.tables.OAuthAttempt).toBeUndefined();
     expect(bundle.tables.Request[0].salaryMax).toBe('1234567890123456.78'); expect(bundle.tables.Request[0].deadline).toBe('2028-02-29');

@@ -1,5 +1,7 @@
 # Metodo CRM progress
 
+24Nov immediate preview: http://localhost:5173 is running from the current checkout against a separate persistent metodo_preview database, bound to127.0.0.1 with development-only test login. Health/web/Player/Club/Resource reads200;4 example players and3 example clubs. Existing development/test/production databases were not reset. This is a local example preview, not the internet owner-OIDC pilot. Source resource/privacy8fce1d3 CI remains green. Recovery7a0398c CI45275205213 failed3 tests on both versions because the native-loopback server guard rejected Docker's container interface. The correction pins only the exact service-container private address from docker inspect, retains loopback URLs, and tests neighboring/public-address rejection.8 local recovery tests passed; new exact CI required. No Presentation adapter source has been written yet.
+
 ## Protected legacy evidence - 2026-11-24
 
 Resource/library checkpoint1a26dbc0c32d8674c3445d699124e28195fc5315 passed exact PostgreSQL16/17 CI45266415540:244 application tests,111 selected security tests (133 unrelated skips),40 browser/axe scenarios per version,1219 bilingual keys, lint/typecheck/build/compliance and production audit0. The original8408131 browser count failure is resolved. Pilot source/library slices have this evidence; this does not accept the new vault/version scope.

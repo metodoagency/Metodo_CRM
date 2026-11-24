@@ -34,6 +34,13 @@ jobs:
         with:
           node-version: 22
           cache: npm
+      - name: Pin local recovery service address
+        env:
+          RECOVERY_POSTGRES_CONTAINER: ${{ job.services.postgres.id }}
+        run: |
+          recovery_pg_address="$(docker inspect --format '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' "$RECOVERY_POSTGRES_CONTAINER")"
+          test -n "$recovery_pg_address"
+          printf 'RECOVERY_LOCAL_SERVER_ADDRESS=%s\n' "$recovery_pg_address" >> "$GITHUB_ENV"
       - run: npm ci
       - run: npm run lint
       - run: npm run typecheck

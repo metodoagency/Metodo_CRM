@@ -2,6 +2,7 @@ import { createCipheriv, createDecipheriv, createHash, randomBytes, scrypt } fro
 import { gzipSync, gunzipSync } from 'node:zlib';
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
+import { isIP } from 'node:net';
 import { Prisma } from '@prisma/client';
 import type { Client } from 'pg';
 import { z } from 'zod';
@@ -11,6 +12,12 @@ import { blindIndex, decrypt, encryptedFields } from './crypto.js';
 export class RecoveryError extends Error {}
 function fail(code: string): never { throw new RecoveryError(code); }
 export const recoveryLimit = 64 * 1024 * 1024;
+export function isLocalRecoveryServer(host: string) {
+  const pinned = process.env.RECOVERY_LOCAL_SERVER_ADDRESS;
+  const parts = pinned?.split('.').map(Number);
+  const privateV4 = parts && (parts[0] === 10 || parts[0] === 172 && parts[1] >= 16 && parts[1] <= 31 || parts[0] === 192 && parts[1] === 168);
+  return ['127.0.0.1', '::1'].includes(host) || !!pinned && isIP(pinned) === 4 && !!privateV4 && host === pinned;
+}
 export const recoveryExclusions = ['Session', 'OAuthAttempt', 'StorageDeletion'] as const;
 export const recoveryModels = Prisma.dmmf.datamodel.models.filter(model => !recoveryExclusions.some(name => name === model.name));
 const scalarFields = (model: typeof recoveryModels[number]) => model.fields.filter(field => field.kind !== 'object');
@@ -162,7 +169,7 @@ export function compareRecovery(bundle: RecoveryBundle, tables: RecoverySnapshot
 // as a runtime restore endpoint or run it against an owner's live database.
 export async function restoreRecoveryRows(client: Client, bundle: RecoveryBundle, databaseName: string) {
   const target = (await client.query<{ name: string; host: string | null }>('SELECT current_database() AS name, host(inet_server_addr()) AS host')).rows[0];
-  if (!/^metodo_recovery_[a-f0-9]{24}$/.test(databaseName) || target.name !== databaseName || !['127.0.0.1', '::1'].includes(target.host ?? '')) fail('TEMPORARY_DATABASE_REQUIRED');
+  if (!/^metodo_recovery_[a-f0-9]{24}$/.test(databaseName) || target.name !== databaseName || !isLocalRecoveryServer(target.host ?? '')) fail('TEMPORARY_DATABASE_REQUIRED');
   validateRecovery(bundle);
   const metadata = await databaseMetadata(client); const comparable = (items: RecoveryBundle['migrations']) => items.map(({ name, checksum }) => ({ name, checksum }));
   if (canonical(comparable(metadata.migrations)) !== canonical(comparable(bundle.migrations))) fail('MIGRATION_MISMATCH');

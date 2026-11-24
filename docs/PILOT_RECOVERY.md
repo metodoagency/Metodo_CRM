@@ -19,6 +19,8 @@ Verification requires an existing local PostgreSQL installation. `RECOVERY_LOCAL
 
 Each verification writes a unique JSON result under `.local/backups/reports` and prints its relative `reportFile`. Repeated verification is supported; successful and failed runs have separate timestamps/results. Wrong passphrases and damaged artifacts fail and get a new failure report. A prior success is not a current success. Reports contain metadata/counts/errors, not field values. Retain the encrypted archive and its verification history separately from keys/passphrases.
 
+For a local Docker database, the URL still points to loopback but PostgreSQL sees its exact container interface. Set `RECOVERY_LOCAL_SERVER_ADDRESS` only to the private IPv4 returned by `docker inspect` for that local container. No subnet-wide exception or remote URL is accepted. CI pins this address from its own service container; see the official [GitHub job context](https://docs.github.com/en/actions/reference/workflows-and-actions/contexts#job-context).
+
 ## Exact scope
 
 - `Owner` and every compiled owner-scoped business table, including Trash, examples, protected provenance, resource links, timelines, notifications and existing Task recurrence identities.

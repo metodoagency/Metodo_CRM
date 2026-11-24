@@ -2,7 +2,7 @@ import { randomBytes, createHash } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
 import { dirname, join } from 'node:path';
 import pg from 'pg';
-import { RecoveryError, restoreRecoveryRows, sqlName, validateRecovery, type RecoveryBundle } from './recovery.js';
+import { isLocalRecoveryServer, RecoveryError, restoreRecoveryRows, sqlName, validateRecovery, type RecoveryBundle } from './recovery.js';
 
 export function localRecoveryAdmin(value: string) {
   const url = new URL(value);
@@ -18,7 +18,7 @@ function migrateTemporary(url: string) {
 }
 export async function isolateRecoveryDatabase(admin: pg.Client, name: string) {
   const target = (await admin.query<{ database: string; host: string }>('SELECT current_database() AS database, host(inet_server_addr()) AS host')).rows[0];
-  if (!/^metodo_recovery_[a-f0-9]{24}$/.test(name) || target.database !== 'postgres' || !['127.0.0.1', '::1'].includes(target.host)) throw new RecoveryError('TEMPORARY_DATABASE_REQUIRED');
+  if (!/^metodo_recovery_[a-f0-9]{24}$/.test(name) || target.database !== 'postgres' || !isLocalRecoveryServer(target.host)) throw new RecoveryError('TEMPORARY_DATABASE_REQUIRED');
   const owner = (await admin.query<{ owned: boolean }>('SELECT pg_get_userbyid(datdba)=current_user AS owned FROM pg_database WHERE datname=$1', [name])).rows[0];
   if (!owner?.owned) throw new RecoveryError('TEMPORARY_DATABASE_OWNER_REQUIRED');
   await admin.query(`REVOKE ALL PRIVILEGES ON DATABASE ${sqlName(name)} FROM PUBLIC`);
@@ -46,7 +46,7 @@ export async function verifyRecoveryInTemporaryDatabase(bundle: RecoveryBundle, 
   await admin.connect();
   try {
     const host = (await admin.query<{ host: string }>('SELECT host(inet_server_addr()) AS host')).rows[0].host;
-    if (!['127.0.0.1', '::1'].includes(host)) throw new RecoveryError('LOCAL_DATABASE_REQUIRED');
+    if (!isLocalRecoveryServer(host)) throw new RecoveryError('LOCAL_DATABASE_REQUIRED');
     await admin.query(`CREATE DATABASE ${sqlName(name)} TEMPLATE template0`); created = true;
     await isolateRecoveryDatabase(admin, name); migrateTemporary(temporaryUrl.toString()); await isolateRecoveryDatabase(admin, name);
     client = new pg.Client({ connectionString: temporaryUrl.toString() }); await client.connect();
