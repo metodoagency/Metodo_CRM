@@ -12,6 +12,7 @@ import { decrypt, encrypt, keyring } from './crypto.js';
 import { hash, sessionCookie } from './auth.js';
 import { opportunityLive, requireOpportunity } from './sponsorship-parent.js';
 import { requireExampleName } from './tasks.js';
+import { sponsorshipLinkName, writeSponsorshipEvent as stageEvent } from './sponsorship-history.js';
 
 const day = (v: Date | null) => v?.toISOString().slice(0, 10) ?? null;
 const include = { brand: true, campaign: true, players: { orderBy: { id: 'asc' }, include: { player: true } }, contacts: { orderBy: { id: 'asc' }, include: { person: true, brandContact: { include: { person: true, brand: true } }, participant: { include: { player: true } } } } } satisfies Prisma.SponsorshipOpportunityInclude;
@@ -35,7 +36,7 @@ function dto(row: Graph): OpportunityRecord {
     contacts: row.contacts.filter(available).map(c => {
       const person = c.role === 'BRAND' ? c.brandContact?.person : c.person;
       const valid = available(person ?? null) && (c.role !== 'BRAND' || available(c.brandContact) && available(c.brandContact!.brand) && c.brandContact!.brandId === row.brandId) && (!c.participantId || available(c.participant) && available(c.participant!.player) && c.participant!.opportunityId === row.id);
-      return { id: c.id, role: c.role as 'BRAND' | 'RESPONSIBLE', participantId: c.participantId, person: valid && person ? { id: person.id, name: person.name } : null, roleTitle: valid ? c.brandContact?.roleTitle ?? null : null };
+      return { id: c.id, version: c.version, brandContactId: c.brandContactId, role: c.role as 'BRAND' | 'RESPONSIBLE', participantId: c.participantId, person: valid && person ? { id: person.id, name: person.name } : null, roleTitle: valid ? c.brandContact?.roleTitle ?? null : null };
     }),
   };
 }
@@ -55,12 +56,6 @@ function validateTransition(input: z.infer<typeof transitionInput>, before: { st
   if (input.targetType === 'OpportunityPlayer' && (input.stage === 'LOST' && input.outcome !== 'LOST' || input.stage === 'CANCELLED' && input.outcome !== 'WITHDRAWN')) throw new AppError('INVALID_INPUT');
   const terminal = (stage: string, outcome: string | null) => ['COMPLETED', 'LOST', 'CANCELLED'].includes(stage) || outcome !== null && outcome !== 'PENDING';
   if ((terminal(input.stage, input.outcome) || terminal(before.stage, before.outcome)) && !input.privateReason) throw new AppError('REASON_REQUIRED');
-}
-async function stageEvent(tx: Tx, input: { id?: string; opportunityId: string; entityType: string; entityId: string; name: string; isExample: boolean; kind: string; oldStage?: string | null; newStage?: string | null; oldOutcome?: string | null; newOutcome?: string | null; privateReason?: string | null }) {
-  const batchId = randomUUID(); const { privateReason, ...details } = input;
-  const event = await tx.sponsorshipStageEvent.create({ data: { ...details, batchId, privateReason: privateReason ? encrypt(privateReason, 'SponsorshipStageEvent.privateReason') : null, fieldProvenance: provenanceFor(input) } });
-  await logEvent(tx, { ...input, action: input.kind === 'CREATE' ? 'create' : 'update', batchId, diffs: { eventId: event.id, old: { stage: input.oldStage ?? null, outcome: input.oldOutcome ?? null }, new: { stage: input.newStage ?? null, outcome: input.newOutcome ?? null, ...(privateReason ? { privateReason } : {}) } } });
-  return event;
 }
 export async function registerPipeline(app: FastifyInstance, db: PrismaClient) {
   app.get('/api/campaigns', async req => {
@@ -94,17 +89,17 @@ export async function registerPipeline(app: FastifyInstance, db: PrismaClient) {
       const row = await tx.sponsorshipOpportunity.create({ data: { name: input.name, searchName: normalizeSearch(input.name), brandId: brand.id, campaignId: campaign?.id ?? null, isExample, responsibilityMode: responsible ? 'PERSON' : 'OWNER', privateNextAction: input.privateNextAction ? encrypt(input.privateNextAction, 'SponsorshipOpportunity.privateNextAction') : null, nextActionDate: input.nextActionDate ? new Date(input.nextActionDate) : null, lastContactDate: input.lastContactDate ? new Date(input.lastContactDate) : null, fieldProvenance: provenanceFor(input) } });
       await stageEvent(tx, { opportunityId: row.id, entityType: 'SponsorshipOpportunity', entityId: row.id, name: row.name, isExample, kind: 'CREATE', newStage: row.stage });
       for (const player of players) {
-        const childExample = isExample || player.isExample; const name = player.isExample ? player.name : isExample ? row.name : player.name;
+        const childExample = isExample || player.isExample; const name = sponsorshipLinkName(childExample, player.name);
         const child = await tx.opportunityPlayer.create({ data: { name, opportunityId: row.id, playerId: player.id, isExample: childExample, fieldProvenance: provenanceFor({ playerId: player.id }) } });
         await stageEvent(tx, { opportunityId: row.id, entityType: 'OpportunityPlayer', entityId: child.id, name, isExample: childExample, kind: 'LINK', newStage: child.stage, newOutcome: child.outcome });
       }
       for (const contact of contacts) {
-        const childExample = isExample || contact.isExample || contact.person.isExample; const name = contact.person.isExample ? contact.person.name : contact.isExample ? contact.name : isExample ? row.name : contact.person.name;
+        const childExample = isExample || contact.isExample || contact.person.isExample; const name = sponsorshipLinkName(childExample, contact.person.name);
         const link = await tx.opportunityContact.create({ data: { name, opportunityId: row.id, brandContactId: contact.id, role: 'BRAND', isExample: childExample, fieldProvenance: provenanceFor({ brandContactId: contact.id }) } });
         await stageEvent(tx, { opportunityId: row.id, entityType: 'OpportunityContact', entityId: link.id, name, isExample: childExample, kind: 'LINK' });
       }
       if (responsible) {
-        const childExample = isExample || responsible.isExample; const name = responsible.isExample ? responsible.name : isExample ? row.name : responsible.name;
+        const childExample = isExample || responsible.isExample; const name = sponsorshipLinkName(childExample, responsible.name);
         const link = await tx.opportunityContact.create({ data: { name, opportunityId: row.id, personId: responsible.id, role: 'RESPONSIBLE', isExample: childExample, fieldProvenance: provenanceFor({ personId: responsible.id }) } });
         await stageEvent(tx, { opportunityId: row.id, entityType: 'OpportunityContact', entityId: link.id, name, isExample: childExample, kind: 'LINK' });
       }
@@ -156,7 +151,7 @@ export async function registerPipeline(app: FastifyInstance, db: PrismaClient) {
     return db.$transaction(async tx => {
       await requireOpportunity(tx, id); const where = { ownerId: 'owner', opportunityId: id };
       const rows = await tx.sponsorshipStageEvent.findMany({ where, orderBy: [{ createdAt: 'desc' }, { id: 'asc' }], skip: (page - 1) * 50, take: 50 });
-      return { items: rows.map(r => ({ id: r.id, entityType: r.entityType, entityId: r.entityId, kind: r.kind, oldStage: r.oldStage, newStage: r.newStage, oldOutcome: r.oldOutcome, newOutcome: r.newOutcome, createdAt: r.createdAt.toISOString(), hasPrivateReason: r.privateReason !== null } as PipelineEvent)), total: await tx.sponsorshipStageEvent.count({ where }), page };
+      return { items: rows.map(r => ({ id: r.id, label: r.name, entityType: r.entityType, entityId: r.entityId, kind: r.kind, oldStage: r.oldStage, newStage: r.newStage, oldOutcome: r.oldOutcome, newOutcome: r.newOutcome, createdAt: r.createdAt.toISOString(), hasPrivateReason: r.privateReason !== null } as PipelineEvent)), total: await tx.sponsorshipStageEvent.count({ where }), page };
     }, { isolationLevel: 'RepeatableRead' });
   });
   app.post('/api/sponsorship/opportunities/:id/reveal', async req => {
@@ -192,3 +187,5 @@ export async function registerPipeline(app: FastifyInstance, db: PrismaClient) {
     }, { isolationLevel: 'Serializable' });
   });
 }
+
+export { graph as loadOpportunityGraph, digest as opportunityDigest, dto as opportunityDto };

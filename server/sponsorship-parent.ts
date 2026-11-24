@@ -1,5 +1,6 @@
 import type { Tx } from './core.js';
 import { AppError, live } from './core.js';
+import { writeSponsorshipEvent } from './sponsorship-history.js';
 
 export const opportunityLive = { ...live, brand: live, OR: [{ campaignId: null }, { campaign: live }] };
 export async function requireOpportunity(tx: Tx, id: string, version?: number) {
@@ -22,5 +23,16 @@ export async function validatePipelineRestore(tx: Tx, type: string, row: Record<
     if (row.personId && !await tx.person.findFirst({ where: { ...live, id: String(row.personId) } })) throw new AppError('LINKED_RECORDS', 409);
     if (row.participantId && !await tx.opportunityPlayer.findFirst({ where: { ...live, id: String(row.participantId), opportunityId: source.id, player: live } })) throw new AppError('LINKED_RECORDS', 409);
   } else if (!await tx.player.findFirst({ where: { ...live, id: String(row.playerId) } })) throw new AppError('LINKED_RECORDS', 409);
-  await tx.sponsorshipOpportunity.update({ where: { id: source.id, ownerId: 'owner', version: source.version }, data: { version: { increment: 1 } } });
+  let responsible = false;
+  if (type === 'OpportunityContact') {
+    const link = await tx.opportunityContact.findFirstOrThrow({ where: { id: String(row.id), ownerId: 'owner' } }); responsible = link.role === 'RESPONSIBLE';
+    if (responsible && await tx.opportunityContact.count({ where: { ...live, opportunityId: source.id, role: 'RESPONSIBLE', id: { not: link.id } } })) throw new AppError('LINKED_RECORDS', 409);
+    if (!responsible && await tx.opportunityContact.count({ where: { ...live, opportunityId: source.id, role: 'BRAND' } }) >= 20) throw new AppError('MEMBERSHIP_LIMIT');
+    await writeSponsorshipEvent(tx, { opportunityId: source.id, entityType: type, entityId: link.id, name: link.name, isExample: link.isExample, kind: 'LINK' });
+  } else {
+    if (await tx.opportunityPlayer.count({ where: { ...live, opportunityId: source.id } }) >= 20) throw new AppError('MEMBERSHIP_LIMIT');
+    const link = await tx.opportunityPlayer.findFirstOrThrow({ where: { id: String(row.id), ownerId: 'owner' } });
+    await writeSponsorshipEvent(tx, { opportunityId: source.id, entityType: type, entityId: link.id, name: link.name, isExample: link.isExample, kind: 'LINK', newStage: link.stage, newOutcome: link.outcome });
+  }
+  await tx.sponsorshipOpportunity.update({ where: { id: source.id, ownerId: 'owner', version: source.version }, data: { version: { increment: 1 }, ...(responsible ? { responsibilityMode: 'PERSON' } : {}) } });
 }

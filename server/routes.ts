@@ -38,6 +38,7 @@ import { registerTasks } from './tasks.js';
 import { registerPresentationTasks } from './presentation-tasks.js';
 import { registerSponsorship } from './sponsorship.js';
 import { registerPipeline } from './sponsorship-pipeline.js';
+import { registerSponsorshipMembership } from './sponsorship-membership.js';
 import { registerMeetings } from './meetings.js';
 import { registerAgendaOverlays } from './agenda-overlays.js';
 import { dashboardDates } from '../shared/dashboard.js';
@@ -56,6 +57,7 @@ const requestCsvFields = { id: true, name: true, clubId: true, requesterId: true
 export async function registerRoutes(app: FastifyInstance, db: PrismaClient) {
   await registerSponsorship(app, db);
   await registerPipeline(app, db);
+  await registerSponsorshipMembership(app, db);
   await registerPresentationTasks(app, db);
   await registerPrivacy(app, db);
   await registerRetention(app, db);

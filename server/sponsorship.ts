@@ -8,6 +8,7 @@ import { retentionPeriods } from '../shared/retention.js';
 import { brandContactCreate, brandContactDelete, brandContactParams, brandContactPatch, brandCreate, brandPatch, brandQuery } from '../shared/sponsorship.js';
 import { AppError, live, logEvent, requireEntity, type Tx } from './core.js';
 import { requireExampleName } from './tasks.js';
+import { sponsorshipLinkName } from './sponsorship-history.js';
 
 const contactLive = { ...live, brand: live, person: live };
 const selection = { id: true, name: true, sector: true, website: true, relationStatus: true, version: true, isExample: true,
@@ -91,7 +92,7 @@ export async function registerSponsorship(app: FastifyInstance, db: PrismaClient
       const source = await brand(tx, id, input.version); const person = await requireEntity(tx, 'Person', input.personId);
       const prior = await tx.brandContact.findFirst({ where: { ownerId: 'owner', brandId: id, personId: person.id } });
       if (prior) throw new AppError(prior.deletedAt ? 'BRAND_CONTACT_IN_TRASH' : 'BRAND_CONTACT_EXISTS', 409);
-      const isExample = source.isExample || person.isExample; const name = person.isExample ? person.name : source.isExample ? source.name : person.name; requireExampleName(isExample, name);
+      const isExample = source.isExample || person.isExample; const name = sponsorshipLinkName(isExample, person.name); requireExampleName(isExample, name);
       const row = await tx.brandContact.create({ data: { brandId: id, personId: person.id, name, isExample, ...dates(input.details), fieldProvenance: provenanceFor(input.details) } });
       await bump(tx, id, input.version); await contactEvents(tx, row, 'create', { contactId: row.id, brandId: id, personId: person.id, new: input.details });
       return contactDto(await tx.brandContact.findUniqueOrThrow({ where: { id: row.id }, select: contactSelection }));

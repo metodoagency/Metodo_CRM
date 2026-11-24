@@ -21,7 +21,7 @@ export default defineConfig({
     { name: 'dashboard-workspace', testMatch: '**/dashboard.spec.ts' },
     { name: 'resource-workspace', testMatch: '**/resources.spec.ts' },
     { name: 'presentation-task-rule', testMatch: '**/presentation-tasks.spec.ts' },
-    { name: 'sponsorship-workspace', testMatch: '**/sponsorship.spec.ts' }, { name: 'sponsorship-pipeline', testMatch: '**/pipeline.spec.ts' },
+    { name: 'sponsorship-workspace', testMatch: '**/sponsorship.spec.ts' }, { name: 'sponsorship-pipeline', testMatch: ['**/pipeline.spec.ts', '**/membership.spec.ts'] },
     { name: 'a11y', testMatch: '**/a11y.spec.ts' },
   ],
 });

@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { campaignCreate, opportunityCreate, opportunityDetails, pipelineQuery, pipelineReveal, transitionInput, transitionPlan } from './pipeline.js';
+import { membershipCommand, membershipPlan } from './sponsorship-membership.js';
 import { externalResourceCreate, externalResourcePatch, externalResourceQuery, resourceLinkInput, resourceUnlinkInput, resourceLinkParams, resourceDeleteInput } from './external-resources.js';
 import { fileVersion, processingApprovalInput, processingPreviewInput } from './files.js';
 import { documentInput, documentMime } from './documents.js';
@@ -190,6 +191,9 @@ export const apiContracts: ApiContract[] = [
   { method: 'post', path: '/api/sponsorship/opportunities', body: opportunityCreate, success: 201 },
   { method: 'get', path: '/api/sponsorship/opportunities/:id', params: idParams },
   { method: 'patch', path: '/api/sponsorship/opportunities/:id/details', params: idParams, body: opportunityDetails },
+  { method: 'post', path: '/api/sponsorship/opportunities/:id/membership/preview', params: idParams, body: membershipCommand },
+  { method: 'post', path: '/api/sponsorship/opportunities/:id/membership/confirm', params: idParams, body: membershipPlan },
+  { method: 'get', path: '/api/sponsorship/opportunities/:id/membership/trash', params: idParams },
   { method: 'delete', path: '/api/sponsorship/opportunities/:id', params: idParams, body: versionInput },
   { method: 'post', path: '/api/sponsorship/opportunities/:id/transition/preview', params: idParams, body: transitionInput },
   { method: 'post', path: '/api/sponsorship/opportunities/:id/transition/confirm', params: idParams, body: transitionPlan },

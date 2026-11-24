@@ -11,8 +11,8 @@ Approved2026-11-20. The full owner instruction is preserved in [OWNER_EXTENSION_
 
 | Requirement | Accepted behavior | Package | Dependencies | Status |
 |---|---|---:|---|---|
-| SP1 | Owner-scoped sponsor/brand directory, sector/manual URL, existing Person contacts, relationship timeline and player/campaign links. No duplicate plaintext contact store. |55|M14, typed owner references|PARTIAL: directory/contact/lifecycle verified8a5417b CI45338129337; player/Campaign links pending|
-| SP2 | Opportunity pipeline: research/contact/proposal/negotiation/agreement/active/completed/lost/cancelled; dated transitions, next action, responsible record and mandatory terminal reason. |55|SP1, Task|NOT_STARTED|
+| SP1 | Owner-scoped sponsor/brand directory, sector/manual URL, existing Person contacts, relationship timeline and player/campaign links. No duplicate plaintext contact store. |55|M14, typed owner references|PARTIAL: directory, player/Campaign links and independent pipeline verified6d4821e CI45392698328; membership follow-up CI pending; account foundation remains open|
+| SP2 | Opportunity pipeline: research/contact/proposal/negotiation/agreement/active/completed/lost/cancelled; dated transitions, next action, responsible record and mandatory terminal reason. |55|SP1, Task|PARTIAL: stages/actions/reasons verified6d4821e; membership follow-up CI pending; Kanban/typed Task integration open|
 | SP3 | Versioned offers/counter-offers and agreements; dates/region/category/exclusivity notes, source/date/method and private files. Recorded potential category/date conflicts request review without legal conclusions. |56|SP1/2, G3 reusable history, files|NOT_STARTED|
 | SP4 | Separate cash and in-kind consideration; explicit amount/currency/source/date/method, no invented in-kind value, no unsupported currency consolidation. |57|SP3, existing decimal helpers|NOT_STARTED|
 | SP5 | Scheduled/received/remaining/overdue payments and agency income/commission links using the existing finance/commission modules. No second accounting ledger or banking/identity fields. |57|SP4, M17/M27|NOT_STARTED|

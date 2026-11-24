@@ -22,8 +22,10 @@ import { agendaTr, agendaEn } from './agenda-locales.js';
 import { dashboardTr, dashboardEn } from './dashboard-locales.js';
 import { sponsorshipTr, sponsorshipEn } from './sponsorship-locales.js';
 import { pipelineTr, pipelineEn } from './pipeline-locales.js';
+import { membershipTr, membershipEn } from './membership-locales.js';
 export const tr = {
   ...pipelineTr,
+  ...membershipTr,
   ...sponsorshipTr,
   recoveryBackupCreated: 'Şifreli kurtarma yedeği oluşturuldu',
   ...resourceTr,
@@ -259,6 +261,7 @@ export const tr = {
 } as const;
 export const en: Record<keyof typeof tr, string> = {
   ...pipelineEn,
+  ...membershipEn,
   ...sponsorshipEn,
   recoveryBackupCreated: 'Encrypted recovery backup created',
   ...resourceEn,

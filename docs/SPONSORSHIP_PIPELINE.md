@@ -33,4 +33,4 @@ Evidence: `tests/sponsorship-pipeline.test.ts`, `tests/recovery.test.ts`, `tests
 
 ## Still open
 
-Package55 and SP1/SP2 remain partial: post-creation roster/contact reassignment and unlink/restore UI, Campaign editing UI, Kanban, social-account foundation and all remaining acceptance clauses are pending. Offers/agreements/obligations, sponsorship finance, media and matchday are later packages. This slice has no amount, automatic split, invented FX or implied automatic task. Existing file/Task/Meeting parent allowlists have not been broadened.
+Package55 and SP1/SP2 remain partial: Campaign editing UI, Kanban, social-account foundation and typed Task/file integration remain pending. Previewed roster/contact management and responsible replacement are implemented in SPONSORSHIP_MEMBERSHIP.md and await their exact source CI. Offers/agreements/obligations, sponsorship finance, media and matchday are later packages. This slice has no amount, automatic split, invented FX or implied automatic task. Existing file/Task/Meeting parent allowlists have not been broadened.

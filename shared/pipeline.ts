@@ -31,9 +31,9 @@ export type PipelineStage = typeof opportunityStages[number];
 export type PlayerOutcome = typeof playerOutcomes[number];
 export type CampaignRecord = z.infer<typeof campaignFields> & { id: string; version: number; isExample: boolean };
 export type PipelinePlayer = { id: string; version: number; player: { id: string; name: string } | null; stage: PipelineStage; outcome: PlayerOutcome; isExample: boolean; hasPrivateNextAction: boolean; nextActionDate: string | null };
-export type PipelineContact = { id: string; role: 'BRAND' | 'RESPONSIBLE'; participantId: string | null; person: { id: string; name: string } | null; roleTitle: string | null };
+export type PipelineContact = { id: string; version: number; brandContactId: string | null; role: 'BRAND' | 'RESPONSIBLE'; participantId: string | null; person: { id: string; name: string } | null; roleTitle: string | null };
 export type OpportunityRecord = {
   id: string; name: string; version: number; scopeVersion: string; isExample: boolean; stage: PipelineStage; brand: { id: string; name: string }; campaign: { id: string; name: string } | null;
   responsibilityMode: 'OWNER' | 'PERSON'; hasPrivateNextAction: boolean; nextActionDate: string | null; lastContactDate: string | null; players: PipelinePlayer[]; contacts: PipelineContact[];
 };
-export type PipelineEvent = { id: string; entityType: string; entityId: string; kind: string; oldStage: PipelineStage | null; newStage: PipelineStage | null; oldOutcome: PlayerOutcome | null; newOutcome: PlayerOutcome | null; createdAt: string; hasPrivateReason: boolean };
+export type PipelineEvent = { id: string; label: string; entityType: string; entityId: string; kind: string; oldStage: PipelineStage | null; newStage: PipelineStage | null; oldOutcome: PlayerOutcome | null; newOutcome: PlayerOutcome | null; createdAt: string; hasPrivateReason: boolean };
