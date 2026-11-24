@@ -149,8 +149,8 @@ function PresentationEditor({ record, onClose }: { record?: PresentationInfo; on
   </form></Modal>;
 }
 
-export function RecordPicker({ type, value, onChange }: {
-  type: 'Club' | 'Person' | 'Player'; value?: NamedRecord; onChange: (record: NamedRecord | undefined) => void;
+export function RecordPicker({ type, value, onChange, optional = false }: {
+  type: 'Club' | 'Person' | 'Player'; value?: NamedRecord; onChange: (record: NamedRecord | undefined) => void; optional?: boolean;
 }) {
   const { t } = useTranslation(); const [search, setSearch] = useState(''); const [q, setQ] = useState('');
   const endpoint = { Club: 'clubs', Person: 'people', Player: 'players' }[type];
@@ -162,7 +162,7 @@ export function RecordPicker({ type, value, onChange }: {
       onKeyDown={event => { if (event.key === 'Enter') { event.preventDefault(); setQ(search.trim()); } }} /></label>
       <button className="secondary" type="button" onClick={() => setQ(search.trim())}>{t('searchLabel')}</button></div>
     <label className="field"><span className="sr-only">{t(type)}</span>
-      <select aria-label={t(type)} value={value?.id ?? ''} required onChange={event => onChange(rows.find(row => row.id === event.target.value))}>
+      <select aria-label={t(type)} value={value?.id ?? ''} required={!optional} onChange={event => onChange(rows.find(row => row.id === event.target.value))}>
         <option value="">{t('select')}</option>{value && !rows.some(row => row.id === value.id) && <option value={value.id}>{value.name}</option>}
         {rows.map(row => <option key={row.id} value={row.id}>{row.name}</option>)}
       </select></label>{query.isError && <ErrorMessage />}

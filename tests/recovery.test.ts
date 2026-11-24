@@ -41,7 +41,12 @@ async function fixture() {
   await db.externalResourceLink.create({ data: { name: resource.name, resourceId: resource.id, playerId: player.id, isExample: true } });
   const person = await db.person.create({ data: { name: 'Örnek Kurtarma Kişisi', searchName: 'ornek kurtarma kisisi', role: 'OFFICIAL', isExample: true } });
   const brand = await db.brand.create({ data: { name: 'Örnek Kurtarma Markası', searchName: 'ornek kurtarma markasi', sector: 'Örnek spor', isExample: true } });
-  await db.brandContact.create({ data: { name: person.name, brandId: brand.id, personId: person.id, roleTitle: 'Örnek marka görevi', startDate: new Date('2026-01-01'), isExample: true } });
+  const contact = await db.brandContact.create({ data: { name: person.name, brandId: brand.id, personId: person.id, roleTitle: 'Örnek marka görevi', startDate: new Date('2026-01-01'), isExample: true } });
+  const campaign = await db.campaign.create({ data: { name: 'Örnek Kurtarma Kampanyası', searchName: 'ornek kurtarma kampanyasi', startDate: new Date('2026-01-01'), isExample: true } });
+  const opportunity = await db.sponsorshipOpportunity.create({ data: { name: 'Örnek Kurtarma Fırsatı', searchName: 'ornek kurtarma firsati', brandId: brand.id, campaignId: campaign.id, privateNextAction: encrypt('Örnek özel sonraki iş', 'SponsorshipOpportunity.privateNextAction'), isExample: true } });
+  const participant = await db.opportunityPlayer.create({ data: { name: player.name, opportunityId: opportunity.id, playerId: player.id, privateNextAction: encrypt('Örnek özel oyuncu işi', 'OpportunityPlayer.privateNextAction'), isExample: true } });
+  await db.opportunityContact.create({ data: { name: person.name, opportunityId: opportunity.id, participantId: participant.id, brandContactId: contact.id, role: 'BRAND', isExample: true } });
+  await db.sponsorshipStageEvent.create({ data: { name: opportunity.name, opportunityId: opportunity.id, entityType: 'OpportunityPlayer', entityId: participant.id, kind: 'TRANSITION', oldStage: 'RESEARCH', newStage: 'LOST', oldOutcome: 'PENDING', newOutcome: 'LOST', privateReason: encrypt('Örnek özel gerekçe', 'SponsorshipStageEvent.privateReason'), batchId: randomUUID(), isExample: true } });
   const presentation = await db.presentation.create({ data: { name: 'Örnek Kurtarma Sunumu', date: new Date('2026-01-01'), followUpDate: new Date('2026-12-01'), playerId: player.id, clubId: club.id, personId: person.id, isExample: true } });
   // The original Task was hard-purged; restoring must still preserve its consumed receipt.
   await db.taskGenerationReceipt.create({ data: { name: 'Örnek Kurtarma Makbuzu', ruleKey: 'presentation-follow-up-v1', entityType: 'Presentation', entityId: presentation.id, targetDate: presentation.followUpDate, taskId: randomUUID(), sourceVersion: 1, ruleVersion: 2, isExample: true } });
@@ -67,6 +72,8 @@ describe('sensitive paths: encrypted pilot recovery', () => {
     expect(bundle.manifest.Attachment).toMatchObject({ count: 2, live: 1, trashed: 1, examples: 2 });
     expect(bundle.manifest.TaskGenerationReceipt).toMatchObject({ count: 1, examples: 1 }); expect(bundle.tables.Task).toHaveLength(0);
     expect(bundle.manifest.Brand).toMatchObject({ count: 1, examples: 1 }); expect(bundle.manifest.BrandContact).toMatchObject({ count: 1, examples: 1 });
+    for (const type of ['Campaign', 'SponsorshipOpportunity', 'OpportunityPlayer', 'OpportunityContact', 'SponsorshipStageEvent']) expect(bundle.manifest[type]).toMatchObject({ count: 1, examples: 1 });
+    verifyRecoveryKeys(bundle);
     const result = await verifyRecoveryInTemporaryDatabase(bundle, process.env.DATABASE_URL!);
     expect(result).toMatchObject({ ok: true, mismatches: [], objects: 2, applicationStarted: false, objectRestore: { count: 2, target: 'isolated-memory' } });
     expect((await client.query('SELECT datname FROM pg_database WHERE datname=$1', [result.temporaryDatabase])).rows).toEqual([]);

@@ -4,7 +4,8 @@ import { readFileSync } from 'node:fs';
 it('keeps audit/version columns and provenance on all business models', () => {
   for (const model of Prisma.dmmf.datamodel.models.filter(m => !['Owner', 'Session', 'OAuthAttempt', 'StorageDeletion', 'TaskGenerationReceipt'].includes(m.name))) {
     const fields = new Map(model.fields.map(f => [f.name, f]));
-    for (const name of ['ownerId', 'createdAt', 'updatedAt', 'deletedAt', 'createdBy', 'updatedBy', 'version', 'isExample', 'fieldProvenance', 'sourceUrl', 'sourceType', 'retrievedAt', 'verificationStatus']) expect(fields.has(name), `${model.name}.${name}`).toBe(true);
+    for (const name of ['ownerId', 'createdAt', 'updatedAt', 'createdBy', 'updatedBy', 'version', 'isExample', 'fieldProvenance', 'sourceUrl', 'sourceType', 'retrievedAt', 'verificationStatus']) expect(fields.has(name), `${model.name}.${name}`).toBe(true);
+    expect(fields.has('deletedAt')).toBe(model.name !== 'SponsorshipStageEvent');
   }
 });
 it('protects minimal generation receipts independently of Task lifecycle', () => {

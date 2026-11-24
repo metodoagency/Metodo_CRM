@@ -6,7 +6,7 @@ import { manualSourceUrl } from './club-sources.js';
 export const positions = ['GK', 'CB', 'FB', 'DM', 'CM', 'AM', 'WF', 'CF'] as const;
 export const statuses = ['OWN', 'TARGET', 'INTERMEDIARY', 'MANDATED'] as const;
 export const sensitiveKeys = new Set(['birthDate', 'phone', 'email', 'healthNotes', 'injuryNotes', 'guardian', 'medicalRecords', 'salaryAmount', 'salary', 'bonuses', 'commissionTerms', 'birthDateIndex', 'phoneIndex', 'emailIndex', 'breachContact']);
-for (const field of ['document', 'processingPayload', 'processingResult', 'greetingNote', 'externalUrl', 'documentLink', 'privateDocumentLink', 'privateSourceEvidence']) sensitiveKeys.add(field);
+for (const field of ['document', 'processingPayload', 'processingResult', 'greetingNote', 'externalUrl', 'documentLink', 'privateDocumentLink', 'privateSourceEvidence', 'privateNextAction', 'privateReason']) sensitiveKeys.add(field);
 export function normalizeSearch(value: string): string {
   return value.toLocaleLowerCase('tr').replace(/ı/g, 'i').normalize('NFD').replace(/\p{Diacritic}/gu, '');
 }

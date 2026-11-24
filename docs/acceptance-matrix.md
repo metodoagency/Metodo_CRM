@@ -120,8 +120,8 @@ Every clause in [the normative extension](COMMERCIAL_MEDIA_SCOPE.md) and [full o
 
 | Requirement | Scope | Packages | Status | Evidence |
 |---|---|---|---|---|
-| SP1 | Sponsor/brand, existing contacts and links | 55 | PARTIAL | Brand/Person roles/dates/timeline/lifecycle and actual temporary restore passed [8a5417b complete16/17 CI45338129337](https://github.com/metodoagency/Metodo_CRM/actions/runs/45338129337):272 app/137 security/47 browser per version. Player/Campaign links remain open. |
-| SP2 | Dated opportunity pipeline and next action | 55 | NOT_STARTED | Scope mapped; no runtime acceptance. |
+| SP1 | Sponsor/brand, existing contacts and links | 55 | PARTIAL | Brand/Person directory passed8a5417b exact16/17 CI. Campaign/player/contact opportunity links now implemented with [pipeline tests](../tests/sponsorship-pipeline.test.ts) and actual recovery rows; new exact CI and remaining account/reassignment scope pending. |
+| SP2 | Dated opportunity pipeline and next action | 55 | PARTIAL | Shared Campaign/multi-player source, independent outcomes, signed graph/version/session-bound stage approval, encrypted reasons/actions, lifecycle/rotation/temporary recovery and TR/EN browser coverage implemented. See [runtime scope](SPONSORSHIP_PIPELINE.md). New exact16/17 CI and remaining reassignment/roster/Kanban acceptance pending. |
 | SP3 | Offers/agreements/versions/source/files | 56 | NOT_STARTED | Scope mapped; no runtime acceptance. |
 | SP4 | Cash/in-kind original-currency consideration | 57 | NOT_STARTED | Scope mapped; no runtime acceptance. |
 | SP5 | Partial receipts/receivables/agency finance | 57 | NOT_STARTED | Scope mapped; no runtime acceptance. |

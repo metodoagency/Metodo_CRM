@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { campaignCreate, opportunityCreate, opportunityDetails, pipelineQuery, pipelineReveal, transitionInput, transitionPlan } from './pipeline.js';
 import { externalResourceCreate, externalResourcePatch, externalResourceQuery, resourceLinkInput, resourceUnlinkInput, resourceLinkParams, resourceDeleteInput } from './external-resources.js';
 import { fileVersion, processingApprovalInput, processingPreviewInput } from './files.js';
 import { documentInput, documentMime } from './documents.js';
@@ -182,6 +183,18 @@ export const apiContracts: ApiContract[] = [
   { method: 'get', path: '/api/processing/:id', params: idParams },
   { method: 'post', path: '/api/processing/:id/approve', params: idParams, body: processingApprovalInput },
   { method: 'post', path: '/api/processing/:id/run', params: idParams, body: fileVersion },
+  { method: 'get', path: '/api/campaigns', query: pipelineQuery.pick({ page: true, q: true }) },
+  { method: 'post', path: '/api/campaigns', body: campaignCreate, success: 201 },
+  { method: 'delete', path: '/api/campaigns/:id', params: idParams, body: versionInput },
+  { method: 'get', path: '/api/sponsorship/opportunities', query: pipelineQuery },
+  { method: 'post', path: '/api/sponsorship/opportunities', body: opportunityCreate, success: 201 },
+  { method: 'get', path: '/api/sponsorship/opportunities/:id', params: idParams },
+  { method: 'patch', path: '/api/sponsorship/opportunities/:id/details', params: idParams, body: opportunityDetails },
+  { method: 'delete', path: '/api/sponsorship/opportunities/:id', params: idParams, body: versionInput },
+  { method: 'post', path: '/api/sponsorship/opportunities/:id/transition/preview', params: idParams, body: transitionInput },
+  { method: 'post', path: '/api/sponsorship/opportunities/:id/transition/confirm', params: idParams, body: transitionPlan },
+  { method: 'get', path: '/api/sponsorship/opportunities/:id/history', params: idParams, query: pipelineQuery.pick({ page: true }) },
+  { method: 'post', path: '/api/sponsorship/opportunities/:id/reveal', params: idParams, body: pipelineReveal },
   { method: 'get', path: '/health', public: true }, { method: 'get', path: '/healthz', public: true },
   { method: 'get', path: '/auth/status', public: true }, { method: 'get', path: '/auth/google', public: true, success: 302 },
   { method: 'get', path: '/auth/google/callback', public: true, success: 302, query: z.object({ state: z.string().min(1), code: z.string().min(1) }) },

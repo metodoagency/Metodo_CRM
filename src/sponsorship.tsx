@@ -7,6 +7,7 @@ import { brandFields, brandContactFields, type BrandContact, type BrandInput, ty
 import { api, ApiError, body } from './api';
 import { Empty, ErrorMessage, Modal } from './components';
 import { RecordPicker } from './presentations';
+import { PipelineWorkspace } from './sponsorship-pipeline';
 
 function BrandError({ error }: { error: Error | null }) { const { t } = useTranslation(); return error && <div className="error" role="alert"><p>{t(error instanceof ApiError && error.code === 'BRAND_CONTACT_IN_TRASH' ? 'brandContactInTrash' : error instanceof ApiError && error.code === 'BRAND_CONTACT_EXISTS' ? 'brandContactExists' : error instanceof ApiError && error.status === 409 ? 'brandConflict' : 'brandInvalid')}</p>{error instanceof ApiError && error.code === 'BRAND_CONTACT_IN_TRASH' && <Link className="text-accent" to="/trash">{t('trash')}</Link>}</div>; }
 function useBrandSuccess<T>(saved: (value: T) => Promise<void>) {
@@ -25,6 +26,7 @@ export function Sponsorship() {
   async function refresh() { await Promise.all([client.invalidateQueries({ queryKey: ['brands'] }), client.invalidateQueries({ queryKey: ['brand'] }), client.invalidateQueries({ queryKey: ['brand-contacts'] }), client.invalidateQueries({ queryKey: ['brand-timeline'] })]); }
   return <>
     <header className="flex justify-between items-start gap-4 flex-wrap"><div><p className="muted mb-2">{t('brandDirectory')}</p><h1 className="flex items-center gap-3"><Handshake className="text-accent" />{t('sponsorship')}</h1><p className="muted mt-3 max-w-2xl">{t('brandIntro')}</p></div><button className="primary" onClick={() => setAdding(true)}>{t('brandAdd')}</button></header>
+    <PipelineWorkspace />
     <label className="field my-6">{t('searchLabel')}<input value={q} maxLength={100} onChange={event => { setQ(event.target.value); setPage(1); }} /></label>
     {brands.isError && <ErrorMessage />}{brands.isPending && <p role="status">{t('loading')}</p>}
     {brands.data && <><div className="grid md:grid-cols-2 xl:grid-cols-3 gap-4">{brands.data.items.map(row => <button className="panel panel-body text-left" key={row.id} onClick={() => setParams({ brand: row.id })}><div className="flex justify-between gap-3"><strong className="text-lg">{row.name}</strong><ArrowUpRight size={18} className="text-accent shrink-0" /></div><p className="muted my-3">{row.sector || t('brandUnknown')}</p><div className="flex gap-3 justify-between flex-wrap text-sm"><span className="badge">{t(row.relationStatus)}</span><span className="muted">{t('brandContactCount', { count: row.contactCount })}</span></div>{row.isExample && <small className="block muted mt-3">{t('example')}</small>}</button>)}</div>{!brands.data.items.length && <Empty />}<div className="pagination mt-4"><span>{t('page', { page, total: brands.data.total })}</span><div className="flex gap-2"><button className="secondary" disabled={page === 1} onClick={() => setPage(page - 1)}>{t('previous')}</button><button className="secondary" disabled={page * 50 >= brands.data.total} onClick={() => setPage(page + 1)}>{t('next')}</button></div></div></>}

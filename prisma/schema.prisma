@@ -267,6 +267,11 @@ model Owner {
  taskGenerationReceipts TaskGenerationReceipt[]
  brandRecords Brand[]
  brandContacts BrandContact[]
+ campaigns Campaign[]
+ sponsorshipOpportunities SponsorshipOpportunity[]
+ opportunityPlayers OpportunityPlayer[]
+ opportunityContacts OpportunityContact[]
+ sponsorshipStageEvents SponsorshipStageEvent[]
  matchRecords Match[]
  scoutReportRecords ScoutReport[]
  eventRecords Event[]
@@ -497,6 +502,7 @@ model AgeTeam {
 }
 
 model Person {
+ opportunityContacts OpportunityContact[]
  brandContacts BrandContact[]
  externalResourceLinks ExternalResourceLink[]
  @@index([ownerId, deletedAt, name, id])
@@ -578,6 +584,7 @@ model Agent {
 }
 
 model Player {
+ opportunityLinks OpportunityPlayer[]
  externalResourceLinks ExternalResourceLink[]
  @@index([ownerId, deletedAt, status, name, id])
  @@index([ownerId, deletedAt, name, id])
@@ -1014,6 +1021,7 @@ model TaskGenerationReceipt {
 }
 
 model Brand {
+ opportunities SponsorshipOpportunity[]
  id String @id @default(uuid()) @db.Uuid
  ownerId String @default("owner")
  owner Owner @relation(fields: [ownerId], references: [id])
@@ -1039,6 +1047,7 @@ model Brand {
 }
 
 model BrandContact {
+ opportunityContacts OpportunityContact[]
  id String @id @default(uuid()) @db.Uuid
  ownerId String @default("owner")
  owner Owner @relation(fields: [ownerId], references: [id])
@@ -1065,6 +1074,160 @@ model BrandContact {
  @@unique([ownerId, brandId, personId])
  @@index([ownerId, deletedAt, brandId, id])
  @@index([personId])
+}
+
+model Campaign {
+ id String @id @default(uuid()) @db.Uuid
+ ownerId String @default("owner")
+ owner Owner @relation(fields: [ownerId], references: [id])
+ isExample Boolean @default(false)
+ deletedAt DateTime?
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+ createdBy String @default("owner")
+ updatedBy String @default("owner")
+ version Int @default(1)
+ fieldProvenance Json @default("{}")
+ sourceUrl String?
+ sourceType SourceType @default(MANUAL)
+ retrievedAt DateTime @default(now())
+ verificationStatus VerificationStatus @default(UNVERIFIED)
+ name String
+ searchName String
+ startDate DateTime? @db.Date
+ endDate DateTime? @db.Date
+ opportunities SponsorshipOpportunity[]
+ @@index([ownerId, deletedAt, name, id])
+}
+
+model SponsorshipOpportunity {
+ id String @id @default(uuid()) @db.Uuid
+ ownerId String @default("owner")
+ owner Owner @relation(fields: [ownerId], references: [id])
+ isExample Boolean @default(false)
+ deletedAt DateTime?
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+ createdBy String @default("owner")
+ updatedBy String @default("owner")
+ version Int @default(1)
+ fieldProvenance Json @default("{}")
+ sourceUrl String?
+ sourceType SourceType @default(MANUAL)
+ retrievedAt DateTime @default(now())
+ verificationStatus VerificationStatus @default(UNVERIFIED)
+ name String
+ searchName String
+ brandId String @db.Uuid
+ brand Brand @relation(fields: [brandId], references: [id], onDelete: Restrict)
+ campaignId String? @db.Uuid
+ campaign Campaign? @relation(fields: [campaignId], references: [id], onDelete: Restrict)
+ stage String @default("RESEARCH")
+ responsibilityMode String @default("OWNER")
+ privateNextAction String?
+ nextActionDate DateTime? @db.Date
+ lastContactDate DateTime? @db.Date
+ players OpportunityPlayer[]
+ contacts OpportunityContact[]
+ events SponsorshipStageEvent[]
+ @@index([ownerId, deletedAt, stage, id])
+ @@index([brandId])
+ @@index([campaignId])
+}
+
+model OpportunityPlayer {
+ id String @id @default(uuid()) @db.Uuid
+ ownerId String @default("owner")
+ owner Owner @relation(fields: [ownerId], references: [id])
+ isExample Boolean @default(false)
+ deletedAt DateTime?
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+ createdBy String @default("owner")
+ updatedBy String @default("owner")
+ version Int @default(1)
+ fieldProvenance Json @default("{}")
+ sourceUrl String?
+ sourceType SourceType @default(MANUAL)
+ retrievedAt DateTime @default(now())
+ verificationStatus VerificationStatus @default(UNVERIFIED)
+ name String
+ opportunityId String @db.Uuid
+ opportunity SponsorshipOpportunity @relation(fields: [opportunityId], references: [id], onDelete: Restrict)
+ playerId String @db.Uuid
+ player Player @relation(fields: [playerId], references: [id], onDelete: Restrict)
+ stage String @default("RESEARCH")
+ outcome String @default("PENDING")
+ privateNextAction String?
+ nextActionDate DateTime? @db.Date
+ contacts OpportunityContact[]
+ @@unique([ownerId, opportunityId, playerId])
+ @@index([ownerId, deletedAt, opportunityId, id])
+ @@index([playerId])
+}
+
+model OpportunityContact {
+ id String @id @default(uuid()) @db.Uuid
+ ownerId String @default("owner")
+ owner Owner @relation(fields: [ownerId], references: [id])
+ isExample Boolean @default(false)
+ deletedAt DateTime?
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+ createdBy String @default("owner")
+ updatedBy String @default("owner")
+ version Int @default(1)
+ fieldProvenance Json @default("{}")
+ sourceUrl String?
+ sourceType SourceType @default(MANUAL)
+ retrievedAt DateTime @default(now())
+ verificationStatus VerificationStatus @default(UNVERIFIED)
+ name String
+ opportunityId String @db.Uuid
+ opportunity SponsorshipOpportunity @relation(fields: [opportunityId], references: [id], onDelete: Restrict)
+ participantId String? @db.Uuid
+ participant OpportunityPlayer? @relation(fields: [participantId], references: [id], onDelete: Restrict)
+ brandContactId String? @db.Uuid
+ brandContact BrandContact? @relation(fields: [brandContactId], references: [id], onDelete: Restrict)
+ personId String? @db.Uuid
+ person Person? @relation(fields: [personId], references: [id], onDelete: Restrict)
+ role String
+ @@index([ownerId, deletedAt, opportunityId, id])
+ @@index([participantId])
+ @@index([brandContactId])
+ @@index([personId])
+}
+
+// Semantic history is append-only in the application; ciphertext maintenance can rotate keys/version.
+model SponsorshipStageEvent {
+ id String @id @default(uuid()) @db.Uuid
+ ownerId String @default("owner")
+ owner Owner @relation(fields: [ownerId], references: [id])
+ isExample Boolean @default(false)
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+ createdBy String @default("owner")
+ updatedBy String @default("owner")
+ version Int @default(1)
+ fieldProvenance Json @default("{}")
+ sourceUrl String?
+ sourceType SourceType @default(MANUAL)
+ retrievedAt DateTime @default(now())
+ verificationStatus VerificationStatus @default(UNVERIFIED)
+ name String
+ opportunityId String @db.Uuid
+ opportunity SponsorshipOpportunity @relation(fields: [opportunityId], references: [id], onDelete: Restrict)
+ entityType String
+ entityId String @db.Uuid
+ kind String
+ oldStage String?
+ newStage String?
+ oldOutcome String?
+ newOutcome String?
+ privateReason String?
+ batchId String @db.Uuid
+ @@index([ownerId, opportunityId, createdAt, id])
+ @@index([entityId])
 }
 
 model Match {

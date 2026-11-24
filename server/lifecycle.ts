@@ -6,6 +6,7 @@ import { requireContract } from './contract-parent.js';
 import { requireTaskLink } from './task-parent.js';
 import { requireFileParent } from './file-parent.js';
 import { resourceLinkParent } from '../shared/external-resources.js';
+import { validatePipelineRestore } from './sponsorship-parent.js';
 
 // Identifiers come exclusively from the compiled Prisma schema. All data values
 // are parameters; no request value can become a SQL identifier.
@@ -148,7 +149,7 @@ export async function cleanupExamples(db: PrismaClient, expected: string) {
     return plan.result;
   }, { isolationLevel: 'Serializable', timeout: 30000 });
 }
-const ancillary = new Set(['Relation', 'Note', 'Attachment', 'ProcessingConsent', 'Task', 'Notification', 'UpdateProposal', 'ShareLink', 'TrashEntry', 'BirthdayGreeting', 'ExternalResourceLink', 'TaskGenerationReceipt', 'BrandContact']);
+const ancillary = new Set(['Relation', 'Note', 'Attachment', 'ProcessingConsent', 'Task', 'Notification', 'UpdateProposal', 'ShareLink', 'TrashEntry', 'BirthdayGreeting', 'ExternalResourceLink', 'TaskGenerationReceipt', 'BrandContact', 'OpportunityPlayer', 'OpportunityContact', 'SponsorshipStageEvent']);
 export async function deletionPreview(tx: Tx, type: string, id: string) {
   const graph = await loadGraph(tx);
   if (!graph.get(type)?.some(row => row.id === id)) throw new AppError('NOT_FOUND', 404);
@@ -171,6 +172,7 @@ export async function restoreTrash(db: PrismaClient, id: string, version: number
     const graph = await loadGraph(tx); const record = graph.get(item.entityType)?.find(row => row.id === item.entityId);
     if (!record || !record.deletedAt || record.version !== recordVersion) throw new AppError('STALE_VERSION', 409);
     for (const edge of graph.foreignKeys.filter(edge => edge.fromType === item.entityType)) if (record[edge.fromField] && !graph.get(edge.toType)?.some(row => row.id === record[edge.fromField] && !row.deletedAt)) throw new AppError('LINKED_RECORDS', 409);
+    await validatePipelineRestore(tx, item.entityType, record);
     if (item.entityType === 'BirthdayGreeting' && !graph.get(String(record.entityType))?.some(row => row.id === record.entityId && !row.deletedAt)) throw new AppError('LINKED_RECORDS', 409);
     if (['Note', 'Attachment'].includes(item.entityType) && record.entityType === 'Contract') await requireContract(tx, String(record.entityId));
     if (item.entityType === 'Task') await requireTaskLink(tx, typeof record.entityType === 'string' ? record.entityType : null, typeof record.entityId === 'string' ? record.entityId : null);

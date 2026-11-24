@@ -60,5 +60,6 @@ export const encryptedFields: Record<string, readonly string[]> = {
   MedicalRecord: ['summary'], Contract: ['salaryAmount', 'bonuses', 'privateDocumentLink', 'privateSourceEvidence'], Mandate: ['commissionTerms'], UserSettings: ['breachContact'],
   ProcessingConsent: ['processingPayload', 'processingResult'],
   ExternalResource: ['externalUrl'],
+  SponsorshipOpportunity: ['privateNextAction'], OpportunityPlayer: ['privateNextAction'], SponsorshipStageEvent: ['privateReason'],
   TimelineEvent: ['privateSourceEvidence'], AuditLog: ['privateSourceEvidence'],
 };

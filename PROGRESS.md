@@ -1,5 +1,18 @@
 # Metodo CRM progress
 
+## Multi-player sponsorship implementation —2026-11-24
+
+Implemented shared Campaign, safe Brand/Person-linked multi-player opportunities, independent overall/player stages and outcomes, dated history, encrypted terminal reasons/next actions, known action/contact dates and sparse versioned action editing. Exact transition preview/confirmation is session/purpose/HMAC bound, expiry/version/whole-parent-graph checked and atomically committed. Replay and concurrent commits fail closed. No amounts, inferred revenue, external acquisition or outbound communication were introduced. See docs/SPONSORSHIP_PIPELINE.md for working scope and remaining acceptance.
+
+Migration019 includes all five models with RLS/revokes/owner policy, domain/date/XOR/unique constraints before first application. Canonical Campaign/opportunity lifecycle is separate from dependent player/contact/protected history. Purging one Player/Person preserves the shared opportunity and other players. Restore checks grandparents. Protected history is in key rotation and actual temporary-database recovery checks. Private reasons/actions never enter ordinary projections, value logs or TanStack caches. Safe scopeVersion invalidates a held disclosure when a generic parent disappears without bumping the opportunity version; the TR/EN browser test covers this without a blur/visibility shortcut.
+
+Observed local evidence:281 full application tests across30 files passed before the final two additional API regressions; final9 selected browser/axe cases passed (new pipeline2, existing brand2, Presentation rule2, privacy2, retention1), including action keep-mode editing and held response after Player deletion. Build/type/lint/i18n1344/compliance passed; compliance remains NOT REVIEWED. Final source security checks and immutable PostgreSQL16/17 CI are pending at this checkpoint. One moderate i18next advisory remains OPEN; formal managed scan is still blocked as previously recorded. PR3 remains draft/unmerged.
+
+The persistent localhost preview now has19 migrations and the new sponsorship panel. Existing4 Players/3 Clubs/1 Task were preserved; one explicitly example Campaign/opportunity was added only after confirming the opportunity table was empty, referencing existing example records. No real record was overwritten and no production data/configuration was changed.
+
+Delivery remains10/72 DONE,8 IN_PROGRESS,54 NOT_STARTED; A–J10%, K/L/M0/3; pilot4/16 accepted,6 in progress,6 not started. Package55/SP1/SP2 are partial: roster/contact reassignment and unlink/restore UI, Campaign editing UI, Kanban and account foundation are next. Do not count this slice as all55 or the whole pilot. OAuth MFA handoff under Owner input needed is still pending; earlier creation/Render approvals persist.
+
+
 ## Brand directory and continued delivery - 2026-11-24
 
 Final immutable evidence:8a5417b0a73249cf6c6b4c911d0767afae8fdab8 passed all PostgreSQL16/17 CI45338129337 steps. Each version:272 application tests across29 files,137 selected security tests (135 unrelated skips),47 browser/axe scenarios,1274 TR/EN keys; lint/type/build/compliance passed. New brand/private-source/lifecycle/recovery/first-login/task rules are included. One moderate dependency alert and the separate formal managed security-review blocker remain open; no milestone merge or production rollout. Later documentation-only commits do not replace this exact functional source evidence.

@@ -1,6 +1,6 @@
 # Next sponsorship slice — Campaign and multi-player opportunities
 
-Read-only architecture review recorded2026-11-24. **Not implemented or accepted.** Continue from the working Brand/BrandContact directory; do not create a second directory or finance ledger. This preserves the next concrete package55 step while the current immutable CI runs.
+Read-only architecture review recorded2026-11-24. **Core slice implemented; package55 remains partial.** See SPONSORSHIP_PIPELINE.md and PROGRESS.md for actual evidence and pending roster/contact/Kanban/account work. Continue from the working Brand/BrandContact directory; do not create a second directory or finance ledger. This preserves the next concrete package55 step while the current immutable CI runs.
 
 ## Data boundaries
 

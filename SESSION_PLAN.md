@@ -89,7 +89,7 @@ Owner consolidated amendment2026-11-20: [PRIVATE_PILOT_PLAN.md](docs/PRIVATE_PIL
 
 | No | İş | Kabul ölçütü | Durum |
 |---|---|---|---|
-| 55 | Sponsor/marka ve fırsatlar | Marka dizini + mevcut Person irtibatları/görev tarihleri uygulandı; owner/Trash/purge/restore/örnek temizleme/şifreli kurtarma ve TR/EN ekran testleri var. Campaign/hesap temeli, çok oyunculu fırsat ve aşama/sonraki aksiyon/terminal neden kapsamı açık. | IN_PROGRESS |
+| 55 | Sponsor/marka ve fırsatlar | Marka/Person dizini, ortak Campaign, çok oyunculu fırsat, ayrı genel/oyuncu aşama ve sonuçları, onay önizlemesi, şifreli gerekçe/sonraki aksiyon, bağımsız yaşam döngüsü uygulandı. Yeni kesin16/17 CI bekleniyor; roster/irtibat yeniden atama, Kanban ve hesap temeli açık. | IN_PROGRESS |
 | 56 | Sponsorluk teklif/anlaşma | SP3: kaynaklı, sürümlü teklifler ve anlaşmalar, özel dosyalar, açık bölge/kategori notları. | NOT_STARTED |
 | 57 | Sponsorluk bedel/tahsilat | SP4/5: nakdî/ayni ayrımı, kısmi tahsilat/alacak/komisyon, decimal ve kaynaklı FX; ikinci muhasebe yok. | NOT_STARTED |
 | 58 | Yükümlülük, hak ve yenileme | SP6/7: adet/format/hesap/tarih, onay ve manuel tamamlama kanıtı, gecikme, açıklanabilir olası çakışma ve tekrar üretmeyen iç uyarı. | NOT_STARTED |
