@@ -2,7 +2,7 @@ import { createHash, createHmac, randomUUID, timingSafeEqual } from 'node:crypto
 import type { FastifyInstance } from 'fastify';
 import type { Prisma, PrismaClient } from '@prisma/client';
 import { z } from 'zod';
-import { campaignCreate, opportunityCreate, opportunityDetails, pipelineQuery, pipelineReveal, transitionInput, transitionPlan, type OpportunityRecord, type PipelineEvent, type TransitionPlan } from '../shared/pipeline.js';
+import { campaignCreate, campaignPatch, opportunityCreate, opportunityDetails, pipelineQuery, pipelineReveal, transitionInput, transitionPlan, type OpportunityRecord, type PipelineEvent, type TransitionPlan } from '../shared/pipeline.js';
 import { normalizeSearch } from '../shared/domain.js';
 import { provenanceFor } from '../shared/provenance.js';
 import { retentionPeriods } from '../shared/retention.js';
@@ -69,6 +69,15 @@ export async function registerPipeline(app: FastifyInstance, db: PrismaClient) {
       await logEvent(tx, { entityType: 'Campaign', entityId: row.id, name: row.name, isExample: row.isExample, action: 'create', diffs: { new: input } });
       return { id: row.id, name: row.name, version: row.version, isExample: row.isExample, startDate: day(row.startDate), endDate: day(row.endDate) };
     }, { isolationLevel: 'Serializable' }); return reply.code(201).send(row);
+  });
+  app.patch('/api/campaigns/:id', async req => {
+    const { id } = idParams.parse(req.params); const { version, ...input } = campaignPatch.parse(req.body);
+    return db.$transaction(async tx => {
+      const before = await tx.campaign.findFirst({ where: { ...live, id } }); if (!before) throw new AppError('NOT_FOUND', 404); if (before.version !== version) throw new AppError('STALE_VERSION', 409); requireExampleName(before.isExample, input.name);
+      const result = await tx.campaign.updateMany({ where: { ...live, id, version }, data: { ...input, searchName: normalizeSearch(input.name), startDate: input.startDate ? new Date(input.startDate) : null, endDate: input.endDate ? new Date(input.endDate) : null, version: { increment: 1 }, fieldProvenance: provenanceFor(input, before.fieldProvenance) } }); if (result.count !== 1) throw new AppError('STALE_VERSION', 409);
+      await logEvent(tx, { entityType: 'Campaign', entityId: id, name: input.name, isExample: before.isExample, action: 'update', diffs: { old: { name: before.name, startDate: day(before.startDate), endDate: day(before.endDate) }, new: input } });
+      return { id, ...input, version: version + 1, isExample: before.isExample };
+    }, { isolationLevel: 'Serializable' });
   });
   app.get('/api/sponsorship/opportunities', async req => {
     const { page, q, brandId, stage } = pipelineQuery.parse(req.query); const where = { ...opportunityLive, searchName: { contains: normalizeSearch(q) }, ...(brandId ? { brandId } : {}), ...(stage ? { stage } : {}) };

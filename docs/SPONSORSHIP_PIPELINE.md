@@ -6,6 +6,10 @@ Implemented2026-11-24 as a partial package55 slice. Existing Brand/Person direct
 
 Open `/sponsorship` → Opportunities and campaigns. Create a Campaign with optional known DATE boundaries. Create an opportunity using one Brand, an optional shared Campaign, one to20 existing Players, zero to20 existing BrandContacts, optional responsible Person, known last-contact/next-action dates and a private next action. Responsible Persons are records, not login accounts. Empty dates stay unknown.
 
+Switch between the paged list and stage Kanban. Each column uses its own server-side total and50-record page; totals are never inferred from the first shared page. Search and stage filters apply to both views. Opening a card focuses its detail, and moving the last card off a final page returns the column to the remaining valid page. Cards do not mutate state by dragging; stage changes still require the exact preview/confirmation below.
+
+Manage campaigns opens a searchable paged directory. Known name/date edits use the opening version, preserve an unsaved draft across background refresh and reject stale saves. Successful edits append timeline/provenance and invalidate outstanding stage/membership previews through the Campaign graph version. Editing a Campaign does not change linked opportunity stages or player results.
+
 The global operational stage and each player's stage/outcome are independent. A WON or LOST player never changes the other players or global stage. Changing the global stage never changes player outcomes. Terminal stages/outcomes and reopening require an encrypted reason; operational AGREEMENT is not a legal determination. History distinguishes source, participant and contact events.
 
 Each transition previews exact before/after stage/outcome, the target UUID and the entered reason. Confirmation binds that payload, authenticated session, source/target versions, current player/contact/Brand/Campaign graph, unique event UUID and expiry with purpose-separated HMAC. A Serializable transaction rechecks them, updates canonical state, appends the event and records masked timeline/audit atomically. Concurrent, forged, expired, changed-parent and replayed plans fail with409; canonical writes are not retried.
@@ -24,13 +28,13 @@ An example participant/contact marks its child and child history as examples, no
 
 ## API and evidence
 
-`GET/POST /api/campaigns`; `DELETE /api/campaigns/:id`.
+`GET/POST /api/campaigns`; `PATCH/DELETE /api/campaigns/:id`.
 `GET/POST /api/sponsorship/opportunities`; `GET/DELETE /api/sponsorship/opportunities/:id`.
 `PATCH .../:id/details`; `POST .../:id/transition/preview`, `.../confirm`, `.../reveal`; `GET .../:id/history`.
 All are authenticated and all writes require Origin/CSRF; strict schemas are registered in the generated API contract.
 
-Evidence: `tests/sponsorship-pipeline.test.ts`, `tests/recovery.test.ts`, `tests/schema.test.ts`, `tests/e2e/pipeline.spec.ts`, existing directory/retention/first-login scenarios. Exact final source CI is recorded in PROGRESS.md, not inferred from older test runs.
+Evidence: `tests/sponsorship-pipeline.test.ts`, `tests/sponsorship-views.test.ts`, `tests/recovery.test.ts`, `tests/schema.test.ts`, `tests/e2e/pipeline.spec.ts`, `tests/e2e/sponsorship-views.spec.ts`, existing directory/retention/first-login scenarios. Exact final source CI is recorded in PROGRESS.md, not inferred from older test runs.
 
 ## Still open
 
-Package55 and SP1/SP2 remain partial: Campaign editing UI, Kanban, social-account foundation and typed Task/file integration remain pending. Previewed roster/contact management and responsible replacement are implemented in SPONSORSHIP_MEMBERSHIP.md and await their exact source CI. Offers/agreements/obligations, sponsorship finance, media and matchday are later packages. This slice has no amount, automatic split, invented FX or implied automatic task. Existing file/Task/Meeting parent allowlists have not been broadened.
+Package55 and SP1/SP2 remain partial: social-account foundation and typed Task/file integration remain pending. Previewed roster/contact management and responsible replacement passed exact22d3cf2 PostgreSQL16/17 CI45447495851. Campaign editing and Kanban are the current follow-up implementation and require their own immutable CI. Offers/agreements/obligations, sponsorship finance, media and matchday are later packages. This slice has no amount, automatic split, invented FX or implied automatic task. Existing file/Task/Meeting parent allowlists have not been broadened.

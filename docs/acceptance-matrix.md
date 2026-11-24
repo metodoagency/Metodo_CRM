@@ -120,8 +120,8 @@ Every clause in [the normative extension](COMMERCIAL_MEDIA_SCOPE.md) and [full o
 
 | Requirement | Scope | Packages | Status | Evidence |
 |---|---|---|---|---|
-| SP1 | Sponsor/brand, existing contacts and links | 55 | PARTIAL | Brand/Person directory passed8a5417b exact16/17 CI. Campaign/player/contact opportunity links now implemented with [pipeline tests](../tests/sponsorship-pipeline.test.ts) and actual recovery rows; new exact CI and remaining account/reassignment scope pending. |
-| SP2 | Dated opportunity pipeline and next action | 55 | PARTIAL | Shared Campaign/multi-player source, independent outcomes, signed graph/version/session-bound stage approval, encrypted reasons/actions, lifecycle/rotation/temporary recovery and TR/EN browser coverage implemented. See [runtime scope](SPONSORSHIP_PIPELINE.md). New exact16/17 CI and remaining reassignment/roster/Kanban acceptance pending. |
+| SP1 | Sponsor/brand, existing contacts and links | 55 | PARTIAL | Brand/Person, Campaign/player/contact links, previewed membership/responsibility and actual recovery passed22d3cf2 [16/17 CI](https://github.com/metodoagency/Metodo_CRM/actions/runs/45447495851). Campaign edit follow-up awaits its own immutable CI. Account foundation and typed Task/file links remain open. |
+| SP2 | Dated opportunity pipeline and next action | 55 | PARTIAL | Independent global/player outcomes, signed graph/session/version-bound transitions, private actions/reasons and previewed roster/restore passed22d3cf2 CI45447495851. [Kanban/Campaign regressions](../tests/sponsorship-views.test.ts) and [browser flow](../tests/e2e/sponsorship-views.spec.ts) are the current follow-up; exact CI remains required. Full55 integrations remain open; pilot10 accepted separately. |
 | SP3 | Offers/agreements/versions/source/files | 56 | NOT_STARTED | Scope mapped; no runtime acceptance. |
 | SP4 | Cash/in-kind original-currency consideration | 57 | NOT_STARTED | Scope mapped; no runtime acceptance. |
 | SP5 | Partial receipts/receivables/agency finance | 57 | NOT_STARTED | Scope mapped; no runtime acceptance. |

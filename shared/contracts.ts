@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { campaignCreate, opportunityCreate, opportunityDetails, pipelineQuery, pipelineReveal, transitionInput, transitionPlan } from './pipeline.js';
+import { campaignCreate, campaignPatch, opportunityCreate, opportunityDetails, pipelineQuery, pipelineReveal, transitionInput, transitionPlan } from './pipeline.js';
 import { membershipCommand, membershipPlan } from './sponsorship-membership.js';
 import { externalResourceCreate, externalResourcePatch, externalResourceQuery, resourceLinkInput, resourceUnlinkInput, resourceLinkParams, resourceDeleteInput } from './external-resources.js';
 import { fileVersion, processingApprovalInput, processingPreviewInput } from './files.js';
@@ -186,6 +186,7 @@ export const apiContracts: ApiContract[] = [
   { method: 'post', path: '/api/processing/:id/run', params: idParams, body: fileVersion },
   { method: 'get', path: '/api/campaigns', query: pipelineQuery.pick({ page: true, q: true }) },
   { method: 'post', path: '/api/campaigns', body: campaignCreate, success: 201 },
+  { method: 'patch', path: '/api/campaigns/:id', params: idParams, body: campaignPatch },
   { method: 'delete', path: '/api/campaigns/:id', params: idParams, body: versionInput },
   { method: 'get', path: '/api/sponsorship/opportunities', query: pipelineQuery },
   { method: 'post', path: '/api/sponsorship/opportunities', body: opportunityCreate, success: 201 },

@@ -7,6 +7,7 @@ const version = z.number().int().positive();
 const name = z.string().trim().min(2).max(160);
 export const campaignFields = z.object({ name, startDate: taskDate.nullable(), endDate: taskDate.nullable() }).strict().refine(v => !v.startDate || !v.endDate || v.startDate <= v.endDate, 'INVALID_DATE_RANGE');
 export const campaignCreate = campaignFields.safeExtend({ isExample: z.boolean().default(false) });
+export const campaignPatch = campaignFields.safeExtend({ version });
 export const opportunityCreate = z.object({
   name, brandId: z.uuid(), campaignId: z.uuid().nullable(), playerIds: z.array(z.uuid()).min(1).max(20),
   brandContactIds: z.array(z.uuid()).max(20), responsiblePersonId: z.uuid().nullable(),
