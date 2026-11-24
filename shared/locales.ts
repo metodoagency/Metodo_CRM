@@ -1,4 +1,5 @@
 import { adminTr, adminEn } from './admin-locales.js';
+import { resourceTr, resourceEn } from './resource-locales.js';
 import { clubTr, clubEn } from './club-locales.js';
 import { privacyTr, privacyEn } from './privacy-locales.js';
 import { retentionTr, retentionEn } from './retention-locales.js';
@@ -11,7 +12,30 @@ import { scoringTr, scoringEn } from './player-scoring-locales.js';
 import { cardTr, cardEn } from './player-card-locales.js';
 import { personNetworkTr, personNetworkEn } from './person-network-locales.js';
 import { calendarTr, calendarEn } from './calendar-locales.js';
+import { requestsTr, requestsEn } from './request-locales.js';
+import { presentationTr, presentationEn } from './presentation-locales.js';
+import { contractTr, contractEn } from './contract-locales.js';
+import { notificationTr, notificationEn } from './notification-locales.js';
+import { taskTr, taskEn } from './task-locales.js';
+import { meetingTr, meetingEn } from './meeting-locales.js';
+import { agendaTr, agendaEn } from './agenda-locales.js';
+import { dashboardTr, dashboardEn } from './dashboard-locales.js';
+import { sponsorshipTr, sponsorshipEn } from './sponsorship-locales.js';
+import { pipelineTr, pipelineEn } from './pipeline-locales.js';
+import { membershipTr, membershipEn } from './membership-locales.js';
 export const tr = {
+  ...pipelineTr,
+  ...membershipTr,
+  ...sponsorshipTr,
+  recoveryBackupCreated: 'Şifreli kurtarma yedeği oluşturuldu',
+  ...resourceTr,
+  skipToContent: 'Ana içeriğe geç',
+  ...dashboardTr,
+  ...agendaTr,
+  ...meetingTr,
+  ...taskTr,
+  ...notificationTr,
+  ...contractTr,
   ...adminTr,
   ...clubTr,
   ...privacyTr,
@@ -25,6 +49,8 @@ export const tr = {
   ...cardTr,
   ...personNetworkTr,
   ...calendarTr,
+  ...requestsTr,
+  ...presentationTr,
   "brand": "Metodo",
   "crm": "CRM",
   "tagline": "Futbolun ilişkilerini yönetin.",
@@ -124,7 +150,7 @@ export const tr = {
   "error": "İşlem tamamlanamadı. Lütfen yeniden deneyin.",
   "invalid": "Alanları kontrol edin.",
   "saved": "Kaydedildi",
-  "foundation": "Temel sürüm · A aşaması",
+  "foundation": "Geliştirme önizlemesi",
   "foundationNote": "Geliştirme sürümü. Sonraki aşamalardaki özellikler henüz kullanıma açılmadı.",
   "security": "Güvenlik",
   "preferences": "Tercihler",
@@ -234,6 +260,18 @@ export const tr = {
   "suggestionSummary": "{club} kulübüne önerildi · Yetkili: {person} · Talep: {request} · Tarih: {date}"
 } as const;
 export const en: Record<keyof typeof tr, string> = {
+  ...pipelineEn,
+  ...membershipEn,
+  ...sponsorshipEn,
+  recoveryBackupCreated: 'Encrypted recovery backup created',
+  ...resourceEn,
+  skipToContent: 'Skip to main content',
+  ...dashboardEn,
+  ...agendaEn,
+  ...meetingEn,
+  ...taskEn,
+  ...notificationEn,
+  ...contractEn,
   ...adminEn,
   ...clubEn,
   ...privacyEn,
@@ -247,6 +285,8 @@ export const en: Record<keyof typeof tr, string> = {
   ...cardEn,
   ...personNetworkEn,
   ...calendarEn,
+  ...requestsEn,
+  ...presentationEn,
   "brand": "Metodo",
   "crm": "CRM",
   "tagline": "Manage the relationships behind football.",
@@ -346,7 +386,7 @@ export const en: Record<keyof typeof tr, string> = {
   "error": "The operation could not be completed. Please try again.",
   "invalid": "Please check the fields.",
   "saved": "Saved",
-  "foundation": "Foundation release · Milestone A",
+  "foundation": "Development preview",
   "foundationNote": "Development release. Features in later milestones are not available yet.",
   "security": "Security",
   "preferences": "Preferences",

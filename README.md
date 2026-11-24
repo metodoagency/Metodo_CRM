@@ -1,8 +1,10 @@
 # Metodo CRM
 
-Single-owner football-office CRM. **Milestone A is merged; B is in progress. Accepted scope:10%. This is not a production-complete CRM.** The authoritative specification is [docs/REQUIREMENTS.md](docs/REQUIREMENTS.md). See [PROGRESS.md](PROGRESS.md) for observed checks, remaining features and owner prerequisites.
+Single-owner football-office CRM. **Accepted packages10/72; early private pilot5/16.** Milestone A is merged; B/C remain draft. Baseline A–J acceptance is10%; sponsorship/media/vault K/L/M gates are0/3. These measures track distinct acceptance boundaries, not effort. The authoritative specification is [docs/REQUIREMENTS.md](docs/REQUIREMENTS.md). See [PROGRESS.md](PROGRESS.md) for actual working features, observed checks and production release prerequisites.
 
 Implemented foundation: React 18/TypeScript/Tailwind shell in Turkish and English; PostgreSQL 16/Prisma schema and migration; club, player, person and request records; transactional suggestions; bidirectional relations; masked timelines; soft deletion/Trash; server-side settings; OIDC flow; encrypted sensitive values; CSRF; secure owner sessions; embedding headers. Later module interfaces are not represented as completed features.
+
+The existing local preview is available at [localhost:5173](http://localhost:5173). Current working slices also include transfer/contract/agenda workspaces, encrypted Drive references, isolated encrypted recovery, opt-in Presentation follow-up tasks and [multi-player sponsorship opportunities](docs/SPONSORSHIP_PIPELINE.md). Open **Sponsorluk → Fırsatlar ve kampanyalar** for Brand/Person contacts, shared Campaigns, independent player outcomes, approved stage changes and private next actions. **Kanban görünümü** shows paged stage totals; **Kampanyaları yönet** edits known names/dates while preserving conflicting drafts. Participant/contact additions, removals and restores use exact approval previews; former responsible assignments retain history. Remaining requirements and exact test/CI evidence are in PROGRESS.md; package55 remains partial.
 
 ## Local development
 
@@ -11,7 +13,7 @@ Requires Node 22.12 or later and npm. Docker is preferred for PostgreSQL 16. The
 ```sh
 git clone https://github.com/metodoagency/Metodo_CRM.git
 cd Metodo_CRM
-git checkout milestone/b-clubs
+git checkout milestone/c-requests
 cp .env.example .env
 npm install
 npm run db:up
@@ -43,7 +45,7 @@ Player cards offer Turkish and English PDF and Word profiles. Both formats use t
 
 The owner-approved free service has been created at https://metodo-crm.onrender.com; it is **not ready for login or business use** until database/OAuth/secrets and the health check are verified. Follow [the exact local and deployment steps](docs/DEPLOY_RENDER.md). The optional `render.yaml` describes a fresh free Docker service; do not create a duplicate of the existing service.
 
-A is merged; B stays draft until package11 acceptance. No real minor, medical or guardian production data before H. Google Sites embedding is scheduled for the verified pilot at package29 and final delivery54. See [the54-package ledger](SESSION_PLAN.md) and [current evidence](PROGRESS.md).
+A is merged; B stays draft until package11 acceptance. No real minor, medical or guardian production data before H. Google Sites embedding follows verified login/HTTPS; it does not block the earlier owner-only pilot. Baseline54 and extension66 remain gates; full managed-vault delivery also requires72. See [the72-package ledger](SESSION_PLAN.md) and [current evidence](PROGRESS.md).
 
 ## Google Sites embedding
 
@@ -78,7 +80,9 @@ No innovation-layer feature is claimed complete. The foundation provides auditab
 - Automated fetching, crawling or parsing of Transfermarkt or any other commercial site; TFF beyond owner-triggered, robots-allowed checks.
 - Legal advice, legal conclusions and automated market valuations.
 - Automated outbound WhatsApp, SMS, email to contacts, social posting or cold outreach.
-- Video storage (links with timestamps only); multi-user roles.
+- Multi-user roles and shared team login accounts.
 - Real player, club or person data in this repository.
 
 See [Türkçe kurulum](docs/KURULUM-TR.md), [feature matrix](docs/benchmark/feature-matrix.md) and [security threat model](docs/security/threat-model.md).
+
+Private managed documents/designs/full-match uploads are in scope under the owner's23Nov amendment, with safe Drive references retained. Their durable quota/resumable/version/processing/object-recovery controls remain unfinished; generic production uploads are not enabled by documentation. See [the managed-vault scope](docs/MEDIA_VAULT_SCOPE.md).

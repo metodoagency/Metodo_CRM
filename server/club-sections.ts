@@ -4,6 +4,7 @@ import { clubNoteInput, clubSectionParams, clubSectionQuery, type ClubSectionRow
 import { idParams } from '../shared/contracts.js';
 import { manualSourceUrl } from '../shared/club-sources.js';
 import { live, logEvent, requireEntity } from './core.js';
+import { currentMandate } from './sales.js';
 
 function httpUrl(value: string) {
   try {
@@ -47,8 +48,8 @@ export async function registerClubSections(app: FastifyInstance, db: PrismaClien
         const scopes: Record<typeof players, Prisma.PlayerWhereInput> = {
           squad: { currentClubId: id },
           suggested: { suggestions: { some: club } },
-          sales: { salesListings: { some: club } },
-          mandated: { mandateLinks: { some: club } },
+          sales: { salesListings: { some: { ...club, status: 'OPEN' } }, mandateLinks: { some: { ...currentMandate(), clubId: id } } },
+          mandated: { mandateLinks: { some: { ...currentMandate(), clubId: id } } },
         };
         rows = (await db.player.findMany({ ...paging, where: { ...live, ...scopes[players] }, orderBy: [{ name: 'asc' }, { id: 'asc' }], select: { ...named, primaryPosition: true } }))
           .map(row => ({ ...row, label: row.primaryPosition, href: `/record/Player/${row.id}` }));

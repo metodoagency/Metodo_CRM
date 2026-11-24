@@ -57,6 +57,9 @@ export const encryptedFields: Record<string, readonly string[]> = {
   Owner: ['email'], Session: ['email'], Person: ['birthDate', 'phone', 'email'],
   Agent: ['birthDate'], BirthdayGreeting: ['greetingNote'],
   Player: ['birthDate', 'phone', 'email', 'healthNotes', 'injuryNotes'], Guardian: ['phone', 'email'],
-  MedicalRecord: ['summary'], Contract: ['salaryAmount', 'bonuses'], Mandate: ['commissionTerms'], UserSettings: ['breachContact'],
+  MedicalRecord: ['summary'], Contract: ['salaryAmount', 'bonuses', 'privateDocumentLink', 'privateSourceEvidence'], Mandate: ['commissionTerms'], UserSettings: ['breachContact'],
   ProcessingConsent: ['processingPayload', 'processingResult'],
+  ExternalResource: ['externalUrl'],
+  SponsorshipOpportunity: ['privateNextAction'], OpportunityPlayer: ['privateNextAction'], SponsorshipStageEvent: ['privateReason'],
+  TimelineEvent: ['privateSourceEvidence'], AuditLog: ['privateSourceEvidence'],
 };

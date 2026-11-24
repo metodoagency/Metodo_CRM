@@ -7,4 +7,6 @@ export const loggerOptions = {
 };
 logRedactions.push('processingPayload', 'processingResult', '*.processingPayload', '*.processingResult');
 logRedactions.push('greetingNote', '*.greetingNote');
+logRedactions.push('privateNextAction', '*.privateNextAction', 'privateReason', '*.privateReason');
+logRedactions.push('externalUrl', '*.externalUrl', 'documentLink', '*.documentLink', 'privateDocumentLink', '*.privateDocumentLink', 'privateSourceEvidence', '*.privateSourceEvidence');
 export function createLogger(stream?: DestinationStream) { return stream ? pino({ ...loggerOptions, level: 'info' }, stream) : pino(loggerOptions); }

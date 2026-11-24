@@ -8,6 +8,56 @@ import { exercisePersonNetwork } from './person-network';
 import { istanbulToday } from '../../shared/domain';
 import pg from 'pg';
 
+test('owner manages a transfer request and reviews ranked players', { tag: '@club-workspace' }, async ({ page }) => {
+  await signIn(page);
+  const name = `Örnek E2E ŞİLE Talebi ${Date.now()}`;
+  await page.goto('/requests');
+  await page.getByRole('button', { name: 'Yeni kayıt', exact: true }).click();
+  const editor = page.getByRole('dialog');
+  await editor.getByRole('textbox', { name: 'Ad', exact: true }).fill(name);
+  await editor.getByRole('textbox', { name: 'Kulüp ara', exact: true }).fill('ornek sk a');
+  await editor.getByRole('textbox', { name: 'Kulüp ara', exact: true }).press('Enter');
+  await editor.getByRole('combobox', { name: 'Kulüp', exact: true }).selectOption({ label: 'Örnek SK A' });
+  const contact = editor.getByRole('combobox', { name: 'Talep eden kişi', exact: true });
+  await contact.selectOption({ label: 'Örnek Yetkili 1 2' });
+  await expect(contact.getByRole('option', { name: 'Örnek Yetkili 2 2', exact: true })).toHaveCount(0);
+  await editor.getByRole('combobox', { name: 'Pozisyon', exact: true }).selectOption('CM');
+  await editor.getByRole('spinbutton', { name: 'En düşük yaş' }).fill('20');
+  await editor.getByRole('spinbutton', { name: 'En yüksek yaş' }).fill('32');
+  await editor.getByRole('button', { name: 'Oluştur', exact: true }).click();
+  await expect(page.getByRole('heading', { name, exact: true })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Örnek Yetkili 1 2', exact: true })).toBeVisible();
+  await page.clock.install();
+  await page.getByRole('button', { name: 'Oyuncuları değerlendir', exact: true }).click();
+  const matches = page.getByRole('dialog', { name: 'Oyuncu eşleştirme' });
+  const playerSearch = matches.getByRole('textbox', { name: 'Oyuncu adına göre ara' });
+  await playerSearch.fill('ornek oyuncu 1');
+  await playerSearch.press('Enter');
+  await expect(matches.getByRole('link', { name: 'Örnek Oyuncu 1', exact: true })).toBeVisible();
+  await expect(matches.getByText(/Kapsam %/).first()).toBeVisible();
+  await matches.getByRole('combobox', { name: 'Sonuç sırası' }).selectOption('coverage');
+  await expect(matches.getByRole('link', { name: 'Örnek Oyuncu 1', exact: true })).toBeVisible();
+  await page.clock.fastForward(60001);
+  await expect(matches).toBeHidden();
+  await page.clock.resume();
+
+  await page.goto('/requests');
+  await page.getByRole('textbox', { name: 'Kayıt arama', exact: true }).fill('sile');
+  await page.getByRole('textbox', { name: 'Kayıt arama', exact: true }).press('Enter');
+  const open = page.getByRole('region', { name: 'Açık', exact: true });
+  await open.getByRole('combobox', { name: `Talep durumunu değiştir · ${name}`, exact: true }).selectOption('MATCHED');
+  await expect(page.getByRole('region', { name: 'Eşleştirildi', exact: true }).getByRole('link', { name, exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Liste', exact: true }).click();
+  await expect(page.getByRole('row').filter({ has: page.getByRole('link', { name, exact: true }) })).toContainText('Örnek SK A');
+  await page.getByRole('link', { name, exact: true }).click();
+  await page.getByRole('button', { name: 'Talebi düzenle', exact: true }).click();
+  await editor.getByRole('spinbutton', { name: 'En yüksek yaş' }).fill('35');
+  await editor.getByRole('button', { name: 'Kaydet', exact: true }).click();
+  await expect(editor).toBeHidden();
+  await expect(page.getByText('35', { exact: true })).toBeVisible();
+});
+
+
 for (const language of ['tr', 'en']) test(`privacy notice is shown on first login and acknowledged (${language})`, async ({ page }) => {
   const url = new URL(process.env.DATABASE_URL!);
   if (!['127.0.0.1', 'localhost'].includes(url.hostname) || url.pathname !== '/metodo_e2e') throw new Error('Unsafe E2E database');
@@ -55,7 +105,17 @@ test('table retention defaults to indefinite and purges only the confirmed recor
   try { await client.query('UPDATE "Club" SET "deletedAt" = $1, "version" = "version" + 1 WHERE "id" = $2', [new Date('2020-01-01'), id]); } finally { await client.end(); }
   await page.goto('/settings');
   await expect(page.getByLabel('Tablo', { exact: true })).toBeVisible();
-  await expect(page.getByLabel('Tablo', { exact: true }).locator('option')).toHaveCount(63);
+  await expect(page.getByLabel('Tablo', { exact: true }).locator('option')).toHaveCount(71);
+  await expect(page.getByLabel('Tablo', { exact: true }).locator('option[value="ExternalResource"]')).toHaveCount(1);
+  await expect(page.getByLabel('Tablo', { exact: true }).locator('option[value="ExternalResourceLink"]')).toHaveCount(1);
+  await expect(page.getByLabel('Tablo', { exact: true }).locator('option[value="TaskGenerationReceipt"]')).toHaveCount(0);
+  await expect(page.getByLabel('Tablo', { exact: true }).locator('option[value="Brand"]')).toHaveCount(1);
+  await expect(page.getByLabel('Tablo', { exact: true }).locator('option[value="BrandContact"]')).toHaveCount(1);
+  for (const type of ['Campaign', 'SponsorshipOpportunity', 'OpportunityPlayer', 'OpportunityContact']) await expect(page.getByLabel('Tablo', { exact: true }).locator(`option[value="${type}"]`)).toHaveCount(1);
+  await expect(page.getByLabel('Tablo', { exact: true }).locator('option[value="SponsorshipStageEvent"]')).toHaveCount(0);
+  const catalog = await (await page.request.get('/api/admin/retention')).json();
+  expect(catalog.tables).toContainEqual({ type: 'TaskGenerationReceipt', mode: 'protected' });
+  expect(catalog.tables).toContainEqual({ type: 'SponsorshipStageEvent', mode: 'protected' });
   await page.getByLabel('Tablo', { exact: true }).selectOption('WorkLog');
   await expect(page.getByLabel('Gün', { exact: true })).toHaveValue('');
   await page.getByLabel('Tablo', { exact: true }).selectOption('Club'); await page.getByLabel('Gün', { exact: true }).fill('1');
@@ -220,11 +280,36 @@ test('owner creates club and player, suggests a player and reads the shared time
   await expect(page.locator('html')).not.toHaveClass(/\bplayer-card-page\b/);
   await page.getByRole('link', { name: /Örnek Orta Saha Talebi/ }).click();
   await page.getByRole('button', { name: 'Oyuncu öner', exact: true }).click();
+  await page.getByRole('textbox', { name: 'Oyuncu ara', exact: true }).fill(playerName);
+  await page.getByRole('textbox', { name: 'Oyuncu ara', exact: true }).press('Enter');
   await page.getByLabel('Oyuncu', { exact: true }).selectOption({ label: playerName });
   await page.getByLabel('Transfer gerekçesi').fill('Örnek oyun profili uyumu');
+  await page.getByRole('combobox', { name: 'Sunum kanalı', exact: true }).selectOption('VIDEO');
+  await page.getByLabel('Takip tarihi', { exact: true }).fill('2098-11-19');
   await page.getByRole('button', { name: 'Kaydet', exact: true }).click();
   await expect(page.getByRole('dialog')).toHaveCount(0);
   await expect(page.getByText(/Örnek SK A kulübüne önerildi/).first()).toBeVisible();
+  const suggestion = page.getByRole('listitem').filter({ has: page.getByRole('link', { name: playerName, exact: true }) });
+  const recommendationDownload = page.waitForEvent('download');
+  await suggestion.getByRole('button', { name: 'Öneri PDF indir', exact: true }).click();
+  const recommendation = await recommendationDownload;
+  expect(recommendation.suggestedFilename()).toBe('metodo-recommendation-tr.pdf');
+  const recommendationStream = await recommendation.createReadStream();
+  const recommendationChunks = [];
+  for await (const chunk of recommendationStream) recommendationChunks.push(Buffer.from(chunk));
+  const pdf = new PDFParse({ data: new Uint8Array(Buffer.concat(recommendationChunks)) });
+  try {
+    const content = (await pdf.getText()).text;
+    expect(content).toContain('Transfer öneri dosyası');
+    expect(content).toContain(playerName);
+    expect(content).not.toContain('01.02.2000');
+  } finally { await pdf.destroy(); }
+  await suggestion.getByRole('button', { name: 'Özel dosyalar', exact: true }).click();
+  await suggestion.getByLabel('Dosya seç', { exact: true }).setInputFiles({
+    name: 'ornek-oneri.pdf', mimeType: 'application/pdf', buffer: Buffer.from('%PDF-1.7\n%%EOF\n'),
+  });
+  await suggestion.getByRole('button', { name: 'Dosyayı yükle', exact: true }).click();
+  await expect(suggestion.getByText('ornek-oneri.pdf', { exact: true })).toBeVisible();
   await page.getByRole('link', { name: 'Oyuncular', exact: true }).click();
   await page.getByPlaceholder('Kayıtlarda ara…').fill(playerName);
   await page.getByRole('link', { name: new RegExp(playerName) }).click();

@@ -1,0 +1,96 @@
+import { test, expect } from '@playwright/test';
+import AxeBuilder from '@axe-core/playwright';
+import { signIn } from './login';
+test.use({ actionTimeout: 10000 });
+
+for (const language of ['tr', 'en']) test(`meeting agenda and approved task creation preserve Istanbul fold choice (${language})`, async ({ page }) => {
+  test.setTimeout(120000); await signIn(page);
+  const headers = { origin: 'http://localhost:5173', 'x-csrf-token': (await (await page.request.get('/api/me')).json()).csrfToken };
+  const name = `Örnek Görüşme ${language} ${Date.now()}`; const taskName = name + ' Takip';
+  const person = await (await page.request.post('/api/people', { headers, data: { name: name + ' Kişi' } })).json();
+  if (language === 'en') await page.getByRole('button', { name: 'English', exact: true }).click();
+  await expect(page.locator('html')).toHaveAttribute('lang', language); const tr = language === 'tr';
+  await page.getByRole('link', { name: tr ? 'Ajanda' : 'Agenda', exact: true }).click();
+  await page.getByRole('button', { name: tr ? 'Görüşme ekle' : 'Add meeting', exact: true }).click();
+  let modal = page.getByRole('dialog');
+  await modal.getByLabel(tr ? 'Görüşme adı' : 'Meeting name', { exact: true }).fill(name);
+  await modal.getByLabel(tr ? 'Görüşme tarihi' : 'Meeting date', { exact: true }).fill('2015-03-29');
+  await modal.getByLabel(tr ? 'Başlangıç saati' : 'Start time', { exact: true }).fill('03:30');
+  await expect(modal.getByText(tr ? 'Bu saat İstanbul saat değişiminde yaşanmamıştır. Başka bir saat seçin.' : 'This time did not occur during the Istanbul clock change. Choose another time.', { exact: true })).toBeVisible();
+  await modal.getByLabel(tr ? 'Görüşme tarihi' : 'Meeting date', { exact: true }).fill('2015-11-08');
+  await modal.getByLabel(tr ? 'Tekrarlanan saatin hangi karşılığı?' : 'Which occurrence of the repeated hour?', { exact: true }).selectOption('7200');
+  await modal.getByLabel(tr ? 'Özel notlar' : 'Private notes', { exact: true }).fill('Örnek yalnız ayrıntıda özel not');
+  await modal.getByLabel(tr ? 'Bağlantı ara' : 'Search links', { exact: true }).fill(person.name);
+  await modal.getByLabel(tr ? 'Bağlanacak kayıt' : 'Record to link', { exact: true }).selectOption(person.id);
+  await modal.getByRole('button', { name: tr ? 'Seçilen kaydı ekle' : 'Add selected record', exact: true }).click();
+  const formAxe = await new AxeBuilder({ page }).include('[role="dialog"]').analyze(); expect(formAxe.violations.filter(issue => ['serious', 'critical'].includes(issue.impact ?? ''))).toEqual([]);
+  await modal.getByRole('button', { name: tr ? 'Kaydet' : 'Save', exact: true }).click();
+  await expect(page.getByRole('heading', { name, exact: true })).toBeVisible(); const id = new URL(page.url()).searchParams.get('meeting')!;
+  let panel = page.getByRole('region', { name: tr ? 'Görüşme ayrıntıları' : 'Meeting details', exact: true });
+  await expect(panel.getByRole('link', { name: person.name, exact: true })).toBeVisible();
+  expect((await (await page.request.get(`/api/meetings/${id}`)).json()).timing.selected.instant).toBe('2015-11-08T01:30:00.000Z');
+  const downloadEvent = page.waitForEvent('download'); await panel.getByRole('button', { name: tr ? 'Görüşmeyi takvime indir' : 'Download meeting calendar', exact: true }).click();
+  expect((await downloadEvent).suggestedFilename()).toMatch(/\.ics$/);
+  await page.getByLabel(tr ? 'Ajanda tarihi' : 'Agenda date', { exact: true }).fill('2015-11-08');
+  await page.getByRole('button', { name: tr ? 'Gün' : 'Day', exact: true }).click();
+  await expect(page.getByRole('link', { name: '03:30 · ' + name, exact: true })).toBeVisible();
+  await page.getByRole('button', { name: tr ? 'Ay' : 'Month', exact: true }).click();
+  await expect(page.getByRole('link', { name: '03:30 · ' + name, exact: true })).toBeVisible();
+  await panel.getByRole('button', { name: tr ? 'Görüşmeden görev oluştur' : 'Create task from meeting', exact: true }).click();
+  modal = page.getByRole('dialog'); await modal.getByLabel(tr ? 'Görev adı' : 'Task name', { exact: true }).fill(taskName);
+  await modal.getByRole('button', { name: tr ? 'Görevi önizle' : 'Preview task', exact: true }).click();
+  await expect(modal.getByText(taskName, { exact: true })).toBeVisible();
+  expect((await (await page.request.get('/api/tasks?' + new URLSearchParams({ q: taskName, status: 'all' }))).json()).total).toBe(0);
+  await modal.getByRole('button', { name: tr ? 'Onayla ve görevi oluştur' : 'Confirm and create task', exact: true }).click();
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await panel.getByRole('link', { name: tr ? 'Görev oluşturuldu' : 'Task created', exact: true }).click();
+  const taskPanel = page.getByRole('region', { name: tr ? 'Görev ayrıntıları' : 'Task details', exact: true });
+  await expect(taskPanel.getByRole('heading', { name: taskName, exact: true })).toBeVisible(); await taskPanel.getByRole('link', { name, exact: true }).click();
+  panel = page.getByRole('region', { name: tr ? 'Görüşme ayrıntıları' : 'Meeting details', exact: true });
+  const axe = await new AxeBuilder({ page }).analyze(); expect(axe.violations.filter(issue => ['serious', 'critical'].includes(issue.impact ?? ''))).toEqual([]);
+  await panel.getByRole('button', { name: tr ? 'Görüşmeyi sil' : 'Delete meeting', exact: true }).click();
+  const deletion = page.waitForResponse(response => response.url().endsWith(`/api/meetings/${id}`) && response.request().method() === 'DELETE');
+  await page.getByRole('dialog').getByRole('button', { name: tr ? 'Görüşmeyi sil' : 'Delete meeting', exact: true }).click();
+  expect((await deletion).status()).toBe(200);
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await expect(page).not.toHaveURL(new RegExp(`meeting=${id}`));
+  await expect(page.getByRole('region', { name: tr ? 'Görüşme ayrıntıları' : 'Meeting details', exact: true })).toHaveCount(0);
+  const trash = (await (await page.request.get('/api/trash')).json()).find((item: { entityId: string }) => item.entityId === id);
+  expect(trash).toBeDefined();
+  expect((await page.request.post(`/api/trash/${trash.id}/restore`, { headers, data: { version: trash.version, recordVersion: 3 } })).status()).toBe(200);
+  await page.goto(`/agenda?meeting=${id}`); await expect(page.getByRole('heading', { name, exact: true })).toBeVisible();
+});
+
+test('meeting editor preserves a dirty draft during refetch and rejects its stale opening version', async ({ page }) => {
+  test.setTimeout(90000); await signIn(page);
+  const headers = { origin: 'http://localhost:5173', 'x-csrf-token': (await (await page.request.get('/api/me')).json()).csrfToken };
+  const input = { date: '2026-11-19', time: '10:00', durationMin: 60, utcOffsetSeconds: null, participants: [], locationOrUrl: null, agenda: '', notes: '', outcome: null };
+  const row = await (await page.request.post('/api/meetings', { headers, data: { ...input, name: `Örnek Taslak Görüşme ${Date.now()}` } })).json();
+  await page.goto(`/agenda?meeting=${row.id}`); await page.getByRole('button', { name: 'Görüşmeyi düzenle', exact: true }).click();
+  const modal = page.getByRole('dialog'); const field = modal.getByLabel('Özel notlar', { exact: true }); await field.fill('Örnek Kaybolmayan Görüşme Taslağı');
+  expect((await page.request.patch(`/api/meetings/${row.id}`, { headers, data: { version: 1, changes: { agenda: 'Örnek dışarıdan değişen gündem' } } })).status()).toBe(200);
+  await page.clock.install(); await page.clock.fastForward(15001);
+  const refetch = page.waitForResponse(reply => reply.url().endsWith(`/api/meetings/${row.id}`) && reply.request().method() === 'GET');
+  await page.evaluate(() => window.dispatchEvent(new Event('visibilitychange'))); await refetch; await page.clock.fastForward(100);
+  await expect(field).toHaveValue('Örnek Kaybolmayan Görüşme Taslağı');
+  await modal.getByRole('button', { name: 'Kaydet', exact: true }).click();
+  await expect(modal.getByRole('alert')).toContainText('Kayıt veya önizleme değişmiş olabilir.'); await expect(field).toHaveValue('Örnek Kaybolmayan Görüşme Taslağı');
+  expect((await (await page.request.get(`/api/meetings/${row.id}`)).json()).notes).toBe('');
+});
+
+test('meeting editor keeps legacy duplicate references out of an unrelated sparse patch', async ({ page }) => {
+  test.setTimeout(60000); await signIn(page);
+  const headers = { origin: 'http://localhost:5173', 'x-csrf-token': (await (await page.request.get('/api/me')).json()).csrfToken };
+  const club = await (await page.request.post('/api/clubs', { headers, data: { name: `Örnek Eski Görüşme Kulübü ${Date.now()}` } })).json();
+  const row = await (await page.request.post('/api/meetings', { headers, data: { name: `Örnek Eski Görüşme ${Date.now()}`, date: '2026-11-19', time: '10:00', durationMin: 60, utcOffsetSeconds: null, participants: [{ type: 'Club', id: club.id }], locationOrUrl: null, agenda: '', notes: '', outcome: null } })).json();
+  // Simulate a legacy detail response while the API tests cover preservation of
+  // duplicate raw database JSON. This browser assertion checks the exact PATCH.
+  await page.route(`**/api/meetings/${row.id}`, async route => { if (route.request().method() !== 'GET') return route.continue(); const response = await route.fetch(); const data = await response.json(); await route.fulfill({ response, json: { ...data, legacyParticipants: true, participants: [...data.participants, ...data.participants] } }); });
+  await page.goto(`/agenda?meeting=${row.id}`); await page.getByRole('button', { name: 'Görüşmeyi düzenle', exact: true }).click();
+  const modal = page.getByRole('dialog'); await modal.getByLabel('Özel notlar', { exact: true }).fill('Örnek korunmuş bağlantılar');
+  const patch = page.waitForRequest(request => request.url().endsWith(`/api/meetings/${row.id}`) && request.method() === 'PATCH');
+  await modal.getByRole('button', { name: 'Kaydet', exact: true }).click();
+  expect((await patch).postDataJSON()).toEqual({ version: 1, changes: { notes: 'Örnek korunmuş bağlantılar' } });
+  await expect(modal).toHaveCount(0);
+  await page.unrouteAll({ behavior: 'wait' });
+});

@@ -1,8 +1,15 @@
 # Render Free + existing Supabase
 
+## Owner amendment 2026-11-23 — managed documents and full-match videos
+
+The complete owner instruction in docs/OWNER_EXTENSION_20261123.md and normative docs/MEDIA_VAULT_SCOPE.md are incorporated by reference. This later instruction explicitly replaces earlier Drive-only/no-video-upload requirements. Private managed documents, native designs, clips and full-match uploads are in scope alongside the working external Drive option. Do not remove the safe existing reference path or enable unvalidated generic production uploads. Use per-type validation, private durable storage, actual quota/reservation checks, resumable direct uploads, owner-controlled processing and verified file-object recovery. No unlimited-free-storage claim or paid activation. Preserve all01–66 clauses; append67–72 and milestone M for vault delivery. Earlier54/J and66/L are retained gates; expanded final acceptance also needs72/M. Current ledger10 DONE,7 IN_PROGRESS,55 NOT_STARTED of72; A–J10%, K/L/M0/3, independent private-pilot checklist. Documentation grants no feature acceptance. Commercial scraping/Gmail sending/automatic posting restrictions, human approval, sensitive protections and H real-minor/medical limits stay in force. Original contracts containing prohibited identifiers need local redaction or an explicit owner decision; do not silently store an unmodified copy. Keep signed originals immutable and redacted derivatives separate. Team access is not implicitly added: responsible Person records are not login accounts.
+
+
 Updated 2026-11-04. Accepted release progress remains10%. A is merged; B is a draft. This guide does not claim a completed production CRM.
 
 ## Current resources
+
+Owner amendment2026-11-20: docs/PRIVATE_PILOT_PLAN.md governs the early owner-only pilot. Initial private HTTPS does not wait for Sites/29. Business documents/designs/videos stay as encrypted Drive references; only optimized portraits/logos use private storage. Never enable general uploads to support that exception. Preserve legacy file reads. Verify encrypted recovery and temporary restore before real data. Standard SMTP is unavailable on Render Free; in-app digest plus optional configured local owner-only SMTP helper. Database backups cover references, not Drive contents or image bytes; back up small-image objects separately. All final29/54/66 Sites and security gates remain.
 
 - Service: `the existing free service`, agency account, Free $0/month, Frankfurt.
 - Assigned URL: https://metodo-crm.onrender.com . **Not ready:** first container build completed, but boot rejected missing production configuration. HTTPS health and real owner login are not yet verified.
@@ -12,6 +19,8 @@ Updated 2026-11-04. Accepted release progress remains10%. A is merged; B is a dr
 - Database checkpoint2026-11-04: both dedicated roles connect through the session pooler with verified TLS; seven migrations applied and all64 public tables have RLS. No production example seed. OAuth/Render secret configuration still pending, so the assigned URL is not a working release.
 
 ## Local commands
+
+Encrypted recovery export and a guarded local restore rehearsal use npm run backup:create and npm run backup:verify; see [commands and limits](PILOT_RECOVERY.md). Preserve keys separately and finish exact CI plus production custody/storage checks before real data. Live-app restore and managed video uploads remain separate work.
 
 Use the existing checkout. Install Node22.12+ or24 with npm. Copy `.env.example` to `.env` (`Copy-Item .env.example .env` in PowerShell), set the owner and local OAuth configuration there, then:
 
@@ -45,7 +54,7 @@ npm run test:e2e
 4. Set `NODE_ENV=production`, `E2E_TEST_MODE=false`, `HOST=0.0.0.0`, `APP_ORIGIN=https://metodo-crm.onrender.com`, `ALLOWED_EMAILS` to the single approved owner, and `GOOGLE_REDIRECT_URI=https://metodo-crm.onrender.com/auth/google/callback`.
 5. In Google Auth Platform create a Web client with that exact callback and `https://metodo-crm.onrender.com` origin. Request only `openid email`. Keep the audience/testing user list restricted to the owner; the API additionally enforces the email allowlist. Do not request Gmail scopes for login.
 6. Before enabling uploads (package05), configure the private Supabase persistent storage adapter and five-minute downloads. Render's disk is ephemeral; it must not store production user files. Optional AI/SMTP/provider features stay disabled.
-7. Deploy only a reviewed commit with successful exact-commit CI. Free has no pre-deploy command; run `npm run db:migrate` from a secured maintenance terminal with the production migration URL before the manual deployment. Never run the test suites or example seed with production URLs.
+7. Deploy only a reviewed commit with successful exact-commit CI. Free has no pre-deploy command; run `npm run db:migrate` from a secured maintenance terminal with the production migration URL before the manual deployment. Then run `npm run data:protect-contract-links` with the existing correct keyring to protect any legacy document/private source evidence, including Trash/history; see [the compatibility procedure](PRIVATE_CONTRACT_LINKS.md). Never run the test suites or example seed with production URLs.
 8. Verify `/healthz`200, real owner login, outsider403, `/auth/test`404, no-store private API, required CSP and absent X-Frame-Options. Verify production privacy acknowledgement before marking package02 complete.
 9. Package29 embeds the verified application into the existing Google Sites draft. Check top-level Google sign-in and iframe session refresh. Third-party-cookie blocking must retain the separate-tab fallback. Publish and record both real URLs only after verification.
 

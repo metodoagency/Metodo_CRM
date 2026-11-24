@@ -213,6 +213,8 @@ enum NotificationStatus {
 }
 
 model Owner {
+ externalResourceLinks ExternalResourceLink[]
+ externalResources ExternalResource[]
  birthdayGreetings BirthdayGreeting[]
  significantDates SignificantDate[]
  processingConsents ProcessingConsent[]
@@ -262,6 +264,14 @@ model Owner {
  presentationRecords Presentation[]
  meetingRecords Meeting[]
  taskRecords Task[]
+ taskGenerationReceipts TaskGenerationReceipt[]
+ brandRecords Brand[]
+ brandContacts BrandContact[]
+ campaigns Campaign[]
+ sponsorshipOpportunities SponsorshipOpportunity[]
+ opportunityPlayers OpportunityPlayer[]
+ opportunityContacts OpportunityContact[]
+ sponsorshipStageEvents SponsorshipStageEvent[]
  matchRecords Match[]
  scoutReportRecords ScoutReport[]
  eventRecords Event[]
@@ -412,6 +422,7 @@ model League {
 }
 
 model Club {
+ externalResourceLinks ExternalResourceLink[]
  @@index([ownerId, deletedAt, name, id])
  clubFinancialProfileLinks ClubFinancialProfile[]
  clubStakeholderLinks ClubStakeholder[]
@@ -491,6 +502,9 @@ model AgeTeam {
 }
 
 model Person {
+ opportunityContacts OpportunityContact[]
+ brandContacts BrandContact[]
+ externalResourceLinks ExternalResourceLink[]
  @@index([ownerId, deletedAt, name, id])
  mediaContactLinks MediaContact[]
  clubStakeholderLinks ClubStakeholder[]
@@ -539,6 +553,7 @@ model Person {
 }
 
 model Agent {
+ contractLinks Contract[]
  licenseRecordLinks LicenseRecord[]
  id String @id @default(uuid()) @db.Uuid
  ownerId String @default("owner")
@@ -569,6 +584,8 @@ model Agent {
 }
 
 model Player {
+ opportunityLinks OpportunityPlayer[]
+ externalResourceLinks ExternalResourceLink[]
  @@index([ownerId, deletedAt, status, name, id])
  @@index([ownerId, deletedAt, name, id])
  watchlistEntryLinks WatchlistEntry[]
@@ -658,6 +675,13 @@ model Player {
 }
 
 model Contract {
+ externalResourceLinks ExternalResourceLink[]
+ agentId String? @db.Uuid
+ agent Agent? @relation(fields: [agentId], references: [id], onDelete: Restrict)
+ sourceDate DateTime? @db.Date
+ methodNote String?
+ @@index([agentId])
+ @@index([ownerId, deletedAt, endDate, id])
  id String @id @default(uuid()) @db.Uuid
  ownerId String @default("owner")
  owner Owner @relation(fields: [ownerId], references: [id])
@@ -694,6 +718,8 @@ model Contract {
  noticeDeadline DateTime? @db.Date
  representation Json?
  documentLink String?
+ privateDocumentLink String?
+ privateSourceEvidence String?
  isActive Boolean @default(true)
  @@index([ownerId, deletedAt])
  @@index([ownerId])
@@ -745,6 +771,7 @@ model PerformanceRecord {
 }
 
 model Request {
+ externalResourceLinks ExternalResourceLink[]
  id String @id @default(uuid()) @db.Uuid
  ownerId String @default("owner")
  owner Owner @relation(fields: [ownerId], references: [id])
@@ -791,6 +818,7 @@ model Request {
 }
 
 model Suggestion {
+ externalResourceLinks ExternalResourceLink[]
  id String @id @default(uuid()) @db.Uuid
  ownerId String @default("owner")
  owner Owner @relation(fields: [ownerId], references: [id])
@@ -926,6 +954,7 @@ model Meeting {
  date DateTime @db.Date
  time String
  durationMin Int @default(60)
+ utcOffsetSeconds Int?
  locationOrUrl String?
  participants Json @default("[]")
  agenda String @default("")
@@ -934,6 +963,7 @@ model Meeting {
  @@index([ownerId, deletedAt])
  @@index([ownerId])
  @@index([ownerId, date])
+ @@index([ownerId, deletedAt, date, time, id])
 }
 
 model Task {
@@ -957,12 +987,247 @@ model Task {
  dueDate DateTime @db.Date
  status TaskStatus @default(OPEN)
  recurrence Recurrence @default(NONE)
+ generationKey String? @unique
+ recurrenceGenerated Boolean @default(false)
  entityType String?
  entityId String?
  @@index([ownerId, deletedAt])
  @@index([ownerId])
  @@index([entityId])
  @@index([ownerId, dueDate])
+ @@index([ownerId, deletedAt, status, dueDate, id])
+}
+
+// A consumed source occurrence survives ordinary Task purge. taskId is deliberately not a foreign key.
+model TaskGenerationReceipt {
+ id String @id @default(uuid()) @db.Uuid
+ ownerId String @default("owner")
+ owner Owner @relation(fields: [ownerId], references: [id])
+ isExample Boolean @default(false)
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+ version Int @default(1)
+ name String
+ ruleKey String
+ entityType String
+ entityId String @db.Uuid
+ targetDate DateTime @db.Date
+ taskId String @db.Uuid
+ sourceVersion Int
+ ruleVersion Int
+ @@unique([ownerId, ruleKey, entityType, entityId, targetDate], map: "TaskGenerationReceipt_occurrence_key")
+ @@index([ownerId, taskId])
+ @@index([entityId])
+}
+
+model Brand {
+ opportunities SponsorshipOpportunity[]
+ id String @id @default(uuid()) @db.Uuid
+ ownerId String @default("owner")
+ owner Owner @relation(fields: [ownerId], references: [id])
+ isExample Boolean @default(false)
+ deletedAt DateTime?
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+ createdBy String @default("owner")
+ updatedBy String @default("owner")
+ version Int @default(1)
+ fieldProvenance Json @default("{}")
+ sourceUrl String?
+ sourceType SourceType @default(MANUAL)
+ retrievedAt DateTime @default(now())
+ verificationStatus VerificationStatus @default(UNVERIFIED)
+ name String
+ searchName String
+ sector String @default("")
+ website String?
+ relationStatus RelationStatus @default(NEW)
+ contacts BrandContact[]
+ @@index([ownerId, deletedAt, name, id])
+}
+
+model BrandContact {
+ opportunityContacts OpportunityContact[]
+ id String @id @default(uuid()) @db.Uuid
+ ownerId String @default("owner")
+ owner Owner @relation(fields: [ownerId], references: [id])
+ isExample Boolean @default(false)
+ deletedAt DateTime?
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+ createdBy String @default("owner")
+ updatedBy String @default("owner")
+ version Int @default(1)
+ fieldProvenance Json @default("{}")
+ sourceUrl String?
+ sourceType SourceType @default(MANUAL)
+ retrievedAt DateTime @default(now())
+ verificationStatus VerificationStatus @default(UNVERIFIED)
+ name String
+ brandId String @db.Uuid
+ brand Brand @relation(fields: [brandId], references: [id], onDelete: Restrict)
+ personId String @db.Uuid
+ person Person @relation(fields: [personId], references: [id], onDelete: Restrict)
+ roleTitle String @default("")
+ startDate DateTime? @db.Date
+ endDate DateTime? @db.Date
+ @@unique([ownerId, brandId, personId])
+ @@index([ownerId, deletedAt, brandId, id])
+ @@index([personId])
+}
+
+model Campaign {
+ id String @id @default(uuid()) @db.Uuid
+ ownerId String @default("owner")
+ owner Owner @relation(fields: [ownerId], references: [id])
+ isExample Boolean @default(false)
+ deletedAt DateTime?
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+ createdBy String @default("owner")
+ updatedBy String @default("owner")
+ version Int @default(1)
+ fieldProvenance Json @default("{}")
+ sourceUrl String?
+ sourceType SourceType @default(MANUAL)
+ retrievedAt DateTime @default(now())
+ verificationStatus VerificationStatus @default(UNVERIFIED)
+ name String
+ searchName String
+ startDate DateTime? @db.Date
+ endDate DateTime? @db.Date
+ opportunities SponsorshipOpportunity[]
+ @@index([ownerId, deletedAt, name, id])
+}
+
+model SponsorshipOpportunity {
+ id String @id @default(uuid()) @db.Uuid
+ ownerId String @default("owner")
+ owner Owner @relation(fields: [ownerId], references: [id])
+ isExample Boolean @default(false)
+ deletedAt DateTime?
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+ createdBy String @default("owner")
+ updatedBy String @default("owner")
+ version Int @default(1)
+ fieldProvenance Json @default("{}")
+ sourceUrl String?
+ sourceType SourceType @default(MANUAL)
+ retrievedAt DateTime @default(now())
+ verificationStatus VerificationStatus @default(UNVERIFIED)
+ name String
+ searchName String
+ brandId String @db.Uuid
+ brand Brand @relation(fields: [brandId], references: [id], onDelete: Restrict)
+ campaignId String? @db.Uuid
+ campaign Campaign? @relation(fields: [campaignId], references: [id], onDelete: Restrict)
+ stage String @default("RESEARCH")
+ responsibilityMode String @default("OWNER")
+ privateNextAction String?
+ nextActionDate DateTime? @db.Date
+ lastContactDate DateTime? @db.Date
+ players OpportunityPlayer[]
+ contacts OpportunityContact[]
+ events SponsorshipStageEvent[]
+ @@index([ownerId, deletedAt, stage, id])
+ @@index([brandId])
+ @@index([campaignId])
+}
+
+model OpportunityPlayer {
+ id String @id @default(uuid()) @db.Uuid
+ ownerId String @default("owner")
+ owner Owner @relation(fields: [ownerId], references: [id])
+ isExample Boolean @default(false)
+ deletedAt DateTime?
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+ createdBy String @default("owner")
+ updatedBy String @default("owner")
+ version Int @default(1)
+ fieldProvenance Json @default("{}")
+ sourceUrl String?
+ sourceType SourceType @default(MANUAL)
+ retrievedAt DateTime @default(now())
+ verificationStatus VerificationStatus @default(UNVERIFIED)
+ name String
+ opportunityId String @db.Uuid
+ opportunity SponsorshipOpportunity @relation(fields: [opportunityId], references: [id], onDelete: Restrict)
+ playerId String @db.Uuid
+ player Player @relation(fields: [playerId], references: [id], onDelete: Restrict)
+ stage String @default("RESEARCH")
+ outcome String @default("PENDING")
+ privateNextAction String?
+ nextActionDate DateTime? @db.Date
+ contacts OpportunityContact[]
+ @@unique([ownerId, opportunityId, playerId])
+ @@index([ownerId, deletedAt, opportunityId, id])
+ @@index([playerId])
+}
+
+model OpportunityContact {
+ id String @id @default(uuid()) @db.Uuid
+ ownerId String @default("owner")
+ owner Owner @relation(fields: [ownerId], references: [id])
+ isExample Boolean @default(false)
+ deletedAt DateTime?
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+ createdBy String @default("owner")
+ updatedBy String @default("owner")
+ version Int @default(1)
+ fieldProvenance Json @default("{}")
+ sourceUrl String?
+ sourceType SourceType @default(MANUAL)
+ retrievedAt DateTime @default(now())
+ verificationStatus VerificationStatus @default(UNVERIFIED)
+ name String
+ opportunityId String @db.Uuid
+ opportunity SponsorshipOpportunity @relation(fields: [opportunityId], references: [id], onDelete: Restrict)
+ participantId String? @db.Uuid
+ participant OpportunityPlayer? @relation(fields: [participantId], references: [id], onDelete: Restrict)
+ brandContactId String? @db.Uuid
+ brandContact BrandContact? @relation(fields: [brandContactId], references: [id], onDelete: Restrict)
+ personId String? @db.Uuid
+ person Person? @relation(fields: [personId], references: [id], onDelete: Restrict)
+ role String
+ @@index([ownerId, deletedAt, opportunityId, id])
+ @@index([participantId])
+ @@index([brandContactId])
+ @@index([personId])
+}
+
+// Semantic history is append-only in the application; ciphertext maintenance can rotate keys/version.
+model SponsorshipStageEvent {
+ id String @id @default(uuid()) @db.Uuid
+ ownerId String @default("owner")
+ owner Owner @relation(fields: [ownerId], references: [id])
+ isExample Boolean @default(false)
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+ createdBy String @default("owner")
+ updatedBy String @default("owner")
+ version Int @default(1)
+ fieldProvenance Json @default("{}")
+ sourceUrl String?
+ sourceType SourceType @default(MANUAL)
+ retrievedAt DateTime @default(now())
+ verificationStatus VerificationStatus @default(UNVERIFIED)
+ name String
+ opportunityId String @db.Uuid
+ opportunity SponsorshipOpportunity @relation(fields: [opportunityId], references: [id], onDelete: Restrict)
+ entityType String
+ entityId String @db.Uuid
+ kind String
+ oldStage String?
+ newStage String?
+ oldOutcome String?
+ newOutcome String?
+ privateReason String?
+ batchId String @db.Uuid
+ @@index([ownerId, opportunityId, createdAt, id])
+ @@index([entityId])
 }
 
 model Match {
@@ -1374,6 +1639,7 @@ model TimelineEvent {
  @@index([ownerId])
  @@index([entityId])
  @@index([batchId])
+ privateSourceEvidence String?
 }
 
 model Notification {
@@ -1450,6 +1716,79 @@ model SignificantDate {
  name String
  date DateTime @db.Date
  @@index([ownerId, deletedAt, date, id])
+}
+
+model ExternalResource {
+ id String @id @default(uuid()) @db.Uuid
+ ownerId String @default("owner")
+ owner Owner @relation(fields: [ownerId], references: [id])
+ isExample Boolean @default(false)
+ deletedAt DateTime?
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+ createdBy String @default("owner")
+ updatedBy String @default("owner")
+ version Int @default(1)
+ fieldProvenance Json @default("{}")
+ sourceUrl String?
+ sourceType SourceType @default(MANUAL)
+ retrievedAt DateTime @default(now())
+ verificationStatus VerificationStatus @default(UNVERIFIED)
+ name String
+ searchName String
+ kind String
+ externalUrl String
+ links ExternalResourceLink[]
+ @@index([ownerId, deletedAt])
+ @@index([ownerId])
+ @@index([ownerId, deletedAt, createdAt, id])
+}
+
+model ExternalResourceLink {
+ id String @id @default(uuid()) @db.Uuid
+ ownerId String @default("owner")
+ owner Owner @relation(fields: [ownerId], references: [id])
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+ deletedAt DateTime?
+ createdBy String @default("owner")
+ updatedBy String @default("owner")
+ version Int @default(1)
+ isExample Boolean @default(false)
+ fieldProvenance Json @default("{}")
+ sourceUrl String?
+ sourceType SourceType @default(MANUAL)
+ retrievedAt DateTime @default(now())
+ verificationStatus VerificationStatus @default(UNVERIFIED)
+ name String
+ resourceId String @db.Uuid
+ resource ExternalResource @relation(fields: [resourceId], references: [id])
+ clubId String? @db.Uuid
+ club Club? @relation(fields: [clubId], references: [id], onDelete: Restrict)
+ playerId String? @db.Uuid
+ player Player? @relation(fields: [playerId], references: [id], onDelete: Restrict)
+ personId String? @db.Uuid
+ person Person? @relation(fields: [personId], references: [id], onDelete: Restrict)
+ requestId String? @db.Uuid
+ request Request? @relation(fields: [requestId], references: [id], onDelete: Restrict)
+ suggestionId String? @db.Uuid
+ suggestion Suggestion? @relation(fields: [suggestionId], references: [id], onDelete: Restrict)
+ contractId String? @db.Uuid
+ contract Contract? @relation(fields: [contractId], references: [id], onDelete: Restrict)
+ @@unique([resourceId, clubId])
+ @@unique([resourceId, playerId])
+ @@unique([resourceId, personId])
+ @@unique([resourceId, requestId])
+ @@unique([resourceId, suggestionId])
+ @@unique([resourceId, contractId])
+ @@index([ownerId, deletedAt])
+ @@index([ownerId])
+ @@index([clubId])
+ @@index([playerId])
+ @@index([personId])
+ @@index([requestId])
+ @@index([suggestionId])
+ @@index([contractId])
 }
 
 model Attachment {
@@ -1596,6 +1935,9 @@ model UserSettings {
  aiEnabled Boolean @default(false)
  aiConsent Boolean @default(false)
  emailDigestEnabled Boolean @default(false)
+ presentationFollowUpTasksEnabled Boolean @default(false)
+ presentationTaskRuleVersion Int @default(1)
+ presentationTaskRuleSince DateTime?
  @@unique([ownerId])
  @@index([ownerId, deletedAt])
  @@index([ownerId])
@@ -1625,6 +1967,7 @@ model AuditLog {
  @@index([ownerId, deletedAt])
  @@index([ownerId])
  @@index([entityId])
+ privateSourceEvidence String?
 }
 
 model TrashEntry {

@@ -4,10 +4,11 @@ import { acknowledgePrivacy, incidentContactInput, privacyNoticeVersion } from '
 import { AppError, live, logEvent } from './core.js';
 import { decrypt, encrypt } from './crypto.js';
 import { tr, en } from '../shared/locales.js';
+import { ensureUserSettings } from './user-settings.js';
 
 export async function registerPrivacy(app: FastifyInstance, db: PrismaClient) {
   app.get('/api/privacy', async () => {
-    const row = await db.userSettings.upsert({ where: { ownerId: 'owner' }, create: { ownerId: 'owner' }, update: {} });
+    const row = await ensureUserSettings(db);
     return { noticeVersion: privacyNoticeVersion, acceptedVersion: row.privacyNoticeVersion, acknowledgedAt: row.privacyAcknowledgedAt, acknowledgementRequired: row.privacyNoticeVersion !== privacyNoticeVersion || !row.privacyAcknowledgedAt, version: row.version, contactConfigured: !!row.breachContact };
   });
   app.post('/api/privacy/acknowledge', async req => {

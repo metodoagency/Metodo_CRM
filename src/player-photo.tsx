@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef, type FormEvent } from 'react';
 import { UserRound } from 'lucide-react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
@@ -48,7 +48,7 @@ function PhotoForm({ row, photoId, onClose }: { row: RecordRow; photoId: string 
   const client = useQueryClient();
   const [initial] = useState({ version: row.version, photoId, sourceUrl: row.photoSourceUrl, rightsNote: row.photoRightsNote });
   const [selected, setSelected] = useState(initial.photoId ?? '');
-  const query = useQuery({ queryKey: ['files', 'Player', row.id], queryFn: () => api<{ items: AttachmentInfo[]; uploadAvailable: boolean }>(`/api/records/Player/${row.id}/files`) });
+  const query = useQuery({ queryKey: ['files', 'Player', row.id], queryFn: () => api<{ items: AttachmentInfo[]; uploadAvailable: boolean; portraitUploadAvailable: boolean }>(`/api/records/Player/${row.id}/files`) });
   const images = query.data?.items.filter(file => playerImageMimes.some(mime => file.mimeType === mime)) ?? [];
   const mutation = useMutation({
     mutationFn: (form?: FormData) => {
@@ -65,9 +65,10 @@ function PhotoForm({ row, photoId, onClose }: { row: RecordRow; photoId: string 
     <p className="muted mb-4">{t('photoUploadHint')}</p>
     {query.isError && <ErrorMessage />}
     {query.isPending && <p role="status">{t('loading')}</p>}
+    {query.data?.portraitUploadAvailable && <PortraitUpload playerId={row.id} onUploaded={id => { setSelected(id); void client.invalidateQueries({ queryKey: ['files', 'Player', row.id] }); }} />}
     <form onSubmit={event => { event.preventDefault(); mutation.mutate(new FormData(event.currentTarget)); }}>
       {!!images.length && <>
-        <label className="field">{t('photoAttachment')}<select name="attachmentId" required value={selected} onChange={event => setSelected(event.currentTarget.value)}>
+        <label className="field">{t('photoAttachment')}<select name="attachmentId" aria-label={t('photoAttachment')} required value={selected} onChange={event => setSelected(event.currentTarget.value)}>
           <option value="">{t('empty')}</option>
           {images.map(file => <option key={file.id} value={file.id}>{file.name}</option>)}
         </select></label>
@@ -83,4 +84,16 @@ function PhotoForm({ row, photoId, onClose }: { row: RecordRow; photoId: string 
       </div>
     </form>
   </Modal>;
+}
+
+function PortraitUpload({ playerId, onUploaded }: { playerId: string; onUploaded: (id: string) => void }) {
+  const { t } = useTranslation(); const [busy, setBusy] = useState(false); const [failed, setFailed] = useState(false); const abort = useRef<AbortController>();
+  useEffect(() => () => abort.current?.abort(), []);
+  async function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault(); const form = event.currentTarget; const data = new FormData(form); const controller = new AbortController(); abort.current = controller; setBusy(true); setFailed(false);
+    try { const file = await api<AttachmentInfo>(`/api/players/${playerId}/photo-files`, { method: 'POST', body: data, signal: controller.signal }); if (!controller.signal.aborted) { onUploaded(file.id); form.reset(); } }
+    catch { if (!controller.signal.aborted) setFailed(true); } finally { if (!controller.signal.aborted) setBusy(false); }
+  }
+  return <form onSubmit={event => { void submit(event); }} className="mb-5"><label className="field">{t('photoUploadFile')}<input name="file" type="file" accept="image/jpeg,image/png,image/webp" required /></label>
+    <button className="secondary" disabled={busy}>{t('photoUploadImage')}</button>{failed && <ErrorMessage />}</form>;
 }

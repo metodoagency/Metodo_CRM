@@ -5,6 +5,7 @@ import { api, body } from './api';
 import { Modal, Empty, ErrorMessage } from './components';
 import type { AttachmentInfo, ProcessingAdapterInfo, ProcessingPreview } from '../shared/files';
 import type { RecordType } from './types';
+import { ResourceWorkspace } from './external-resources';
 
 function FileItem({ file }: { file: AttachmentInfo }) {
   const { t } = useTranslation(); const [url, setUrl] = useState<string>(); const timer = useRef<ReturnType<typeof setTimeout>>();
@@ -27,17 +28,17 @@ export function FileMaintenance() {
     <button className="secondary mt-3" disabled={!status.data?.cleanupAvailable || !status.data.pending || cleanup.isPending} onClick={() => cleanup.mutate()}>{t('fileCleanupRetry')}</button>
     {(status.isError || cleanup.isError) && <ErrorMessage />}</section>;
 }
-export function AttachmentPanel({ type, id }: { type: RecordType; id: string }) {
+export function AttachmentPanel({ type, id }: { type: RecordType | 'Suggestion' | 'Contract'; id: string }) {
   const { t } = useTranslation(); const client = useQueryClient(); const form = useRef<HTMLFormElement>(null);
-  const query = useQuery({ queryKey: ['files', type, id], queryFn: () => api<{ items: AttachmentInfo[]; uploadAvailable: boolean }>(`/api/records/${type}/${id}/files`) });
+  const query = useQuery({ queryKey: ['files', type, id], queryFn: () => api<{ items: AttachmentInfo[]; uploadAvailable: boolean; mode: 'drive' | 'upload' }>(`/api/records/${type}/${id}/files`) });
   const upload = useMutation({ mutationFn: (data: FormData) => api(`/api/records/${type}/${id}/files`, { method: 'POST', body: data }), onSuccess: () => { form.current?.reset(); void client.invalidateQueries(); } });
   function submit(event: FormEvent<HTMLFormElement>) { event.preventDefault(); upload.mutate(new FormData(event.currentTarget)); }
-  return <section className="panel mt-5"><div className="panel-header"><h2>{t('filesTitle')}</h2></div><div className="panel-body">
+  return <><ResourceWorkspace key={`${type}:${id}`} parent={{ type, id }} /><section className="panel mt-5"><div className="panel-header"><h2>{t('resourceLegacyFiles')}</h2></div><div className="panel-body">
     <p className="notice mb-4">{t('filePolicy')}</p>{query.isError && <ErrorMessage />}
-    {query.data?.uploadAvailable ? <form ref={form} onSubmit={submit}><label className="field">{t('fileSelect')}<input name="file" type="file" required accept="application/pdf,image/jpeg,image/png,image/webp" /></label><button className="primary" disabled={upload.isPending}>{t('fileUpload')}</button></form> : <p className="notice">{t('fileStorageMissing')}</p>}
+    {query.data?.uploadAvailable ? <form ref={form} onSubmit={submit}><label className="field">{t('fileSelect')}<input name="file" type="file" required accept="application/pdf,image/jpeg,image/png,image/webp" /></label><button className="primary" disabled={upload.isPending}>{t('fileUpload')}</button></form> : <p className="notice">{t(query.data?.mode === 'drive' ? 'resourceExternalOnly' : 'fileStorageMissing')}</p>}
     {upload.isError && <ErrorMessage />}{query.data?.items.length ? query.data.items.map(file => <FileItem key={file.id} file={file} />) : <Empty />}
     <p className="muted text-xs mt-4">{t('fileExpires')}</p>
-  </div></section>;
+  </div></section></>;
 }
 function ProcessingDialog({ file, onClose }: { file: AttachmentInfo; onClose: () => void }) {
   const { t } = useTranslation(); const [preview, setPreview] = useState<ProcessingPreview>(); const [confirmed, setConfirmed] = useState(false);

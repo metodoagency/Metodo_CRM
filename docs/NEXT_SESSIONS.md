@@ -1,0 +1,83 @@
+# Metodo CRM — sonraki oturumlar
+
+## Owner amendment 2026-11-23 — managed documents and full-match videos
+
+The complete owner instruction in docs/OWNER_EXTENSION_20261123.md and normative docs/MEDIA_VAULT_SCOPE.md are incorporated by reference. This later instruction explicitly replaces earlier Drive-only/no-video-upload requirements. Private managed documents, native designs, clips and full-match uploads are in scope alongside the working external Drive option. Do not remove the safe existing reference path or enable unvalidated generic production uploads. Use per-type validation, private durable storage, actual quota/reservation checks, resumable direct uploads, owner-controlled processing and verified file-object recovery. No unlimited-free-storage claim or paid activation. Preserve all01–66 clauses; append67–72 and milestone M for vault delivery. Earlier54/J and66/L are retained gates; expanded final acceptance also needs72/M. Current ledger10 DONE,8 IN_PROGRESS,54 NOT_STARTED of72; A–J10%, K/L/M0/3, independent private-pilot checklist. Documentation grants no feature acceptance. Commercial scraping/Gmail sending/automatic posting restrictions, human approval, sensitive protections and H real-minor/medical limits stay in force. Original contracts containing prohibited identifiers need local redaction or an explicit owner decision; do not silently store an unmodified copy. Keep signed originals immutable and redacted derivatives separate. Team access is not implicitly added: responsible Person records are not login accounts.
+
+
+## Güncel yürütme sırası —2026-11-20
+
+Sahibin onayladığı [birleştirilmiş özel pilot planı](PRIVATE_PILOT_PLAN.md) önce gelir. Mevcut66 kabul paketi ve tüm kapsam korunur. Dokuz Drive başlangıç dosyası hash'li yerel kontrol noktasında korundu. Meeting DELETE/Trash senkronizasyonu ayrı8c2cde1 commit'inde düzeltildi;4 yerel tarayıcı senaryosu geçti, kesin16/17 CI doğrulaması bekleniyor. Önce bu kanıtı kapat; premium gerçek ekran temeli, bağımsız çoklu bağlantılı Drive kütüphanesi, özel profil/logo görselleri ve erken yedek/özel HTTPS adımlarına ilerle. Aşağıdaki eski paket sırası tarihsel kabul kimliklerini korur; yeni öncelik/Drive kurallarıyla çelişen ifadeler PRIVATE_PILOT_PLAN.md ile değiştirilmiştir. Özel pilot,29/F veya54/66 nihai kabul değildir.
+
+20.11.2026. İlk54 oturum numarası [onaylanan planla](../SESSION_PLAN.md) aynıdır; sponsorluk ve medya genişlemesi55–66 olarak eklendi. Oturum bir iş paketidir; tek mesaj veya belirli gün sayısı değildir. Tamamlanan paketler yeniden kurulmaz. Kabul durumu ve test kanıtları [PROGRESS.md](../PROGRESS.md) ve [kabul matrisinde](acceptance-matrix.md) tutulur.
+
+## Açık erken paketler
+
+| Paket | Kalan somut iş |
+|---|---|
+| 02 | Mevcut Cloud projesinin sahibi hesapla onaylanmış OAuth istemcisini oluştur; sırları Render'a kaydet; gerçek sahip girişi, HTTPS sağlık ve yetkisiz erişimi doğrula. Eski projeID’si her iki açık hesapta erişim reddediyor; erişim düzeltmesinden sonra açılan doğru proje bağlantısı bekleniyor. |
+| 05 | Mevcut güvenli dosya akışını üretimde özel Supabase depolaması, kısa süreli indirme ve silme kuyruğuyla doğrula. |
+| 08 | Personel CSV akışını koru; temsili anonim TFF personel sayfası veya sahibin başlattığı kesin sayfa kontrolüyle robots izinli kontrolü tamamla. Zamanlanmış veya ticari site isteği ekleme. |
+| 11 | M14/M15 tamam. Kalan M4 ve B güvenlik/CI kapısı doğrulandıktan sonra B kabulünü kapat. |
+
+Bu erişim işleri, bağımsız CRM geliştirmelerini durdurmaz. Paket 13, eşzamanlı satış düzeltmesi dahil, 8edb823 için PostgreSQL 16/17 CI geçtikten sonra tamamlandı. Paket 14 de 5c516b4 için PostgreSQL 16/17 CI geçtikten sonra tamamlandı. 24.11.2026 güncel kabul:10/72 paket tamam,8 devam ediyor,54 başlamadı. İlk54 ve55–66 korunur; kasa67–72 ilavedir. A–J%10; K/L/M0/3. Özel pilot5/16 kabul edildi; marka/kişi/oyuncu/aşama/sonraki aksiyon pilot10,22d3cf2 tam16/17 CI45447495851 ile doğrulandı. Kampanya düzenleme/Kanban bağımsız takip dilimi; sosyal hesap ve typed Task/dosya kapsamı55 içinde açık. Bu bağımsız dilimin kesin16/17 CI45452199860 sonucu d33ea2f için geçti; sonraki iş typed görev/kaynak bağlantılarıdır.
+
+## Geliştirme sırası
+
+| Oturum | Yapılacak iş | Bitişte kullanılabilen davranış |
+|---|---|---|
+| 15 (devam ediyor) | Bildirim/görev/toplantı/ICS doğrulandı. Sırada sözleşme ve korumalı doğum günü katmanları, dashboard düzeni ve kalan otomatik görev adaptörleri var. | Birleşik tarihli işler ve dashboard; ilgili güvenlik/CI kapıları sonrası C kabulü. |
+| 16 | TFF fikstürü ve CSV | Yalnız sahip tetiklemesi + robots izni; hata halinde doğrulanmış CSV. |
+| 17 | GPS ve performans CSV | Kolon eşleme/önizleme, satır hataları, tekrar kontrolü ve testli metrikler. |
+| 18 | Galeri, klip ve transfer CV | Hak notlu görseller, zaman damgalı klipler, TR/EN PDF/DOCX; D kabulü. |
+| 19 | Menajer ağı | Gerçek ilişki/koordinatlarla harita, ortak oyuncular ve çift yönlü gezinme. |
+| 20 | Araç ve dış kaynak takibi | Abonelik, yenileme, karar, teslim tarihi ve bağlı kayıtlar. |
+| 21 | Operasyon muhasebesi ve Work Log | Decimal para hesapları ve günlük/haftalık/aylık çalışma raporları. |
+| 22 | Etkinlik ve konuşmacı süreçleri | Tarihli pipeline, program, görev, masraf ve hatırlatmalar. |
+| 23 | Scout raporları | Kaynaklı değerlendirme ve serbest isimden onayla oyuncu kaydına bağlama. |
+| 24 | Sorgu asistanı | Kaynak kayda bağlı sonuçlar, bulunmayan bilgide açık yanıt, onaysız dış çağrı engeli; E kabulü. |
+| 25 | Yönetim, genel CSV ve yedek | Şifreli hassas yedek, manifest, önizlemeli geri yükleme ve mevcut hassas değerleri koruma. |
+| 26 | İlişki sıcaklığı ve toplantı özeti | Görünür skor/gerekçe, sonraki iş ve timeline'dan şablonlu toplantı özeti; G13. |
+| 27 | Haftalık özet, vCard ve PWA | İş verisini çevrimdışı saklamayan mobil hızlı kayıt; başarısız form metnini koruma; G14. |
+| 28 | Çekirdek kalite | Mobil/klavye/global arama, TR/EN axe ve 10.000 örnek oyuncuda p95 hedefi. |
+| 29 | Çekirdek pilot yayını | Gerçek HTTPS/OIDC, Sites iframe ve çerez engeli fallback'i; F kabulü. H öncesi gerçek sağlık/veli/reşit olmayan verisi yok. |
+| 30 | Gmail salt okunur köprü | Codex'te seçilen mesajdan kural/alıntı/Message-ID içeren tekil öneri; gönderim yok. |
+| 31 | Yerel sözleşme okuyucu | PDF'den kaynak alıntılı alan adayları; her alan ayrı onaylanmadan kanonik kayıt değişmez. |
+| 32 | Müzakere ve transfer kontrol listesi | Sıralı teklif/karşı teklif, taraf/tarih/durum, sahip tanımlı adımlar. |
+| 33 | Senaryo maliyet hesabı | Maaş/bonus/bonservis birleşimlerinin açık formüllerle toplam maliyeti; değerleme yok. |
+| 34 | Yerel ses notu | Sahip diktesi, yerel transkripsiyon, kaydetmeden metin onayı. |
+| 35 | Eksik veri, komut çubuğu ve giriş özeti | Boş alan listesi, kesin değişiklik önizlemesi/onayı, bekleyen onay ve yaklaşan işler. |
+| 36 | Aylık yedek doğrulaması | Geçici PostgreSQL'e dönüş, sayı/checksum karşılaştırması ve kaçırılan çalışmanın kaydı. |
+| 37 | Scout ısı haritası | Gerçek raporlardan lig/pozisyon/puan bandı sayıları. |
+| 38 | Kişi birleştirme | Yan yana alan seçimi, ilişki koruma ve maskeli timeline; tüm G kanıtları ve G kabulü. |
+| 39 | Reşit olmayanlar ve veli | Şifreli alanlar, sahip onaylı 18 yaş geçişi ve veli kaydını koruma. |
+| 40 | Sağlık ve görsel hakları | Hassas erişim kayıtları, hak notlu paylaşım ve veri dışlama; H kabulü. |
+| 41 | Anlaşma ve yetki pipeline'ı | Kapanış nedenleri, para birimine göre olasılık ağırlıklı tahmin. |
+| 42 | Komisyon, taksit ve alacak | %100 bölüşüm, doğru taksit toplamı, KDV/yuvarlama ve yaşlandırma. |
+| 43 | Transfer süreci | Sıralı adımlar, gerekli belge veya gerekçeli istisna ve engellenen iş widget'ı. |
+| 44 | Transfer dönemleri ve kulüp finansı | Kaynaklı dönem/lisans, manuel finans profili, isteğe bağlı sahip tıklamalı TCMB; I kabulü. |
+| 45 | Uyuşmazlık ve taşınma | Nötr kayıt/checklist, son tarih, kapanış nedeni ve korunan okul verisi. |
+| 46 | Şablon ve basın merkezi | Tipli yer tutucular, eksik alanda çıktı engeli ve sahip onaylı manuel yayın. |
+| 47 | Kulüp paydaşları ve performans merkezi | Mevcut kişiler, izinli lisanslı dosya içe aktarma ve per-90; canlı sağlayıcı yok. |
+| 48 | Oyuncu karşılaştırma ve kısa liste | Eksik veri normalizasyonu, dakika eşiği ve deterministik benzerlik. |
+| 49 | Scout görev/masraf ve iletişim günlüğü | Görevden rapora geçiş, masraf onayı, kapsama sayıları; dış mesaj gönderimi yok. |
+| 50 | KPI ve portföy sağlığı | Görünür metrik tanımları, testli hesaplar ve kaynak kayıt bağlantısı. |
+| 51 | İç oyuncu endeksi ve emsal defteri | Faktör/ağırlık/örneklem, medyan/IQR ve küçük örneklem uyarısı; piyasa değeri iddiası yok. |
+| 52 | Güvenli paylaşım | En çok30 gün, iptal/sona ermede410, hash parola, hassas/PRIVATE içerik dışlama. |
+| 53 | Bütünleşik kabul ve kurtarma | Güvenlik/yük/yedekten dönüş/rollback provası; gerçek veriyi silmeden tüm gereksinim kanıtları. |
+| 54 | Son yayın ve teslim | Doğrulanmış uygulama/Sites URL'leri, kullanım ve bakım kılavuzu, yerel komutlar; J ve nihai kabul. |
+
+## Codex çalışma düzeni
+
+Mevcut projede aynı checkout ile devam edin. Tek kod yazan çalışma korunur; alt ajanlar bağımsız salt okunur incelemeler yapabilir. Her paket uygulama, ilgili testler, commit ve PROGRESS kaydıyla tamamlanır. Sonraki bağımsız paket için ayrıca “devam” beklenmez. Kesintide `SESSION_PLAN.md ve PROGRESS.md üzerinden son tamamlanmamış paketi sürdür` demeniz yeterlidir.
+
+Kabul kapıları: A %10; B %20; C %30; D %40; E %50; F/pilot %60; G %70; H %80; I %90; J/son teslim %100. Bu yüzde harcanan emek veya yazılan kod yüzdesi değildir. Ücretsiz kaynak sınırı, ticari scraping yasağı, Gmail gönderim yasağı, onay ve hassas veri korumaları tüm oturumlarda geçerlidir.
+
+## Onaylı sponsorluk ve medya genişlemesi
+
+2026-11-20: K paket55–59 sponsorluk; L paket60–66 medya/matchday/hizmet raporu. Ayrıntılı bitiş ölçütleri [COMMERCIAL_MEDIA_SCOPE.md](COMMERCIAL_MEDIA_SCOPE.md) ve [SESSION_PLAN.md](../SESSION_PLAN.md) içindedir. Önce yarım ajanda katmanlarını doğrula,15 kapsamında dashboard/görev adaptörlerine devam et. Yeni paneller mevcut Person/finans/Campaign/dosya/zamanlı bildirim temellerini yeniden kullanır; kaynak politikası değişmez.66 paket sayısı teslim süresi garantisi değildir.
+
+
+## Güncel somut takip —24.11.2026
+
+d33ea2f Kanban/kampanya tam16/17 CI45452199860 geçti:294 uygulama/159 güvenlik/54 tarayıcı. Şimdi [typed görev/kaynak bağlantı tasarımını](SPONSORSHIP_TYPED_LINKS_DESIGN.md) uygula: gerçek FK/migration, açık parent kontrolleri, kalıcı deep link, parent hata durumunda URL gizleme ve yeni şemada geçici kurtarma. Bu tasarım uygulama/kabul sayılmaz; sosyal hesap temeli ve pilot11 teklif/teslimatları ayrıca tamamlanacak.

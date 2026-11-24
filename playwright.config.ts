@@ -13,6 +13,15 @@ export default defineConfig({
   projects: [
     { name: 'chromium', testMatch: '**/core.spec.ts', grepInvert: /@club-workspace/ },
     { name: 'club-workspace', testMatch: '**/core.spec.ts', grep: /@club-workspace/ },
+    { name: 'transfer-workspace', testMatch: '**/transfers.spec.ts' },
+    { name: 'contract-workspace', testMatch: '**/contracts.spec.ts' },
+    { name: 'agenda-workspace', testMatch: ['**/agenda.spec.ts', '**/tasks.spec.ts'] },
+    { name: 'meeting-workspace', testMatch: '**/meetings.spec.ts' },
+    { name: 'agenda-layers', testMatch: '**/agenda-layers.spec.ts' },
+    { name: 'dashboard-workspace', testMatch: '**/dashboard.spec.ts' },
+    { name: 'resource-workspace', testMatch: '**/resources.spec.ts' },
+    { name: 'presentation-task-rule', testMatch: '**/presentation-tasks.spec.ts' },
+    { name: 'sponsorship-workspace', testMatch: '**/sponsorship.spec.ts' }, { name: 'sponsorship-pipeline', testMatch: ['**/pipeline.spec.ts', '**/membership.spec.ts', '**/sponsorship-views.spec.ts'] },
     { name: 'a11y', testMatch: '**/a11y.spec.ts' },
   ],
 });

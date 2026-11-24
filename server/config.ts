@@ -26,6 +26,7 @@ const configuration = z.object({
   }),
   PORT: z.coerce.number().int().min(1).max(65535).default(3000), HOST: z.string().min(1).default('0.0.0.0'),
   TRUSTED_PROXY_CIDRS: proxyAddresses,
+  FILE_STORAGE_MODE: z.enum(['drive', 'upload']).default('drive'),
   STORAGE_DRIVER: z.enum(['local', 's3']).default('local'), STORAGE_PATH: z.string().min(1).default('.local/uploads'),
   S3_ENDPOINT: emptyOptional(httpUrl), S3_BUCKET: z.string().default(''), S3_REGION: z.string().default(''),
   S3_ACCESS_KEY_ID: z.string().default(''), S3_SECRET_ACCESS_KEY: z.string().default(''),
@@ -46,6 +47,7 @@ const configuration = z.object({
   if (config.FIELD_ENCRYPTION_KEY && config.FIELD_ENCRYPTION_KEY === config.BLIND_INDEX_KEY) ctx.addIssue({ code: 'custom', path: ['BLIND_INDEX_KEY'], message: 'Must differ from the field encryption key' });
   if (Boolean(config.FIELD_ENCRYPTION_KEY) !== Boolean(config.BLIND_INDEX_KEY)) requireFields(['FIELD_ENCRYPTION_KEY', 'BLIND_INDEX_KEY']);
   if (config.NODE_ENV === 'production') {
+    if (config.FILE_STORAGE_MODE !== 'drive') ctx.addIssue({ code: 'custom', path: ['FILE_STORAGE_MODE'], message: 'Legacy generic uploads are development/test only; managed production uploads require the validated private-vault policy' });
     requireFields(['DIRECT_URL', 'ALLOWED_EMAILS', 'GOOGLE_CLIENT_ID', 'GOOGLE_CLIENT_SECRET', 'GOOGLE_REDIRECT_URI', 'FIELD_ENCRYPTION_KEY', 'BLIND_INDEX_KEY']);
     if (!config.APP_ORIGIN.startsWith('https://')) ctx.addIssue({ code: 'custom', path: ['APP_ORIGIN'], message: 'HTTPS required in production' });
     if (config.GOOGLE_REDIRECT_URI !== `${config.APP_ORIGIN}/auth/google/callback`) ctx.addIssue({ code: 'custom', path: ['GOOGLE_REDIRECT_URI'], message: 'Must match the application callback URL' });
