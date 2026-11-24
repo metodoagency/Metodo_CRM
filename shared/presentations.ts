@@ -1,11 +1,12 @@
 import { z } from 'zod';
-import { isoDate, presentationChannels } from './domain.js';
+import { presentationChannels } from './domain.js';
+import { taskDate } from './tasks.js';
 import type { NamedRecord } from './transfer-requests.js';
 
 export const presentationResults = ['PENDING', 'INTERESTED', 'OFFERED', 'REJECTED', 'WAITING'] as const;
 export const presentationFields = z.object({
-  date: isoDate, channel: z.enum(presentationChannels), result: z.enum(presentationResults),
-  followUpDate: isoDate, note: z.string().trim().max(4000),
+  date: taskDate, channel: z.enum(presentationChannels), result: z.enum(presentationResults),
+  followUpDate: taskDate, note: z.string().trim().max(4000),
 }).strict();
 export const presentationCreate = presentationFields.extend({
   clubId: z.uuid(), personId: z.uuid(), playerId: z.uuid(), requestId: z.uuid().nullable().default(null),

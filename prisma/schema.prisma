@@ -264,6 +264,7 @@ model Owner {
  presentationRecords Presentation[]
  meetingRecords Meeting[]
  taskRecords Task[]
+ taskGenerationReceipts TaskGenerationReceipt[]
  matchRecords Match[]
  scoutReportRecords ScoutReport[]
  eventRecords Event[]
@@ -987,6 +988,28 @@ model Task {
  @@index([ownerId, deletedAt, status, dueDate, id])
 }
 
+// A consumed source occurrence survives ordinary Task purge. taskId is deliberately not a foreign key.
+model TaskGenerationReceipt {
+ id String @id @default(uuid()) @db.Uuid
+ ownerId String @default("owner")
+ owner Owner @relation(fields: [ownerId], references: [id])
+ isExample Boolean @default(false)
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+ version Int @default(1)
+ name String
+ ruleKey String
+ entityType String
+ entityId String @db.Uuid
+ targetDate DateTime @db.Date
+ taskId String @db.Uuid
+ sourceVersion Int
+ ruleVersion Int
+ @@unique([ownerId, ruleKey, entityType, entityId, targetDate], map: "TaskGenerationReceipt_occurrence_key")
+ @@index([ownerId, taskId])
+ @@index([entityId])
+}
+
 model Match {
  scoutAssignmentLinks ScoutAssignment[]
  id String @id @default(uuid()) @db.Uuid
@@ -1692,6 +1715,9 @@ model UserSettings {
  aiEnabled Boolean @default(false)
  aiConsent Boolean @default(false)
  emailDigestEnabled Boolean @default(false)
+ presentationFollowUpTasksEnabled Boolean @default(false)
+ presentationTaskRuleVersion Int @default(1)
+ presentationTaskRuleSince DateTime?
  @@unique([ownerId])
  @@index([ownerId, deletedAt])
  @@index([ownerId])

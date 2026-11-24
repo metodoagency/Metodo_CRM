@@ -55,6 +55,7 @@ export type TaskRecord = {
   status: 'OPEN' | 'DONE'; recurrence: TaskInput['recurrence']; isExample: boolean;
   linkedEntity: (TaskLink & { name: string }) | null; linkUnavailable: boolean;
   recurrenceGenerated: boolean; occurrence: TaskOccurrence; invalidDate: boolean;
+  automation: { sourceDate: string; current: boolean } | null;
 };
 export type TaskSuccessor = { id: string; name: string; status: 'OPEN' | 'DONE'; dueDate: string; deleted: boolean };
 export type TaskDetail = TaskRecord & { successor: TaskSuccessor | null; successorMissing: boolean };

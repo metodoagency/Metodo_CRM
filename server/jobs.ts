@@ -4,6 +4,7 @@ import { readConfig } from './config.js';
 import { createStorage, drainStorageDeletions } from './storage.js';
 import { refreshBirthdayReminders } from './birthdays.js';
 import { refreshContractReminders } from './contract-reminders.js';
+import { catchUpPresentationTasks } from './presentation-tasks.js';
 export async function dailyJobs() {
   const now = new Date();
   const expiredSessions = await db.session.deleteMany({ where: { OR: [{ expiresAt: { lt: now } }, { lastSeenAt: { lt: new Date(now.getTime() - 3600_000) } }] } });
@@ -13,7 +14,8 @@ export async function dailyJobs() {
   // Business retention is manual, through a fresh owner-confirmed preview only.
   const birthdayReminders = await refreshBirthdayReminders(db, now);
   const contractReminders = await refreshContractReminders(db, now);
-  return { expiredSessions: expiredSessions.count, expiredOAuth: expiredOAuth.count, files, birthdayReminders, contractReminders, trash: { purged: 0, blocked: 0 } };
+  const presentationTasks = await catchUpPresentationTasks(db);
+  return { expiredSessions: expiredSessions.count, expiredOAuth: expiredOAuth.count, files, birthdayReminders, contractReminders, presentationTasks, trash: { purged: 0, blocked: 0 } };
 }
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   try { console.log(JSON.stringify(await dailyJobs())); } finally { await db.$disconnect(); }

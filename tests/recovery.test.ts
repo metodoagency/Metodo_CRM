@@ -39,6 +39,10 @@ async function fixture() {
   }
   const resource = await db.externalResource.create({ data: { name: 'Örnek Drive kaynağı', searchName: 'ornek drive kaynagi', kind: 'DOCUMENT', externalUrl: encrypt('https://drive.google.com/file/d/ExampleRecovery/view', 'ExternalResource.externalUrl'), isExample: true } });
   await db.externalResourceLink.create({ data: { name: resource.name, resourceId: resource.id, playerId: player.id, isExample: true } });
+  const person = await db.person.create({ data: { name: 'Örnek Kurtarma Kişisi', searchName: 'ornek kurtarma kisisi', role: 'OFFICIAL', isExample: true } });
+  const presentation = await db.presentation.create({ data: { name: 'Örnek Kurtarma Sunumu', date: new Date('2026-01-01'), followUpDate: new Date('2026-12-01'), playerId: player.id, clubId: club.id, personId: person.id, isExample: true } });
+  // The original Task was hard-purged; restoring must still preserve its consumed receipt.
+  await db.taskGenerationReceipt.create({ data: { name: 'Örnek Kurtarma Makbuzu', ruleKey: 'presentation-follow-up-v1', entityType: 'Presentation', entityId: presentation.id, targetDate: presentation.followUpDate, taskId: randomUUID(), sourceVersion: 1, ruleVersion: 2, isExample: true } });
   await db.session.create({ data: { id: 'ExampleSessionHash', ownerId: 'owner', email: encrypt('owner@example.com', 'Session.email'), expiresAt: new Date(Date.now() + 60000) } });
   await db.storageDeletion.create({ data: { driver: 'local', storageKey: newStorageKey(), notBefore: new Date() } });
   return captureRecovery(client, { local: storage }, true);
@@ -59,6 +63,7 @@ describe('sensitive paths: encrypted pilot recovery', () => {
     expect(bundle.tables.Request[0].salaryMax).toBe('1234567890123456.78'); expect(bundle.tables.Request[0].deadline).toBe('2028-02-29');
     expect(bundle.tables.Player.map(row => row.mandate)).toEqual(expect.arrayContaining([null, 'null', expect.stringContaining('900719925474099312345')]));
     expect(bundle.manifest.Attachment).toMatchObject({ count: 2, live: 1, trashed: 1, examples: 2 });
+    expect(bundle.manifest.TaskGenerationReceipt).toMatchObject({ count: 1, examples: 1 }); expect(bundle.tables.Task).toHaveLength(0);
     const result = await verifyRecoveryInTemporaryDatabase(bundle, process.env.DATABASE_URL!);
     expect(result).toMatchObject({ ok: true, mismatches: [], objects: 2, applicationStarted: false, objectRestore: { count: 2, target: 'isolated-memory' } });
     expect((await client.query('SELECT datname FROM pg_database WHERE datname=$1', [result.temporaryDatabase])).rows).toEqual([]);

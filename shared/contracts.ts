@@ -25,6 +25,7 @@ import { contractInput, contractListQuery, contractNote, contractNoteParams, con
 import { agentBirthdayCreate, agentBirthdayQuery, birthdayChange, birthdayPage, birthdaySubject, birthdayThresholds, calendarPage, greetingSubject, greetingWrite, significantDateChange, significantDateWrite } from './calendar.js';
 import { notificationAction, notificationQuery } from './notifications.js';
 import { taskCreate, taskLinkQuery, taskPatch, taskQuery } from './tasks.js';
+import { presentationRuleInput, presentationRulePreview } from './presentation-tasks.js';
 import { agendaExport, agendaQuery, meetingCreate, meetingPatch, meetingTaskCommit, meetingTaskPreview, meetingTimeInput, participantQuery } from './meetings.js';
 import { dashboardLayout } from './dashboard.js';
 
@@ -62,6 +63,10 @@ export const patchInput = versionInput.extend({ changes: z.record(z.string(), z.
 export type ApiContract = { method: 'get' | 'post' | 'patch' | 'delete'; path: string; query?: z.ZodType; params?: z.ZodType; body?: z.ZodType; success?: number; public?: boolean; testOnly?: boolean; csv?: boolean; multipart?: boolean; download?: readonly string[] };
 export const apiContracts: ApiContract[] = [
   { method: 'get', path: '/api/tasks', query: taskQuery },
+  { method: 'get', path: '/api/task-rules/presentation' },
+  { method: 'get', path: '/api/task-rules/presentation/candidates', query: z.object({ page: z.coerce.number().int().min(1).max(100000).default(1) }).strict() },
+  { method: 'post', path: '/api/task-rules/presentation/preview', body: presentationRuleInput },
+  { method: 'post', path: '/api/task-rules/presentation/confirm', body: presentationRulePreview },
   { method: 'get', path: '/api/agenda', query: agendaQuery },
   { method: 'get', path: '/api/agenda/deadlines', query: agendaQuery },
   { method: 'post', path: '/api/agenda/birthdays/view', body: agendaQuery },

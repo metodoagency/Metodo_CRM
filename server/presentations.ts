@@ -6,17 +6,15 @@ import { istanbulToday, normalizeSearch } from '../shared/domain.js';
 import { matrixQuery, presentationCreate, presentationQuery, presentationUpdate } from '../shared/presentations.js';
 import { AppError, clubContacts, live, logEvent, requireEntity, type Tx } from './core.js';
 import { provenanceFor } from '../shared/provenance.js';
+import { generatePresentationTask } from './presentation-tasks.js';
+import { presentationLive } from './presentation-parent.js';
+export { presentationLive } from './presentation-parent.js';
 
 const named = { id: true, name: true } as const;
 const selection = {
   id: true, version: true, date: true, channel: true, result: true, followUpDate: true, note: true,
   club: { select: named }, person: { select: named }, player: { select: named }, request: { select: named },
 } satisfies Prisma.PresentationSelect;
-// A deleted linked request can remain in history, but its name is never returned.
-export const presentationLive = {
-  ...live, club: live, person: live, player: live,
-  OR: [{ requestId: null }, { request: live }],
-} satisfies Prisma.PresentationWhereInput;
 export function overduePresentations(today = istanbulToday()): Prisma.PresentationWhereInput {
   return { ...presentationLive, followUpDate: { lt: new Date(today) }, result: { not: 'REJECTED' } };
 }
@@ -35,8 +33,7 @@ export async function readPresentations(tx: Tx, input: ReturnType<typeof present
 
 async function recordPresentation(tx: Tx, row: {
   id: string; name: string; clubId: string; personId: string; playerId: string; requestId: string | null; isExample: boolean;
-}, action: 'create' | 'update', diffs: unknown) {
-  const batchId = randomUUID();
+}, action: 'create' | 'update', diffs: unknown, batchId = randomUUID()) {
   const links = [['Club', row.clubId], ['Person', row.personId], ['Player', row.playerId], ['Request', row.requestId]] as const;
   await logEvent(tx, { entityType: 'Presentation', entityId: row.id, name: row.name, action, batchId, diffs, isExample: row.isExample });
   for (const [type, id] of links) if (id) {
@@ -57,7 +54,7 @@ export async function registerPresentations(app: FastifyInstance, db: PrismaClie
     const created = await db.$transaction(async tx => {
       const club = await requireEntity(tx, 'Club', input.clubId);
       const player = await requireEntity(tx, 'Player', input.playerId);
-      await requireEntity(tx, 'Person', input.personId);
+      const person = await requireEntity(tx, 'Person', input.personId);
       if (!await tx.relation.findFirst({ where: { ...clubContacts(input.clubId, new Date(input.date)), fromId: input.personId } })) {
         throw new AppError('PERSON_NOT_AT_CLUB');
       }
@@ -65,11 +62,14 @@ export async function registerPresentations(app: FastifyInstance, db: PrismaClie
         const request = await requireEntity(tx, 'Request', input.requestId);
         if (!('clubId' in request) || request.clubId !== input.clubId) throw new AppError('INVALID_INPUT');
       }
+      const isExample = club.isExample || player.isExample || person.isExample;
       const row = await tx.presentation.create({ data: {
         ...input, date: new Date(input.date), followUpDate: new Date(input.followUpDate),
-        name: `${player.name} → ${club.name}`, fieldProvenance: provenanceFor(input),
+        name: `${isExample && !/^(?:Örnek|ÖRNEK)/u.test(player.name) ? 'Örnek ' : ''}${player.name} → ${club.name}`, isExample, fieldProvenance: provenanceFor(input),
       } });
-      await recordPresentation(tx, row, 'create', { presentationId: row.id, channel: row.channel, result: row.result, date: input.date, followUpDate: input.followUpDate });
+      const batchId = randomUUID();
+      await recordPresentation(tx, row, 'create', { presentationId: row.id, channel: row.channel, result: row.result, date: input.date, followUpDate: input.followUpDate }, batchId);
+      await generatePresentationTask(tx, row.id, batchId);
       return tx.presentation.findUniqueOrThrow({ where: { id: row.id }, select: selection });
     }, { isolationLevel: 'Serializable' });
     return reply.code(201).send(created);
@@ -88,12 +88,14 @@ export async function registerPresentations(app: FastifyInstance, db: PrismaClie
           fieldProvenance: provenanceFor(input, before.fieldProvenance),
         },
       });
+      const batchId = randomUUID();
       await recordPresentation(tx, row, 'update', {
         presentationId: id,
         old: { date: before.date, channel: before.channel, result: before.result, followUpDate: before.followUpDate },
         new: { date: row.date, channel: row.channel, result: row.result, followUpDate: row.followUpDate },
         noteChanged: before.note !== input.note,
-      });
+      }, batchId);
+      await generatePresentationTask(tx, row.id, batchId);
       return tx.presentation.findUniqueOrThrow({ where: { id }, select: selection });
     }, { isolationLevel: 'Serializable' });
   });

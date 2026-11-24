@@ -6,6 +6,7 @@ import { istanbulToday } from '../shared/domain';
 import { nextTaskOccurrence, taskDate, taskFields, taskLinkPath, taskLinkTypes, taskPriorities, taskRecurrences, type TaskActionResult, type TaskDetail, type TaskInput, type TaskLink, type TaskRecord } from '../shared/tasks';
 import { api, ApiError, body } from './api';
 import { Empty, ErrorMessage, Modal } from './components';
+import { PresentationTaskRule } from './presentation-task-rule';
 
 type TaskList = { items: TaskRecord[]; total: number; pageSize: number };
 const blank = (): TaskInput => ({ name: '', priority: 'MEDIUM', dueDate: istanbulToday(), recurrence: 'NONE', linkedEntity: null });
@@ -32,6 +33,7 @@ export function Tasks() {
   return <>
     <div className="flex justify-between flex-wrap gap-3"><h1>{t('tasks')}</h1><button className="primary" onClick={() => { setMessage(false); setEditor('new'); }}>{t('taskAdd')}</button></div>
     {message && <p className="notice my-4" role="status">{t('taskSaved')}</p>}
+    <PresentationTaskRule />
     <div className="grid md:grid-cols-3 gap-3 my-5">
       <label className="field">{t('searchLabel')}<input value={q} maxLength={100} onChange={event => { setPage(1); setQ(event.target.value); }} /></label>
       <label className="field">{t('status')}<select aria-label={t('status')} value={status} onChange={event => { setPage(1); setStatus(event.target.value); }}>{['OPEN', 'DONE', 'all'].map(value => <option key={value} value={value}>{t(value === 'all' ? 'all' : `taskStatus_${value}`)}</option>)}</select></label>
@@ -59,6 +61,7 @@ function TaskPanel({ row, edit, refresh, deleted }: { row: TaskDetail; edit: () 
     {row.isExample && <p className="notice my-3">{t('example')}</p>}
     {row.invalidDate && <p className="notice">{t('taskInvalidDate')}</p>}
     {row.linkUnavailable && <p className="notice my-3">{t('taskLinkUnavailable')}</p>}
+    {row.automation && <p className="notice my-3">{t(row.automation.current ? 'presentationTaskCurrent' : 'presentationTaskPrevious', { date: day(row.automation.sourceDate) })}</p>}
     {row.linkedEntity && <p className="my-3">{t('taskLink')}: {href ? <Link className="text-accent" to={href}>{row.linkedEntity.name}</Link> : row.linkedEntity.name}</p>}
     <TaskOccurrenceInfo row={row} />
     {row.successor && <div className="notice my-3"><strong>{t('taskSuccessor')}: </strong>{row.successor.deleted ? <><span>{row.successor.name}</span><p>{t('taskSuccessorDeleted')}</p><Link className="text-accent" to="/trash">{t('trash')}</Link></> : <Link className="text-accent" to={`/tasks?task=${row.successor.id}`}>{row.successor.name} · {day(row.successor.dueDate)}</Link>}</div>}

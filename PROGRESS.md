@@ -1,5 +1,15 @@
 # Metodo CRM progress
 
+## Presentation follow-up implementation - 2026-11-24
+
+The new attachment fd55f481 is byte-identical (SHA256 checked) to docs/OWNER_EXTENSION_20261123.md; its complete scope and existing authorizations remain in force. No duplicate scope/version plan was created.
+
+Implemented default-OFF owner rule, paged selected historical backfill, signed10-minute session-bound exact previews, dedicated versioned confirmation, server-time future cutoff, atomic manual/R3 Task+receipt+timeline writes, protected durable receipts and stored-data-only startup/daily catch-up. Task history is preserved across source/date/rule changes and ordinary Task purge. Added current-source annotation, localized mobile editor and legacy-date isolation. Review corrected COMMIT conflict normalization, a late modal callback and invalid-date handling. Details: docs/PRESENTATION_TASK_RULE.md. No sponsorship/media/vault completion is claimed by this slice.
+
+Initial PostgreSQL presentation suite5/5 and TR/EN mobile/dialog-axe2/2 passed. Existing Task and recovery suites passed during combined validation; the new schema assertion exposed omitted runtime DMMF index metadata and was corrected without changing schema/lifecycle protections. The added BC-date regression exposed an Invalid Date batch error; corrected Presentation/schema checks passed11/11. Build/typecheck/lint/i18n1240/compliance passed (compliance texts remain NOT REVIEWED). Final full application suite and browser rerun with a late-response regression are underway. New immutable CI and preview API refresh remain pending; earlier260/43 counts below belong to78bd4a4 only. No production schema mutation or milestone merge.
+
+Ledger remains10/72 DONE,7 IN_PROGRESS,55 NOT_STARTED; A–J10%, K/L/M0/3. Private pilot4/16 accepted,5 in progress (3/6/7/8/9),7 not started. Source adapters are partial package15. Next: finish new source evidence/preview, then brand/contact/multi-player opportunities. Existing OAuth/storage/formal security blockers remain under Owner input needed; independent product development continues.
+
 ## Verified source and visible preview - 2026-11-24
 
 Functional source78bd4a47057c43bc48506c3dd7101f4c1ec97ba8 passed complete PostgreSQL16/17 CI45328619816:260 application tests,126 selected security tests (134 unrelated skips),43 browser/axe scenarios per version,1221 bilingual keys, lint/typecheck/build/compliance. Both jobs completed successfully. The earlier7a0398c Docker guard failure is resolved by an exact pinned private-container address; loopback URLs, random empty temporary DBs and creator-only connection safeguards remain enforced.
@@ -8,7 +18,7 @@ The owner explicitly confirmed localhost:5173 opens and CRM screens are visible.
 
 Delivery ledger:10/72 DONE,7 IN_PROGRESS,55 NOT_STARTED; A–J10%, K/L/M0/3. Private pilot4/16 accepted (1/2/4/5),4 in progress (3/6/7/8),8 not started. Recovery source is verified; actual production key custody/storage and real owner HTTPS remain open. Both assigned Render health/auth probes timed out after30 seconds; independent web fetch was unavailable. Browser inspection failed Windows1920 before account state. No working internet URL or owner login is claimed, and existing OAuth/Render approvals remain valid.
 
-Next independent product work: previewed opt-in presentation follow-up Tasks, followed by brand/contact/multi-player sponsorship and media in the retained plan. The adapter design was reviewed only; no TaskGenerationReceipt or adapter has been implemented. Formal managed security scan remains blocked as recorded below; keep PR3 draft/unmerged. Later documentation-only commits do not replace this exact functional source CI evidence.
+At this earlier checkpoint the Presentation adapter was design-only; the implementation above supersedes that state. Formal managed security scan remains blocked as recorded below; keep PR3 draft/unmerged. Later documentation-only commits do not replace exact functional source CI evidence.
 
 24Nov immediate preview: http://localhost:5173 is running from the current checkout against a separate persistent metodo_preview database, bound to127.0.0.1 with development-only test login. Health/web/Player/Club/Resource reads200;4 example players and3 example clubs. Existing development/test/production databases were not reset. This is a local example preview, not the internet owner-OIDC pilot. Source resource/privacy8fce1d3 CI remains green. Recovery7a0398c CI45275205213 failed3 tests on both versions because the native-loopback server guard rejected Docker's container interface. The correction pins only the exact service-container private address from docker inspect, retains loopback URLs, and tests neighboring/public-address rejection.8 local recovery tests passed; new exact CI required. No Presentation adapter source has been written yet.
 

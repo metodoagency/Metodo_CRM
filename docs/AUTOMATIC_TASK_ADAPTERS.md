@@ -1,6 +1,6 @@
-# Package15 automatic task adapters — next implementation
+# Package15 automatic task adapters
 
-Design reviewed2026-11-20. **NOT IMPLEMENTED.** This document preserves the concrete next slice after the configurable dashboard. It grants no acceptance credit and introduces no runtime scheduling or source fetching.
+Design reviewed2026-11-20; Presentation slice implemented2026-11-24. The other source adapters and full package15/C acceptance remain open. No network acquisition or outbound processing is introduced. See docs/PRESENTATION_TASK_RULE.md for exact rule/cutoff and recovery behavior; immutable PostgreSQL16/17 CI is required before accepting the slice.
 
 ## Existing behavior to preserve
 
@@ -9,7 +9,7 @@ Design reviewed2026-11-20. **NOT IMPLEMENTED.** This document preserves the conc
 | Meeting | Explicit signed, expiring, versioned preview/approval creates a Task atomically with the source update and timeline. Generation identity is meeting:id:version; several intentional tasks are possible. |
 | Task recurrence | Completion atomically creates one successor. The retained source consumed marker prevents regeneration after successor purge. |
 | Coach-departure approval | R1 already creates/logs one HIGH Task due Istanbul today+2 atomically. Proposal payload retains taskId. |
-| Presentation | Suggestion and manual writes save followUpDate but create no Task. **Missing adapter.** |
+| Presentation | Owner-enabled, default-OFF, signed preview/confirmation; selected historical sources and future writes generate one protected receipt per source/date. Startup/daily catch-up reads stored sources only. Source/API/browser/restore regressions added; exact new CI pending. |
 | Contract alert | Current-target deduplicated Notifications exist, Tasks do not. **Missing adapter.** |
 | General pending approval | No general review-task rule exists. **Missing adapter.** |
 | Blocked transfer step | Source workflow belongs to a later package; do not simulate it now. |

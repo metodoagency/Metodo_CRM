@@ -1,7 +1,7 @@
 import { taskLink, type TaskLink } from '../shared/tasks.js';
 import { AppError, live, type Tx } from './core.js';
 import { contractScope } from './contract-parent.js';
-import { presentationLive } from './presentations.js';
+import { presentationLive } from './presentation-parent.js';
 
 const select = { id: true, name: true } as const;
 // Explicit dispatch prevents the generic entity delegate's Request fallback.

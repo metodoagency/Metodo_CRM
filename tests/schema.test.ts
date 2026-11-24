@@ -2,10 +2,16 @@ import { it, expect } from 'vitest';
 import { Prisma } from '@prisma/client';
 import { readFileSync } from 'node:fs';
 it('keeps audit/version columns and provenance on all business models', () => {
-  for (const model of Prisma.dmmf.datamodel.models.filter(m => !['Owner', 'Session', 'OAuthAttempt', 'StorageDeletion'].includes(m.name))) {
+  for (const model of Prisma.dmmf.datamodel.models.filter(m => !['Owner', 'Session', 'OAuthAttempt', 'StorageDeletion', 'TaskGenerationReceipt'].includes(m.name))) {
     const fields = new Map(model.fields.map(f => [f.name, f]));
     for (const name of ['ownerId', 'createdAt', 'updatedAt', 'deletedAt', 'createdBy', 'updatedBy', 'version', 'isExample', 'fieldProvenance', 'sourceUrl', 'sourceType', 'retrievedAt', 'verificationStatus']) expect(fields.has(name), `${model.name}.${name}`).toBe(true);
   }
+});
+it('protects minimal generation receipts independently of Task lifecycle', () => {
+  const model = Prisma.dmmf.datamodel.models.find(model => model.name === 'TaskGenerationReceipt')!;
+  const fields = new Map(model.fields.map(field => [field.name, field]));
+  for (const name of ['ownerId', 'createdAt', 'updatedAt', 'version', 'name', 'isExample', 'ruleKey', 'entityType', 'entityId', 'targetDate', 'taskId', 'sourceVersion', 'ruleVersion']) expect(fields.has(name)).toBe(true);
+  expect(fields.has('deletedAt')).toBe(false); expect(model.fields.some(field => field.kind === 'object' && field.type === 'Task')).toBe(false);
 });
 it('keeps the storage deletion outbox limited to infrastructure metadata', () => {
   const queue = Prisma.dmmf.datamodel.models.find(model => model.name === 'StorageDeletion')!;

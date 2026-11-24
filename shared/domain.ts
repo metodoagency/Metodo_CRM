@@ -54,7 +54,7 @@ export const presentationChannels = ['IN_PERSON', 'EMAIL', 'MESSAGING', 'VIDEO']
 export const suggestionInput = z.object({
   requestId: z.uuid(), requestVersion: z.number().int().positive().optional(), playerId: z.uuid(), personId: z.uuid(),
   whyGoodTransfer: z.string().trim().min(3).max(4000), matchScore: z.number().min(0).max(100).nullable().default(null),
-  channel: z.enum(presentationChannels).optional(), followUpDate: isoDate.optional(),
+  channel: z.enum(presentationChannels).optional(), followUpDate: isoDate.refine(date => date >= '0001-01-01', 'INVALID_DATE').optional(),
 }).strict();
 export const relationTypes = ['memberOf', 'representedBy', 'intermediaryFor', 'sellingFor', 'mandatedBy', 'suggestedTo', 'presentedTo', 'invitedAs', 'attendee', 'contactOf', 'worksWith', 'partnerOf', 'usesTool', 'hiredBy', 'speakerAt', 'organizedBy', 'scoutedAt', 'linkedTo'] as const;
 export const entityTypes = ['Club', 'Player', 'Person', 'Request'] as const;

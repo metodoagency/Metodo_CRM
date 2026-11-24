@@ -20,6 +20,7 @@ export default defineConfig({
     { name: 'agenda-layers', testMatch: '**/agenda-layers.spec.ts' },
     { name: 'dashboard-workspace', testMatch: '**/dashboard.spec.ts' },
     { name: 'resource-workspace', testMatch: '**/resources.spec.ts' },
+    { name: 'presentation-task-rule', testMatch: '**/presentation-tasks.spec.ts' },
     { name: 'a11y', testMatch: '**/a11y.spec.ts' },
   ],
 });

@@ -4,6 +4,7 @@ import type { z } from 'zod';
 import { istanbulToday, suggestionInput } from '../shared/domain.js';
 import { AppError, clubContacts, live, logEvent, requireEntity } from './core.js';
 import { tr, en } from '../shared/locales.js';
+import { generatePresentationTask } from './presentation-tasks.js';
 
 export async function createSuggestion(db: PrismaClient, input: z.infer<typeof suggestionInput>, isExample = false) {
   return db.$transaction(async tx => {
@@ -13,6 +14,7 @@ export async function createSuggestion(db: PrismaClient, input: z.infer<typeof s
     const club = await requireEntity(tx, 'Club', request.clubId);
     const person = await requireEntity(tx, 'Person', input.personId);
     const player = await requireEntity(tx, 'Player', input.playerId);
+    isExample = isExample || request.isExample || club.isExample || person.isExample || player.isExample;
     const today = istanbulToday();
     const date = new Date(`${today}T00:00:00Z`);
     if (!await tx.relation.findFirst({ where: { ...clubContacts(club.id, date), fromId: person.id } })) throw new AppError('PERSON_NOT_AT_CLUB');
@@ -21,7 +23,8 @@ export async function createSuggestion(db: PrismaClient, input: z.infer<typeof s
     const name = `${isExample ? 'Örnek ' : ''}${player.name} → ${club.name}`;
     const suggestion = await tx.suggestion.create({ data: { name, requestId: request.id, playerId: player.id, personId: person.id, clubId: club.id, date, matchScore: input.matchScore, fitReasons: [], missingCriteria: input.matchScore === null ? ['matchScore'] : [], whyGoodTransfer: input.whyGoodTransfer, batchId, isExample } });
     await tx.relation.create({ data: { fromType: 'Player', fromId: player.id, toType: 'Club', toId: club.id, relation: 'suggestedTo', startDate: date, note: `${person.name} · ${request.name} · ${today}`, isExample } });
-    await tx.presentation.create({ data: { name, date, clubId: club.id, playerId: player.id, personId: person.id, requestId: request.id, channel: input.channel, followUpDate, note: input.whyGoodTransfer, isExample } });
+    const presentation = await tx.presentation.create({ data: { name, date, clubId: club.id, playerId: player.id, personId: person.id, requestId: request.id, channel: input.channel, followUpDate, note: input.whyGoodTransfer, isExample } });
+    await generatePresentationTask(tx, presentation.id, batchId);
     await tx.request.update({ where: { id: request.id, version: request.version }, data: { status: 'SUGGESTED', version: { increment: 1 } } });
     const values: Record<string, string> = { club: club.name, person: person.name, request: request.name, date: today };
     const summaries = { tr: tr.suggestionSummary.replace(/\{(\w+)\}/g, (_, key: string) => values[key]), en: en.suggestionSummary.replace(/\{(\w+)\}/g, (_, key: string) => values[key]) };

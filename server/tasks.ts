@@ -8,8 +8,9 @@ import { retentionPeriods } from '../shared/retention.js';
 import { nextTaskOccurrence, taskCreate, taskDate, taskLinkQuery, taskPatch, taskQuery, type TaskActionResult, type TaskDetail, type TaskInput, type TaskRecord, type TaskSuccessor } from '../shared/tasks.js';
 import { AppError, live, logEvent, type Tx } from './core.js';
 import { requireTaskLink, resolveTaskLink, taskLinkRecords } from './task-parent.js';
+import { presentationLive } from './presentation-parent.js';
 
-const date = (value: Date) => value.toISOString().slice(0, 10);
+const date = (value: Date) => Number.isFinite(value.getTime()) ? value.toISOString().slice(0, 10) : 'INVALID_DATE';
 const key = (id: string) => `repeat:${id}`;
 async function requireTask(tx: Tx, id: string) {
   const row = await tx.task.findFirst({ where: { ...live, id } });
@@ -30,7 +31,10 @@ export function requireExampleName(isExample: boolean, name: string) {
 async function dto(tx: Tx, row: Task): Promise<TaskRecord> {
   const linkedEntity = await resolveTaskLink(tx, row.entityType, row.entityId);
   const dueDate = date(row.dueDate); const invalidDate = !taskDate.safeParse(dueDate).success;
+  const receipt = await tx.taskGenerationReceipt.findFirst({ where: { ownerId: live.ownerId, taskId: row.id } });
+  const source = receipt ? await tx.presentation.findFirst({ where: { ...presentationLive, id: receipt.entityId, result: { not: 'REJECTED' } }, select: { followUpDate: true } }) : null;
   return { id: row.id, version: row.version, name: row.name, priority: row.priority, dueDate, status: row.status,
+    automation: receipt ? { sourceDate: date(receipt.targetDate), current: !!source && date(source.followUpDate) === date(receipt.targetDate) } : null,
     recurrence: row.recurrence, isExample: row.isExample, linkedEntity,
     linkUnavailable: !!(row.entityType || row.entityId) && !linkedEntity, recurrenceGenerated: row.recurrenceGenerated, invalidDate,
     occurrence: invalidDate || row.recurrenceGenerated ? { nextDate: null, skippedMonths: [], limited: false } : nextTaskOccurrence(dueDate, row.recurrence) };
