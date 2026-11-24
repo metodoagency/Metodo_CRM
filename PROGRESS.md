@@ -1,5 +1,15 @@
 # Metodo CRM progress
 
+## Verified source and visible preview - 2026-11-24
+
+Functional source78bd4a47057c43bc48506c3dd7101f4c1ec97ba8 passed complete PostgreSQL16/17 CI45328619816:260 application tests,126 selected security tests (134 unrelated skips),43 browser/axe scenarios per version,1221 bilingual keys, lint/typecheck/build/compliance. Both jobs completed successfully. The earlier7a0398c Docker guard failure is resolved by an exact pinned private-container address; loopback URLs, random empty temporary DBs and creator-only connection safeguards remain enforced.
+
+The owner explicitly confirmed localhost:5173 opens and CRM screens are visible. The isolated persistent metodo_preview database was initialized with4 example players and3 example clubs; API/web/record reads returned200. It uses loopback-only development test login and .local/preview-uploads, not production OAuth. Helpers are .local/prepare-preview.ts and .local/start-preview.ts, with the original launcher preserved. Other development/test/production data was not reset.
+
+Delivery ledger:10/72 DONE,7 IN_PROGRESS,55 NOT_STARTED; A–J10%, K/L/M0/3. Private pilot4/16 accepted (1/2/4/5),4 in progress (3/6/7/8),8 not started. Recovery source is verified; actual production key custody/storage and real owner HTTPS remain open. Both assigned Render health/auth probes timed out after30 seconds; independent web fetch was unavailable. Browser inspection failed Windows1920 before account state. No working internet URL or owner login is claimed, and existing OAuth/Render approvals remain valid.
+
+Next independent product work: previewed opt-in presentation follow-up Tasks, followed by brand/contact/multi-player sponsorship and media in the retained plan. The adapter design was reviewed only; no TaskGenerationReceipt or adapter has been implemented. Formal managed security scan remains blocked as recorded below; keep PR3 draft/unmerged. Later documentation-only commits do not replace this exact functional source CI evidence.
+
 24Nov immediate preview: http://localhost:5173 is running from the current checkout against a separate persistent metodo_preview database, bound to127.0.0.1 with development-only test login. Health/web/Player/Club/Resource reads200;4 example players and3 example clubs. Existing development/test/production databases were not reset. This is a local example preview, not the internet owner-OIDC pilot. Source resource/privacy8fce1d3 CI remains green. Recovery7a0398c CI45275205213 failed3 tests on both versions because the native-loopback server guard rejected Docker's container interface. The correction pins only the exact service-container private address from docker inspect, retains loopback URLs, and tests neighboring/public-address rejection.8 local recovery tests passed; new exact CI required. No Presentation adapter source has been written yet.
 
 ## Protected legacy evidence - 2026-11-24
